@@ -1,0 +1,78 @@
+[tool.poetry]
+name = "uts"
+version = "0.1.0"
+description = "Universal Time System"
+authors = ["Daniel Neagaru <daniel@neagaru.com>"]
+license = "GPL-3.0-or-later"
+readme = "README.md"
+
+[tool.poetry.scripts]
+uts = "uts.cli:main"
+
+
+[tool.poetry.dependencies]
+python = ">=3.10,<=3.12"
+ntplib = "^0.4.0"
+colorama = "^0.4.6"
+dateparser = "^1.2.0"
+google-generativeai = "^0.8.3"
+importlib-metadata = "^8.5.0"
+prompt-toolkit = "^3.0.48"
+black = "^24.10.0"
+python-dotenv = "^1.0.1"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
+mypy = "^1.13.0"
+tox = "^4.23.2"
+coverage = "^7.6.9"
+pyflakes = "^3.2.0"
+pylint = "^3.3.2"
+sphinx = "^8.1.3"
+sphinx-autodoc-typehints = "^2.5.0"
+bandit = "^1.8.0"
+pre-commit = "^4.0.1"
+pre-commit-hooks = "^5.0.0"
+types-requests = "^2.32.0.20241016"
+types-dateparser = "^1.2.0.20240420"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 100
+target-version = ['py39']
+include = '\.pyi?$'
+exclude = ''
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 100
+
+[tool.pylint]
+disable = [
+    "import-error",
+    "too-many-lines",
+    "too-many-arguments",
+    "too-many-positional-arguments",
+    "too-many-boolean-expressions",
+    "too-many-return-statements"]
+max-line-length = 100
+ignore = ["docs", "tests", ".tox", ".git"]
+
+
+[tool.mypy]
+disallow_untyped_calls = true
+disallow_untyped_defs = true
+strict = true
+files = "src, tests"
+ignore_missing_imports = true
+
+
+[flake8]
+max-line-length = 100

@@ -1,0 +1,50 @@
+## Python
+
+# Packages
+__pycache__/
+*.pyc
+*.py[cod]
+*$py.class
+build
+_build
+/dist/*
+*.egg-info/
+*.egg
+
+.python-version
+
+# Unit test / coverage reports
+*.tox/
+*.coverage
+.tox/*
+.pytest_cache/*
+
+# mypy
+.mypy_cache/*
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# Sphinx documentation build directory
+docs/_build/
+docs/_static/
+docs/_templates/
+
+# Coverage reports
+htmlcov/
+
+# Environment-specific files
+.env
+*.env
+*.venv
+.venv/
+
+# Poetry virtual environment
+poetry.lock
+
+# Pytest cache
+.cache/
+nosetests.xml
+coverage.xml
