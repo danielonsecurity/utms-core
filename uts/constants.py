@@ -62,3 +62,4 @@ HUMAN_TIME_UNITS = {
 MILLENNIUM_DATE = datetime(2000, 1, 1, 0, 0, tzinfo=timezone.utc)
 CE_DATE = datetime(1, 1, 1, 0, 0, tzinfo=timezone.utc)
 LIFE_DATE = datetime(1992, 6, 27, 0, 0, tzinfo=timezone.utc)
+UNIX_DATE = datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)

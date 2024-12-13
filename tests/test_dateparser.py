@@ -62,8 +62,14 @@ def test_resolve_date_iso8601_format():
     assert actual == expected
 
 
-def test_resolve_date_relative_date():
+def test_resolve_date_yesterday():
     expected = datetime.now().astimezone() - timedelta(days=1)
     actual = resolve_date_dateparser("yesterday")
+    # Allow a small margin of error (for exact second comparison)
+    assert abs((actual - expected).total_seconds()) < 60
+
+def test_resolve_date_relative_date():
+    expected = datetime.now().astimezone() - timedelta(days=5)
+    actual = resolve_date_dateparser("5 days ago")
     # Allow a small margin of error (for exact second comparison)
     assert abs((actual - expected).total_seconds()) < 60

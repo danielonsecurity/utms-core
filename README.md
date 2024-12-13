@@ -1,7 +1,21 @@
 
 # UTS - Python Package
 
-This repository contains the UTS Python package. Follow the steps below to clone the repository, install Poetry, and run the package.
+UTS (Universal Time System) introduces an innovative method of
+tracking time, spanning from the Big Bang to the eventual heat death
+of the universe, based on a decimalized time system. This reimagined
+timekeeping framework offers significant advantages:
+
+Universal Scalability: By uniting cosmic and human timescales, UTS
+enables seamless precision in scientific, astronomical, and everyday
+contexts.  Simplicity and Consistency: Decimal-based units eliminate
+irregularities found in traditional systems, such as leap years or
+varying month lengths.  Future-Proofing: Designed to transcend
+cultural and temporal boundaries, UTS provides a globally consistent
+reference point, ideal for a spacefaring and technologically advanced
+society.  UTS challenges conventional notions of time by emphasizing
+universality, precision, and adaptability, creating a system that is
+as relevant to cosmic events as it is to daily life.
 
 ## Prerequisites
 
@@ -22,7 +36,9 @@ cd uts
 
 ### 2. Install Poetry
 
-[Poetry](https://python-poetry.org/) is a Python dependency management tool that simplifies the process of managing dependencies and packaging.
+[Poetry](https://python-poetry.org/) is a Python dependency management
+tool that simplifies the process of managing dependencies and
+packaging.
 
 Either install Poetry from your package manager, or follow the official installation method:
 
@@ -91,4 +107,5 @@ uts
 ```
 
 
-This will execute the package. If you have specific commands or functionality to run, you can adjust the command accordingly.
+This will execute the package. If you have specific commands or
+functionality to run, you can adjust the command accordingly.

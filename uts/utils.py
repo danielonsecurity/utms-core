@@ -943,6 +943,10 @@ def print_time(timestamp: datetime) -> None:
     print_header("Now Time:")
     print_results(delta)
 
+    delta = total_seconds - Decimal(constants.UNIX_DATE.timestamp())
+    print_header("Unix Time:")
+    print_results(delta)
+
     delta = Decimal(calculate_total_time_seconds()) + delta
     print_header("UPC Time:")
     print_results(delta)
