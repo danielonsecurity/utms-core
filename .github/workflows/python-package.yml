@@ -27,10 +27,8 @@ jobs:
     - name: Set up environment variables
       run: |
         echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
-        echo "CI=true" >> $GITHUB_ENV
+        echo "CI=true" >> .env
     - name: Install tox
       run: python -m pip install tox
     - name: Run tox
-      env:
-        CI: true
       run: tox
