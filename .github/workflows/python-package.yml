@@ -25,7 +25,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Set up environment variables
-      run: echo "GEMINI_API_KEY={{ secrets.GEMINI_API_KEY }}" >> $GITHUB_ENV
+      run: echo "GEMINI_API_KEY={{ secrets.GEMINI_API_KEY }}" >> .env
     - name: Install tox
       run: python -m pip install tox
     - name: Run tox
