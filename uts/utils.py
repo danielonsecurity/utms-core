@@ -6,7 +6,7 @@ import socket
 from datetime import datetime, timezone
 from decimal import Decimal
 from time import time
-from typing import Optional, Tuple, Union
+from typing import Optional, Union
 
 import dateparser
 import ntplib
@@ -44,7 +44,7 @@ def get_ntp_time() -> float:
         # Query an NTP server
         response = client.request("pool.ntp.org", version=3)
         return float(response.tx_time)  # Return the transmit timestamp
-    except (ntplib.NTPException, socket.error, OSError) as e:
+    except (ntplib.NTPException, socket.error, OSError) as e:  # pragma: no cover
         print(f"Error fetching NTP time: {e}")
         return float(time())  # Fallback to system time
 
@@ -101,7 +101,7 @@ def calculate_total_time_seconds() -> Decimal:
 
 
 # Function to calculate UPC (Universal Planck Count)
-def calculate_upc() -> Decimal:
+def calculate_upc() -> Decimal:  # pragma: no cover
     """
     Calculates the Universal Planck Count (UPC).
 
@@ -123,141 +123,6 @@ def calculate_upc() -> Decimal:
           (e.g., due to NTP issues) will affect the UPC calculation.
     """
     return calculate_total_time_seconds() / constants.PLANCK_TIME_SECONDS
-
-
-# Function to convert total time into larger units
-def convert_time_units(
-    total_time_seconds: Decimal,
-) -> Tuple[Decimal, Decimal, Decimal, Decimal, Decimal]:
-    """
-    Converts total time in seconds into larger time units.
-
-    This function takes a time duration in seconds and converts it
-    into the following larger time units:
-    - Kiloseconds (ks)
-    - Megaseconds (Ms)
-    - Gigaseconds (Gs)
-    - Teraseconds (Ts)
-    - Petaseconds (Ps)
-
-    The conversion is done by dividing the total time in seconds by
-    the appropriate power of 10.
-
-    Args:
-        total_time_seconds (Decimal): The time duration in seconds to
-        be converted into larger units.
-
-    Returns:
-        Tuple[Decimal, Decimal, Decimal, Decimal, Decimal]: A tuple
-        containing the converted time values in kiloseconds,
-        megaseconds, gigaseconds, teraseconds, and petaseconds, in
-        that order.
-
-    Exceptions:
-        - This function does not explicitly raise exceptions but
-          assumes the input `total_time_seconds` is a valid `Decimal`
-          representing the total time in seconds.
-    """
-    kiloseconds = total_time_seconds / Decimal("1e3")
-    megaseconds = total_time_seconds / Decimal("1e6")
-    gigaseconds = total_time_seconds / Decimal("1e9")
-    teraseconds = total_time_seconds / Decimal("1e12")
-    petaseconds = total_time_seconds / Decimal("1e15")
-    return kiloseconds, megaseconds, gigaseconds, teraseconds, petaseconds
-
-
-# Function to break down time into integer units
-def breakdown_time(
-    total_time_seconds: Decimal,
-) -> Tuple[int, int, int, int, int, int]:
-    """
-    Breaks down a total time in seconds into integer units of larger time units.
-
-    This function takes a time duration in seconds and breaks it down
-    into the following integer units:
-    - Petaseconds (Ps)
-    - Teraseconds (Ts)
-    - Gigaseconds (Gs)
-    - Megaseconds (Ms)
-    - Kiloseconds (ks)
-    - Remaining seconds
-
-    The function calculates how many whole units of each time category
-    can fit into the total time, and returns the breakdown in each
-    unit, along with the remaining seconds.
-
-    Args:
-        total_time_seconds (Decimal): The total time in seconds to be
-        broken down into integer units.
-
-    Returns:
-        Tuple[int, int, int, int, int, int]: A tuple containing the
-        breakdown of the total time in the following order:
-        petaseconds, teraseconds, gigaseconds, megaseconds,
-        kiloseconds, and the remaining seconds.
-
-    Exceptions:
-        - This function assumes that the input `total_time_seconds` is
-          a valid `Decimal` representing the total time in seconds.
-    """
-    remaining_seconds = int(total_time_seconds)
-
-    integer_petaseconds = remaining_seconds // int(1e15)
-    remaining_seconds %= int(1e15)
-    integer_teraseconds = remaining_seconds // int(1e12)
-    remaining_seconds %= int(1e12)
-    integer_gigaseconds = remaining_seconds // int(1e9)
-    remaining_seconds %= int(1e9)
-    integer_megaseconds = remaining_seconds // int(1e6)
-    remaining_seconds %= int(1e6)
-    integer_kiloseconds = remaining_seconds // int(1e3)
-    remaining_seconds %= int(1e3)
-
-    return (
-        integer_petaseconds,
-        integer_teraseconds,
-        integer_gigaseconds,
-        integer_megaseconds,
-        integer_kiloseconds,
-        remaining_seconds,
-    )
-
-
-# Function to convert total time into years, days, hours, minutes, seconds
-def human_readable_time(
-    total_time_seconds: int,
-) -> Tuple[int, int, int, int, int]:
-    """
-    Converts total time in seconds into a human-readable format
-    (years, days, hours, minutes, seconds).
-
-    This function takes a total time duration in seconds and breaks it
-    down into its equivalent in years, days, hours, minutes, and
-    seconds. The conversion is based on the number of seconds in a
-    year (as defined by `constants.SECONDS_IN_YEAR`).
-
-    Args:
-        total_time_seconds (int): The total time in seconds to be
-        converted into a human-readable format.
-
-    Returns:
-        Tuple[int, int, int, int, int]: A tuple containing the
-        breakdown of the total time in the following order: years,
-        days, hours, minutes, and seconds.
-
-    Exceptions:
-        - This function assumes that the input `total_time_seconds` is
-          a valid integer representing the total time in seconds.
-    """
-    years = int(total_time_seconds // int(constants.SECONDS_IN_YEAR))
-    remaining_seconds_in_year = int(total_time_seconds % int(constants.SECONDS_IN_YEAR))
-    days = remaining_seconds_in_year // (60 * 60 * 24)
-    remaining_seconds_in_year %= 60 * 60 * 24
-    hours = remaining_seconds_in_year // (60 * 60)
-    remaining_seconds_in_year %= 60 * 60
-    minutes = remaining_seconds_in_year // 60
-    seconds = remaining_seconds_in_year % 60
-    return years, days, hours, minutes, seconds
 
 
 def return_old_time_breakdown(years: int, days: int, hours: int, minutes: int, seconds: int) -> str:
@@ -825,9 +690,6 @@ def resolve_date_dateparser(input_text: str) -> Optional[datetime]:
 
     if parsed_date:
         print(parsed_date)
-        # Ensure the date is timezone-aware and in UTC
-        if parsed_date.tzinfo is None:
-            parsed_date = parsed_date.replace(tzinfo=timezone.utc)
         utc_date = parsed_date.astimezone(timezone.utc)
         return utc_date
 
@@ -835,52 +697,53 @@ def resolve_date_dateparser(input_text: str) -> Optional[datetime]:
 
 
 # Function to resolve dates
-def resolve_date(input_text: str) -> Union[datetime, str, int]:
+def resolve_date(input_text: str) -> Union[datetime, Decimal, None]:
     """
-    Resolves a date from a given string input. This function first
-    attempts to parse the date using `dateparser`, and if that fails,
-    it falls back to generating a date via an AI-based approach.
+    Resolves a date from a given string input. The function first
+    attempts to parse the date using `dateparser`, and if unsuccessful,
+    it uses an AI-based approach to generate a potential date.
 
-    The function can handle:
-    - A valid date parsed from the input text (using `dateparser`).
-    - Historical dates expressed as negative years (e.g., '-44' for 44 BCE).
-    - Future events expressed with a '+' sign (e.g., '+10' for 10 years from now).
-    - ISO 8601 formatted dates returned by the AI.
+    The function supports:
+
+    - Parsing valid dates from input text (via `dateparser`).
+    - Handling historical dates expressed as negative years (e.g., '-44' for 44 BCE).
+    - Interpreting future events expressed with a '+' sign (e.g., '+10' for 10 years from now).
+    - Processing ISO 8601 formatted dates returned by the AI.
 
     Args:
-        input_text (str): The input string containing the date to
-                          resolve. It could be any date expression in
-                          a format supported by `dateparser` or the AI
-                          response.
+        input_text (str): The input string representing the date to resolve.
+            The input can be in formats compatible with `dateparser` or in special
+            formats (e.g., BCE or future years).
 
     Returns:
-        Union[datetime, str, int]:
-            - A `datetime` object if a valid date is resolved.
-            - A string "UNKNOWN" if the date cannot be resolved.
-            - An integer representing the number of seconds for future
-              events, or years before the current era for historical
-              events.
+        Union[datetime, Decimal, None]:
+            - `datetime` object if a valid date is resolved.
+            - `Decimal` representing seconds for future events or years before the common era.
+            - `None` if the date cannot be resolved.
 
     Raises:
-        ValueError: If the date cannot be resolved (both `dateparser` and AI approaches fail).
+        ValueError: If both `dateparser` and the AI approach fail to resolve a date.
 
     Example:
         >>> resolve_date("2024-12-11")
         datetime.datetime(2024, 12, 11, 0, 0, tzinfo=datetime.timezone.utc)
 
-        >>> resolve_date("44 BCE")
-        datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc)
+        >>> resolve_date("-44")  # 44 BCE
+        Decimal('-69422400000')
 
-        >>> resolve_date("+10")
-        315569520
+        >>> resolve_date("+10")  # 10 years from now
+        Decimal('315569520')
 
     Notes:
-        - This function first attempts to resolve the date using
-          `resolve_date_dateparser` and falls back to AI if that
-          fails.
-        - The AI response should be an ISO 8601 date string, a
-          negative number representing historical years (BCE), or a
-          positive number indicating future years (in seconds).
+        - The function first attempts to parse the date using the `resolve_date_dateparser`
+          function. If that fails, it invokes the AI-based date generator.
+        - The AI response is expected to be one of:
+            - A valid ISO 8601 date string.
+            - A negative number representing historical years (BCE).
+            - A positive number indicating future years (converted to seconds).
+        - Historical dates are converted into seconds using a year-based approximation
+          or ISO 8601 representation when available.
+        - Future dates are expressed in seconds from the current time.
     """
     # First, try to parse using dateparser
     resolved_date = resolve_date_dateparser(input_text)
@@ -894,29 +757,33 @@ def resolve_date(input_text: str) -> Union[datetime, str, int]:
 
     # Handle AI response for historical dates
     if ai_result.startswith("-"):
-        years_before_ce = int(ai_result)  # Example: '-44' -> -44 years
-        resolved_date = datetime(1, 1, 1, tzinfo=timezone.utc).replace(year=1 + years_before_ce)
-        return resolved_date
+        if ai_result.count("-") == 3:  # -YYYY-MM-DD
+            now = datetime.now()
+            bc_date = datetime.strptime(ai_result, "-%Y-%m-%d")
+            delta_years = now.year + abs(bc_date.year) - 1
+            delta_days = (now - now.replace(year=now.year, month=1, day=1)).days
+            return Decimal((delta_years * Decimal(365.25) + delta_days) * constants.SECONDS_IN_DAY)
+        # -YYYYYYYY or -1.5e9
+        return Decimal(Decimal(ai_result) * constants.SECONDS_IN_YEAR)
 
     # Handle AI response for future events
     if ai_result.startswith("+"):
-        return int(ai_result)
-
-    # If the AI produces a valid ISO 8601 timestamp
-    return datetime.fromisoformat(ai_result)
+        return Decimal(Decimal(ai_result) * constants.SECONDS_IN_YEAR)
+    try:
+        # If the AI produces a valid ISO 8601 timestamp
+        return datetime.fromisoformat(ai_result)
+    except ValueError:
+        return None
 
 
 def print_time(timestamp: datetime) -> None:
     """
     Prints the time-related calculations for a given timestamp in various formats:
     'CE Time', 'Millenium Time', 'Now Time', 'UPC Time', and 'Life Time'.
-
     Args:
         timestamp (datetime): The input timestamp (in UTC) to be used for the calculations.
-
     Returns:
         None: This function prints out the results of various time calculations.
-
     Example:
         >>> timestamp = datetime(2023, 1, 1, tzinfo=timezone.utc)
         >>> print_time(timestamp)
@@ -927,30 +794,24 @@ def print_time(timestamp: datetime) -> None:
     ) + +Decimal(constants.SECONDS_IN_YEAR)
     print_header("CE Time:")
     print_results(delta)
-
     if timestamp >= datetime(1970, 1, 1, tzinfo=timezone.utc):
         total_seconds = Decimal(timestamp.timestamp())
     else:
         total_seconds = Decimal(
             (timestamp - datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)).total_seconds()
         )
-
     delta = total_seconds - Decimal(constants.MILLENNIUM_DATE.timestamp())
     print_header("Millenium Time:")
     print_results(delta)
-
     delta = total_seconds - Decimal(get_current_time_ntp().timestamp())
     print_header("Now Time:")
     print_results(delta)
-
     delta = total_seconds - Decimal(constants.UNIX_DATE.timestamp())
     print_header("Unix Time:")
     print_results(delta)
-
     delta = Decimal(calculate_total_time_seconds()) + delta
     print_header("UPC Time:")
     print_results(delta)
-
     delta = total_seconds - Decimal(constants.LIFE_DATE.timestamp())
     print_header("Life Time:")
     print_results(delta)
@@ -959,13 +820,10 @@ def print_time(timestamp: datetime) -> None:
 def print_header(header: str) -> None:
     """
     Prints the given header in cyan color with bright styling.
-
     Args:
         header (str): The header text to be printed.
-
     Returns:
         None: This function only prints the header with styling and has no return value.
-
     Example:
         >>> print_header("Important Notice")
         # This will print "Important Notice" in cyan with bright styling.
@@ -976,13 +834,10 @@ def print_header(header: str) -> None:
 def old_unit(unit: str) -> str:
     """
     Applies magenta color styling to the given unit string.
-
     Args:
         unit (str): The unit name to be styled.
-
     Returns:
         str: The unit name wrapped in magenta color styling.
-
     Example:
         >>> old_unit("Seconds")
         # This will return the string "Seconds" in magenta color.
@@ -993,13 +848,10 @@ def old_unit(unit: str) -> str:
 def new_unit(unit: str) -> str:
     """
     Applies green color styling to the given unit string.
-
     Args:
         unit (str): The unit name to be styled.
-
     Returns:
         str: The unit name wrapped in green color styling.
-
     Example:
         >>> new_unit("Years")
         # This will return the string "Years" in green color.

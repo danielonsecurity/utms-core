@@ -9,7 +9,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 try:
     VERSION = version("uts")
-except PackageNotFoundError:
+except PackageNotFoundError:  # pragma: no cover
     VERSION = "0.0.0"
 
     # Set precision for Decimal calculations

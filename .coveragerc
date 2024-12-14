@@ -1,0 +1,13 @@
+[coverage:run]
+branch = True
+source = uts
+omit =
+    tests/*
+    uts/cli.py
+
+[coverage:report]
+show_missing = True
+skip_covered = True
+
+[coverage:html]
+directory = htmlcov

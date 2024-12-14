@@ -1,15 +1,16 @@
 from datetime import datetime, timedelta, timezone
 
-from uts.utils import resolve_date_dateparser
+from uts.utils import resolve_date_dateparser, resolve_date
 
 local_timezone = datetime.now().astimezone().tzinfo
 
-
 def test_resolve_date():
-    # Expected datetime with timezone info (UTC)
     expected = datetime(2024, 12, 10, 0, 0, 0, tzinfo=local_timezone)
+    actual = resolve_date("2024-12-10T00:00:00")
+    assert actual == expected
 
-    # Call your resolve_date function
+def test_resolve_date_dateparser():
+    expected = datetime(2024, 12, 10, 0, 0, 0, tzinfo=local_timezone)
     actual = resolve_date_dateparser("2024-12-10T00:00:00")
     assert actual == expected
 
@@ -65,11 +66,17 @@ def test_resolve_date_iso8601_format():
 def test_resolve_date_yesterday():
     expected = datetime.now().astimezone() - timedelta(days=1)
     actual = resolve_date_dateparser("yesterday")
-    # Allow a small margin of error (for exact second comparison)
     assert abs((actual - expected).total_seconds()) < 60
+
 
 def test_resolve_date_relative_date():
     expected = datetime.now().astimezone() - timedelta(days=5)
     actual = resolve_date_dateparser("5 days ago")
-    # Allow a small margin of error (for exact second comparison)
     assert abs((actual - expected).total_seconds()) < 60
+
+
+def test_resolve_wrong_date():
+    actual = resolve_date_dateparser("blahblahblah")
+    assert actual == None
+
+

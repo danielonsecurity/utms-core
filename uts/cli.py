@@ -3,6 +3,7 @@ Command line interface with a prompt is defined here. This file is only dealing 
 """
 
 from datetime import datetime
+from decimal import Decimal
 from typing import Callable, Dict
 
 from prompt_toolkit import ANSI, PromptSession
@@ -127,10 +128,7 @@ def main() -> None:
             # Ensure parsed_timestamp is a datetime before passing it to print_time
             if isinstance(parsed_timestamp, datetime):
                 print_time(parsed_timestamp)
-            elif isinstance(parsed_timestamp, str):
-                # Handle case where it's a string (if applicable, e.g., parse or log)
-                print(f"Resolved date (string): {parsed_timestamp}")
-            elif isinstance(parsed_timestamp, int):
+            elif isinstance(parsed_timestamp, Decimal):
                 # Handle case where it's an integer (if applicable, convert to datetime)
                 print(f"Resolved date (integer timestamp): {parsed_timestamp}")
 
@@ -140,3 +138,6 @@ def main() -> None:
             continue
         except KeyboardInterrupt:
             continue
+        except EOFError:
+            print("\nExiting gracefully. Goodbye!")
+            return
