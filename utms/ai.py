@@ -51,6 +51,7 @@ The module is specifically designed to handle a wide range of date inputs, inclu
 """
 
 import os
+from datetime import datetime
 
 import google.generativeai as genai
 import requests
@@ -62,8 +63,10 @@ genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 config = genai.GenerationConfig(max_output_tokens=30, temperature=0.7, top_p=0.9, top_k=50)
 model = genai.GenerativeModel(
     "models/gemini-1.5-flash",
-    system_instruction="""
-You are a model designed to generate precise dates and times. When given the input '{input_text}',
+    system_instruction=f"""
+Current time is: {datetime.now().isoformat()}
+
+You are a model designed to generate precise dates and times. When given the input '{{input_text}}',
 strictly adhere to the following rules:
 
 1. **Common Era (CE) Events (1 CE to 9999 CE):**

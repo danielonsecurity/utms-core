@@ -247,12 +247,6 @@ class TimeUnitManager:
                 for col_abbrev in displayed_columns
                 if self.get_value(row_abbrev) and self.get_value(col_abbrev)
             }
-            # conversions = {}
-            # for col_abbrev in displayed_columns:
-            #     value1 = self.get_value(row_abbrev)
-            #     value2 = self.get_value(col_abbrev)
-            #     if value1 and value2:
-            #         conversions[col_abbrev] = value1 / value2
 
             print(
                 f"{self._units[row_abbrev]['full_name']} ({row_abbrev})".ljust(25)
