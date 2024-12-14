@@ -9,11 +9,11 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath("../uts"))
+sys.path.insert(0, os.path.abspath("../utms"))
 
-import uts
+import utms
 
-project = "uts"
+project = "utms (Universal Time Measurement System)"
 copyright = "2024, Daniel Neagaru"
 author = "Daniel Neagaru"
 

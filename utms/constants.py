@@ -8,7 +8,7 @@ from decimal import Decimal, getcontext
 from importlib.metadata import PackageNotFoundError, version
 
 try:
-    VERSION = version("uts")
+    VERSION = version("utms")
 except PackageNotFoundError:  # pragma: no cover
     VERSION = "0.0.0"
 

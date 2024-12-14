@@ -1,13 +1,13 @@
 [tool.poetry]
-name = "uts"
+name = "utms"
 version = "0.1.0"
-description = "Universal Time System"
+description = "Universal Time Measurement System"
 authors = ["Daniel Neagaru <daniel@neagaru.com>"]
 license = "GPL-3.0-or-later"
 readme = "README.md"
 
 [tool.poetry.scripts]
-uts = "uts.cli:main"
+utms = "utms.cli:main"
 
 
 [tool.poetry.dependencies]

@@ -1,19 +1,19 @@
 
-# UTS - Python Package
+# UTMS - Universal Time Measurement System
 
-UTS (Universal Time System) introduces an innovative method of
-tracking time, spanning from the Big Bang to the eventual heat death
-of the universe, based on a decimalized time system. This reimagined
-timekeeping framework offers significant advantages:
+UTMS (Universal Time Measurement System) introduces an innovative
+method of tracking time, spanning from the Big Bang to the eventual
+heat death of the universe, based on a decimalized time system. This
+reimagined timekeeping framework offers significant advantages:
 
-Universal Scalability: By uniting cosmic and human timescales, UTS
+Universal Scalability: By uniting cosmic and human timescales, UTMS
 enables seamless precision in scientific, astronomical, and everyday
 contexts.  Simplicity and Consistency: Decimal-based units eliminate
 irregularities found in traditional systems, such as leap years or
 varying month lengths.  Future-Proofing: Designed to transcend
-cultural and temporal boundaries, UTS provides a globally consistent
+cultural and temporal boundaries, UTMS provides a globally consistent
 reference point, ideal for a spacefaring and technologically advanced
-society.  UTS challenges conventional notions of time by emphasizing
+society.  UTMS challenges conventional notions of time by emphasizing
 universality, precision, and adaptability, creating a system that is
 as relevant to cosmic events as it is to daily life.
 
@@ -30,8 +30,8 @@ Ensure that you have the following installed:
 Clone the repository to your local machine using the following command:
 
 ```bash
-git clone https://github.com/danielonsecurity/uts.git
-cd uts
+git clone https://github.com/danielonsecurity/utms.git
+cd utms
 ```
 
 ### 2. Install Poetry
@@ -97,13 +97,13 @@ Create an Gemini API key here https://aistudio.google.com/app/apikey and add it 
 Once the virtual environment is activated, you can run the package using the following command:
 
 ```bash
-poetry run python -m uts
+poetry run python -m utms
 ```
 
 OR just simply run it like this:
 
 ```bash
-uts
+utms
 ```
 
 

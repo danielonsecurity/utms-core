@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from uts.ai import ai_generate_date
+from utms.ai import ai_generate_date
 
 local_timezone = datetime.now().astimezone().tzinfo
 
@@ -45,9 +45,13 @@ def test_ai_generate_date_summer_olympics():
     
 def test_ai_generate_unknown_date():
     expected = "UNKNOWN"
-    actual = ai_generate_date("end of the world")
+    actual = ai_generate_date("blahblahblahblah")
     assert actual == expected
 
+def test_ai_generate_future_date():
+    expected = "+1.7e106"
+    actual = ai_generate_date("heat death of the universe")
+    assert actual == expected
     
 def test_ai_generate_date_before_era():
     expected = "-0044-03-15"

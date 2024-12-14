@@ -1,9 +1,9 @@
-.. uts documentation master file, created by
+.. utms documentation master file, created by
    sphinx-quickstart on Wed Dec 11 01:57:15 2024.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-uts documentation
+utms documentation
 =================
 
 
@@ -15,22 +15,22 @@ uts documentation
 
 API Reference
 =============
-.. automodule:: uts.ai
+.. automodule:: utms.ai
    :members:
    :undoc-members:
    :show-inheritance:
 
-.. automodule:: uts.cli
+.. automodule:: utms.cli
    :members:
    :undoc-members:
    :show-inheritance:
 	     
-.. automodule:: uts.constants
+.. automodule:: utms.constants
    :members:
    :undoc-members:
    :show-inheritance:
 	     
-.. automodule:: uts.utils
+.. automodule:: utms.utils
    :members:
    :undoc-members:
    :show-inheritance:

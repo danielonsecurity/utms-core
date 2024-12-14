@@ -3,7 +3,7 @@ from unittest.mock import patch
 from io import StringIO
 from datetime import datetime, timezone
 
-from uts.utils import get_current_time_ntp, print_all_conversions, print_time
+from utms.utils import get_current_time_ntp, print_all_conversions, print_time
 
 local_timezone = datetime.now().astimezone().tzinfo
 

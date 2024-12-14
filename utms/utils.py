@@ -12,8 +12,8 @@ import dateparser
 import ntplib
 from colorama import Fore, Style, init
 
-from uts import constants
-from uts.ai import ai_generate_date
+from utms import constants
+from utms.ai import ai_generate_date
 
 init()
 
@@ -517,16 +517,16 @@ def format_reversed_header(units: list[str]) -> str:
 def print_reversed_conversion_table() -> None:
     """
     Prints a reversed time conversion table that displays the
-    relationship between human-readable time units and UTS time units.
+    relationship between human-readable time units and UTMS time units.
 
     This function generates and prints a table where human time units
     (e.g., hours, days, months, years) are converted to the following
-    UTS (Universal Time Scale) units:
+    UTMS (Universal Time Measurement System) units:
     - Kiloseconds (KSec), Megaseconds (MSec), Gigaseconds (GSec),
       Teraseconds (TSec), and Petaseconds (PSec).
 
     The table presents each human-readable unit alongside its
-    conversion to UTS time units, displaying the values with six
+    conversion to UTMS time units, displaying the values with six
     decimal places of precision.
 
     Args:
@@ -537,7 +537,7 @@ def print_reversed_conversion_table() -> None:
 
     Example:
         >>> print_reversed_conversion_table()
-        Prints a reversed table with human time units converted to UTS time units.
+        Prints a reversed table with human time units converted to UTMS time units.
 
     Exceptions:
         - This function assumes that `constants.HUMAN_TIME_UNITS` and
@@ -558,14 +558,14 @@ def print_reversed_conversion_table() -> None:
     print(format_reversed_header(header_units))
     print("-" * 120)
 
-    # Iterate over human time units and convert to UTS
+    # Iterate over human time units and convert to UTMS
     for unit, seconds in constants.HUMAN_TIME_UNITS.items():
         row = [unit]  # Start with the time unit label
 
-        # Convert to each UTS time unit
-        for uts_factor in constants.TIME_UNITS.values():
-            uts_value = seconds / uts_factor
-            row.append(f"{uts_value:.6f}")
+        # Convert to each UTMS time unit
+        for utms_factor in constants.TIME_UNITS.values():
+            utms_value = seconds / utms_factor
+            row.append(f"{utms_value:.6f}")
 
         # Print the row with appropriate formatting
         print(format_reversed_row(row))
@@ -762,9 +762,9 @@ def resolve_date(input_text: str) -> Union[datetime, Decimal, None]:
             bc_date = datetime.strptime(ai_result, "-%Y-%m-%d")
             delta_years = now.year + abs(bc_date.year) - 1
             delta_days = (now - now.replace(year=now.year, month=1, day=1)).days
-            return Decimal((delta_years * Decimal(365.25) + delta_days) * constants.SECONDS_IN_DAY)
+            return -Decimal((delta_years * Decimal(365.25) + delta_days) * constants.SECONDS_IN_DAY)
         # -YYYYYYYY or -1.5e9
-        return Decimal(Decimal(ai_result) * constants.SECONDS_IN_YEAR)
+        return -Decimal(Decimal(ai_result) * constants.SECONDS_IN_YEAR)
 
     # Handle AI response for future events
     if ai_result.startswith("+"):
@@ -772,7 +772,7 @@ def resolve_date(input_text: str) -> Union[datetime, Decimal, None]:
     try:
         # If the AI produces a valid ISO 8601 timestamp
         return datetime.fromisoformat(ai_result)
-    except ValueError:
+    except ValueError:  # pragma: no cover
         return None
 
 

@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from uts.utils import resolve_date_dateparser, resolve_date
+from utms.utils import resolve_date_dateparser, resolve_date
 
 local_timezone = datetime.now().astimezone().tzinfo
 

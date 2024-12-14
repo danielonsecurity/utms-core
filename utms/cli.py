@@ -12,8 +12,8 @@ from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.shortcuts import print_formatted_text
 from prompt_toolkit.styles import Style
 
-from uts.constants import VERSION
-from uts.utils import (
+from utms.constants import VERSION
+from utms.utils import (
     get_current_time_ntp,
     print_all_conversions,
     print_concise_conversion_table,
@@ -81,7 +81,7 @@ def handle_input(input_text: str) -> None:
 
 def main() -> None:
     """
-    Main entry point for the UTS CLI (Universal Time System Command Line Interface).
+    Main entry point for the UTMS CLI (Universal Time Measurement System Command Line Interface).
 
     This function starts an interactive shell where the user can enter commands. The supported
     features include:
@@ -106,7 +106,7 @@ def main() -> None:
         None: It operates interactively and performs actions based on user input without
               returning a value.
     """
-    print(f"Welcome to UTS CLI (Version {VERSION})!")
+    print(f"Welcome to UTMS CLI (Version {VERSION})!")
     print_time(get_current_time_ntp())
     while True:
         try:
