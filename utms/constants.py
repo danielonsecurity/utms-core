@@ -1,5 +1,53 @@
 """
-Here are stored constants needed by the package.
+Time Unit Management and Physical Constants Module
+
+This module provides utilities for handling time units, converting between them, and
+managing high-precision physical constants related to time and the universe. It uses
+`Decimal` for high-precision arithmetic and allows the user to define, add, and convert
+between various time units ranging from Planck time to multi-million-year scales.
+
+Modules:
+    math: For mathematical constants and functions.
+    datetime: For date and time handling.
+    decimal: For high-precision decimal arithmetic.
+    importlib.metadata: For fetching package version information.
+    utms.units: For managing time units through the `TimeUnitManager`.
+
+Constants:
+    - HBAR: Reduced Planck constant in Joule-seconds (J⋅s).
+    - G_CONST: Gravitational constant in m^3⋅kg^−1⋅s^−2.
+    - C_CONST: Speed of light in meters per second (m/s).
+    - PLANCK_TIME_SECONDS: Planck time in seconds, a fundamental time scale in physics.
+    - SECONDS_IN_*: Constants representing the number of seconds in various time
+      periods, such as minutes, hours, days, weeks, months, years, etc.
+    - AGE_OF_UNIVERSE_YEARS: The age of the universe in years.
+    - UNIVERSE_MAX_LIFESPAN_YEARS: Estimated lifespan of the universe in years.
+    - GALAXIAL_ERA: The estimated maximum lifespan of the universe in seconds.
+    - PLANCK_TIME_EPOCH: Epoch time of Planck time, derived from the maximum lifespan
+      of the universe.
+
+Time Units:
+    - The module includes definitions for common human time units like second, minute,
+      hour, day, etc., as well as exotic time units such as Planck time, and units
+      spanning multiple scales, including megaannum and galactical eras.
+
+    - A dictionary `TIME_UNITS` maps each time unit name to its corresponding time in
+      seconds, and `HUMAN_TIME_UNITS` offers more familiar human units.
+
+Functions:
+    - TimeUnitManager instance to manage and convert between these units.
+    - The manager is used to add custom time units, such as "Lunar cycle", "Hubble time",
+      and others, to provide a comprehensive set of time units for conversions and
+      calculations.
+
+Version:
+    - The module version is determined from the installed `utms` package, or set to
+      "0.0.0" if the package is not found.
+
+Precision:
+    - The `Decimal` module is used for all constants and calculations to ensure high
+      precision (up to 200 decimal places), avoiding floating-point errors, especially
+      in scientific computations.
 """
 
 import math
@@ -7,13 +55,15 @@ from datetime import datetime, timezone
 from decimal import Decimal, getcontext
 from importlib.metadata import PackageNotFoundError, version
 
+from utms.units import TimeUnitManager
+
 try:
     VERSION = version("utms")
 except PackageNotFoundError:  # pragma: no cover
     VERSION = "0.0.0"
 
-    # Set precision for Decimal calculations
-getcontext().prec = 110
+# Set precision for Decimal calculations
+getcontext().prec = 200
 
 # Constants with high precision
 HBAR = Decimal("1.054571817e-34")  # Reduced Planck constant in J⋅s
@@ -23,8 +73,6 @@ C_CONST = Decimal("299792458")  # Speed of light in m/s
 # Planck time calculation
 PLANCK_TIME_SECONDS = Decimal(math.sqrt((HBAR * G_CONST) / (C_CONST**5)))
 
-# Constants for universe age calculation
-AGE_OF_UNIVERSE_YEARS = Decimal("13.8e9")  # Age of the universe in years
 
 # Human time units in Decimal
 SECONDS_IN_MINUTE = Decimal(60)
@@ -36,26 +84,68 @@ SECONDS_IN_YEAR = SECONDS_IN_DAY * Decimal(365.25)
 SECONDS_IN_CENTURY = SECONDS_IN_YEAR * Decimal(100)
 SECONDS_IN_MILLENNIUM = SECONDS_IN_YEAR * Decimal(1000)
 
+# Seconds in lunar cycle
+SECONDS_IN_LUNAR_CYCLE = (
+    SECONDS_IN_DAY * 29 + SECONDS_IN_HOUR * 12 + SECONDS_IN_MINUTE * 44 + Decimal(2.8)
+)
+
+
+# Constants for universe age calculation
+AGE_OF_UNIVERSE_YEARS = Decimal("13.8e9")  # Age of the universe in years
+AGE_OF_UNIVERSE_SECONDS = AGE_OF_UNIVERSE_YEARS * SECONDS_IN_YEAR
+
+# Maximum length of the universe lifespan from the Big Bang until the heat
+# death of the universe
+UNIVERSE_MAX_LIFESPAN_YEARS = Decimal("1e120")
+GALAXIAL_ERA = UNIVERSE_MAX_LIFESPAN_YEARS * SECONDS_IN_YEAR
+
+# Planck Time Epoch (PTE)
+PLANCK_TIME_EPOCH = GALAXIAL_ERA / PLANCK_TIME_SECONDS
+
+
 # Time units in seconds for conversion
 TIME_UNITS = {
-    "Kilosecond (KSec)": Decimal("1e3"),
-    "Megasecond (MSec)": Decimal("1e6"),
-    "Gigasecond (GSec)": Decimal("1e9"),
-    "Terasecond (TSec)": Decimal("1e12"),
-    "Petasecond (PSec)": Decimal("1e15"),
+    "planck time (tp)": PLANCK_TIME_SECONDS,
+    "quectosecond (qs)": Decimal("1e-30"),
+    "rontosecond (rs)": Decimal("1e-27"),
+    "yoctosecond (ys)": Decimal("1e-24"),
+    "zeptosecond (zs)": Decimal("1e-21"),
+    "attosecond (as)": Decimal("1e-18"),
+    "femtosecond (fs)": Decimal("1e-15"),
+    "picosecond (ps)": Decimal("1e-12"),
+    "nanosecond (ns)": Decimal("1e-9"),
+    "microsecond (us)": Decimal("1e-6"),
+    "milisecond (ms)": Decimal("1e-3"),
+    "second (s)": Decimal("1"),
+    "Kilosecond (KS)": Decimal("1e3"),
+    "Megasecond (MS)": Decimal("1e6"),
+    "Gigasecond (GS)": Decimal("1e9"),
+    "Terasecond (TS)": Decimal("1e12"),
+    "Petasecond (PS)": Decimal("1e15"),
+    "Exasecond (ES)": Decimal("1e18"),
+    "Zettasecond (ZS)": Decimal("1e21"),
+    "Yottasecond (YS)": Decimal("1e24"),
+    "Ronnaasecond (RS)": Decimal("1e27"),
+    "Quettasecond (QS)": Decimal("1e30"),
 }
 
 
 HUMAN_TIME_UNITS = {
-    "1 Second": Decimal(1),
-    "1 Minute": SECONDS_IN_MINUTE,
-    "1 Hour": SECONDS_IN_HOUR,
-    "1 Day": SECONDS_IN_DAY,
-    "1 Week": SECONDS_IN_WEEK,
-    "1 Month": SECONDS_IN_MONTH,
-    "1 Year": SECONDS_IN_YEAR,
-    "1 Century": SECONDS_IN_CENTURY,
-    "1 Millennium": SECONDS_IN_MILLENNIUM,
+    "Planck time (pt)": PLANCK_TIME_SECONDS,
+    "Second (s)": Decimal(1),
+    "Minute (m)": SECONDS_IN_MINUTE,
+    "Hour (h)": SECONDS_IN_HOUR,
+    "Day (d)": SECONDS_IN_DAY,
+    "Week (w)": SECONDS_IN_WEEK,
+    "Month (M)": SECONDS_IN_MONTH,
+    "Year (y)": SECONDS_IN_YEAR,
+    "Decade (D)": SECONDS_IN_YEAR * 10,
+    "Century (C)": SECONDS_IN_YEAR * 100,
+    "Millennium (Mn)": SECONDS_IN_YEAR * 1000,
+    "Megaannum (Ma)": SECONDS_IN_YEAR * Decimal(1e6),
+    "Gigaannum (Ga)": SECONDS_IN_YEAR * Decimal(1e9),
+    "Hubble time (ht)": AGE_OF_UNIVERSE_SECONDS,
+    "Terraannum (Ta)": SECONDS_IN_YEAR * Decimal(1e12),
 }
 
 
@@ -63,3 +153,54 @@ MILLENNIUM_DATE = datetime(2000, 1, 1, 0, 0, tzinfo=timezone.utc)
 CE_DATE = datetime(1, 1, 1, 0, 0, tzinfo=timezone.utc)
 LIFE_DATE = datetime(1992, 6, 27, 0, 0, tzinfo=timezone.utc)
 UNIX_DATE = datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
+
+
+# Create a TimeUnitManager instance
+manager = TimeUnitManager()
+
+# Add time units
+manager.add_time_unit("Planck time", "pt", PLANCK_TIME_SECONDS)
+
+manager.add_time_unit("Quectosecond", "qs", Decimal("1e-30"))
+manager.add_time_unit("Rontosecond", "rs", Decimal("1e-27"))
+manager.add_time_unit("Yoctosecond", "ys", Decimal("1e-24"))
+manager.add_time_unit("Zeptosecond", "zs", Decimal("1e-21"))
+manager.add_time_unit("Attosecond", "as", Decimal("1e-18"))
+manager.add_time_unit("Femtosecond", "fs", Decimal("1e-15"))
+manager.add_time_unit("Picosecond", "ps", Decimal("1e-12"))
+manager.add_time_unit("Nanosecond", "ns", Decimal("1e-9"))
+manager.add_time_unit("Microsecond", "us", Decimal("1e-6"))
+manager.add_time_unit("Millisecond", "ms", Decimal("1e-3"))
+
+manager.add_time_unit("Second", "s", Decimal(1))
+
+manager.add_time_unit("Kilosecond", "KS", Decimal("1e3"))
+manager.add_time_unit("Megasecond", "MS", Decimal("1e6"))
+manager.add_time_unit("Gigasecond", "GS", Decimal("1e9"))
+manager.add_time_unit("Terasecond", "TS", Decimal("1e12"))
+manager.add_time_unit("Petasecond", "PS", Decimal("1e15"))
+manager.add_time_unit("Exasecond", "ES", Decimal("1e18"))
+manager.add_time_unit("Zettasecond", "ZS", Decimal("1e21"))
+manager.add_time_unit("Yottasecond", "YS", Decimal("1e24"))
+manager.add_time_unit("Ronnasecond", "RS", Decimal("1e24"))
+manager.add_time_unit("Quettasecond", "QS", Decimal("1e24"))
+
+manager.add_time_unit("Minute", "m", SECONDS_IN_MINUTE)
+manager.add_time_unit("Hour", "h", SECONDS_IN_HOUR)
+manager.add_time_unit("Day", "d", SECONDS_IN_DAY)
+manager.add_time_unit("Week", "w", SECONDS_IN_WEEK)
+manager.add_time_unit("Month", "M", SECONDS_IN_MONTH)
+manager.add_time_unit("Year", "Y", SECONDS_IN_YEAR)
+manager.add_time_unit("Decade", "D", SECONDS_IN_YEAR * 10)
+manager.add_time_unit("Century", "C", SECONDS_IN_YEAR * 100)
+manager.add_time_unit("Millennium", "Mn", SECONDS_IN_YEAR * 1000)
+
+manager.add_time_unit("Lunar cycle", "lc", SECONDS_IN_LUNAR_CYCLE)
+
+
+manager.add_time_unit("Megaannum", "Ma", SECONDS_IN_YEAR * Decimal(1e6))
+manager.add_time_unit("Gigaannum", "Ga", SECONDS_IN_YEAR * Decimal(1e9))
+manager.add_time_unit("Teraannum", "Ta", SECONDS_IN_YEAR * Decimal(1e12))
+
+manager.add_time_unit("Hubble time", "ht", AGE_OF_UNIVERSE_SECONDS)
+manager.add_time_unit("Galaxial era", "GE", GALAXIAL_ERA)

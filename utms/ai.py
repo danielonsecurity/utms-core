@@ -1,5 +1,53 @@
 """
-This module handles AI stuff to convert human language into time.
+This module integrates the Gemini model from the Google Generative AI API to generate precise date
+and time strings in ISO 8601 format based on input descriptions of events or concepts.
+
+The module is specifically designed to handle a wide range of date inputs, including:
+- **Common Era (CE)** events, formatted in full ISO 8601 format.
+- **Before Common Era (BCE)** events, using a leading minus (`-`) and ISO-like formatting.
+- Events far in the future (beyond 9999 CE) or distant past (beyond -9999 BCE) using scientific
+  notation or relative years.
+- **Relative dates** (e.g., "yesterday", "5 days ago") by calculating the corresponding date
+  in ISO 8601 format.
+- **Unknown or uncertain dates**, where the model defaults to `UNKNOWN` if no valid date can be
+  determined.
+
+**Key Features**:
+1. **Precise Formatting**:
+   - ISO 8601 compliance for all generated dates, including timezone offsets.
+   - Default values for unknown time components (e.g., `00:00:00` for time, `01` for unknown days).
+   - Special handling for extreme ranges, such as prehistoric or far-future events.
+
+2. **Configurable Generation**:
+   - The model is pre-configured with parameters for controlling output length, randomness, and
+     sampling strategies:
+     - `max_output_tokens=30`: Limits the response length.
+     - `temperature=0.7`: Balances randomness and determinism in output.
+     - `top_p=0.9`: Enables nucleus sampling for high-probability outputs.
+     - `top_k=50`: Limits the model's output options to the top 50 tokens.
+
+3. **Error Handling**:
+   - Robust error handling for API connectivity issues, invalid responses, and unexpected model
+     outputs.
+   - Provides clear fallback messages in case of failures.
+
+**Functions**:
+- `ai_generate_date(input_text: str) -> str`:
+  Takes a natural language description of an event or date concept and returns a formatted
+  ISO 8601 date string, adhering to predefined formatting rules.
+
+**Dependencies**:
+- `google.generativeai`: For interacting with the Gemini model.
+- `requests`: For handling API connectivity.
+- `dotenv`: For managing API keys securely using environment variables.
+
+**Usage Example**:
+```python
+>>> ai_generate_date("When did the Apollo 11 moon landing occur?")
+"1969-07-20T00:00:00+00:00"
+
+>>> ai_generate_date("5 days before the fall of the Berlin Wall")
+"1989-11-04T00:00:00+00:00"
 """
 
 import os

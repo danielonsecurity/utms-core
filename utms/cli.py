@@ -1,10 +1,40 @@
 """
-Command line interface with a prompt is defined here. This file is only dealing with that part.
+This module implements a Command Line Interface (CLI) for the
+Universal Time Measurement System (UTMS).  It allows users to
+interactively input commands for time and date-related conversions,
+resolving and displaying formatted timestamps based on their input.
+
+**Key Features**:
+1. **Interactive Shell**: Provides a command-line interface with input
+   handling, autocompletion, and a stylish prompt for user commands.
+2. **Command Handling**: The CLI supports specific commands like
+   `.conv` for various conversion tables and dynamic date resolution.
+3. **Date/Time Resolution**: The input can be processed to resolve
+   specific dates or timestamps, including handling special terms like
+   "yesterday", "tomorrow", or "now".
+4. **Error Handling**: Gracefully handles invalid inputs and
+   interruptions, providing helpful error messages to the user.
+
+**Dependencies**:
+- `prompt_toolkit`: A library for building interactive CLI
+  applications, enabling features like autocompletion and input
+  history.
+- `utms.constants`: Includes version information and manager for
+  conversion functionality.
+- `utms.utils`: Contains utility functions like
+  `get_current_time_ntp`, `print_results`, `print_time`, and
+  `resolve_date`.
+
+**Usage Example**:
+```python
+>>> main()
+Welcome to UTMS CLI (Version 1.0.0)!
+Current time: 2024-12-14T20:00:00+00:00
+Prompt> .conv concise
 """
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Callable, Dict
 
 from prompt_toolkit import ANSI, PromptSession
 from prompt_toolkit.completion import WordCompleter
@@ -12,16 +42,8 @@ from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.shortcuts import print_formatted_text
 from prompt_toolkit.styles import Style
 
-from utms.constants import VERSION
-from utms.utils import (
-    get_current_time_ntp,
-    print_all_conversions,
-    print_concise_conversion_table,
-    print_conversion_table,
-    print_reversed_conversion_table,
-    print_time,
-    resolve_date,
-)
+from utms.constants import VERSION, manager
+from utms.utils import get_current_time_ntp, print_results, print_time, resolve_date
 
 # Create a style for the shell
 style = Style.from_dict({"prompt": "#ff6600 bold", "input": "#008800", "output": "#00ff00"})
@@ -60,23 +82,23 @@ def handle_input(input_text: str) -> None:
     Returns:
         None: The function performs actions based on the input and does not return any value.
     """
-    commands: Dict[str, Callable[[], None]] = {
-        "concise": print_concise_conversion_table,
-        "new": print_conversion_table,
-        "old": print_reversed_conversion_table,
-        ".": print_all_conversions,
-    }
-
     if input_text.startswith(".conv"):
         # Split the command to check arguments (if any)
         parts = input_text.split()
         if len(parts) == 2:  # .conv <subcommand>
-            command = parts[1]
-            if command in commands:
-                commands[command]()  # Call function mapped to this command
+            unit = parts[1]
+            manager.print_conversion_table(unit)
+        elif len(parts) == 3:
+            unit = parts[1]
+            columns = int(parts[2])
+            manager.print_conversion_table(unit, columns)
+        elif len(parts) == 4:
+            unit = parts[1]
+            columns = int(parts[2])
+            rows = int(parts[3])
+            manager.print_conversion_table(unit, columns, rows)
         else:
-            # Default .conv behavior (all tables)
-            commands["."]()
+            manager.print_conversion_table("s")
 
 
 def main() -> None:
@@ -131,6 +153,7 @@ def main() -> None:
             elif isinstance(parsed_timestamp, Decimal):
                 # Handle case where it's an integer (if applicable, convert to datetime)
                 print(f"Resolved date (integer timestamp): {parsed_timestamp}")
+                print_results(parsed_timestamp)
 
         except ValueError as e:
             # If the input is invalid, print the error message

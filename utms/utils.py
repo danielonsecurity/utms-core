@@ -1,5 +1,55 @@
 """
-This module contains most of the functions needed for time operations.
+Module for Time Calculations, Conversion, and Formatting
+
+This module provides various functions related to time calculations, including resolving
+dates, calculating Universal Planck Count (UPC), converting time into different units,
+and formatting the output for display. The module uses NTP (Network Time Protocol) to
+fetch accurate timestamps and offers utilities for handling time in both human-readable
+formats and scientific units such as petaseconds, teraseconds, and gigaseconds.
+
+Key Features:
+- Fetching NTP time and converting to UTC datetime.
+- Calculating total time since the Big Bang and Universal Planck Count.
+- Converting time to different units and displaying it in human-readable formats.
+- Formatting and printing results with color coding for easier readability.
+- Resolving dates using `dateparser` and AI-based generation.
+- Supporting historical dates and future events resolution.
+
+Dependencies:
+- `socket`: For network communication.
+- `datetime`: For working with date and time objects.
+- `decimal`: For precise time calculations.
+- `ntplib`: For querying time from NTP servers.
+- `dateparser`: For parsing date strings.
+- `colorama`: For styling the output with colors.
+- `utms`: For constants related to time units and their conversions.
+
+Functions:
+- `get_ntp_time()`: Fetches the current time from an NTP server.
+- `get_current_time_ntp()`: Returns the current NTP time as a UTC datetime object.
+- `calculate_total_time_seconds()`: Computes the total time elapsed since the Big Bang.
+- `calculate_upc()`: Calculates the Universal Planck Count.
+- `return_old_time_breakdown()`: Converts time into a human-readable breakdown (years, days, etc.).
+- `return_time_breakdown()`: Converts time into various scientific units (petaseconds, etc.).
+- `print_results()`: Prints time breakdown in both human-readable and scientific units.
+- `resolve_date_dateparser()`: Resolves a date using the `dateparser` library.
+- `resolve_date()`: Resolves a date using `dateparser` and AI generation as a fallback.
+- `print_time()`: Prints time in various formats (CE, Millennium, Unix, UPC, etc.).
+- `print_header()`: Prints a header with cyan and bright styling.
+- `old_unit()`: Applies magenta styling to a unit string.
+- `new_unit()`: Applies green styling to a unit string.
+
+Example usage:
+    - Fetch current NTP time: `get_ntp_time()`
+    - Convert time to UTC: `get_current_time_ntp()`
+    - Calculate UPC: `calculate_upc()`
+    - Print time breakdowns: `print_results(total_seconds)`
+    - Resolve a date string: `resolve_date("2024-12-14")`
+
+Notes:
+- The module applies different color styles (using `colorama`) to improve the display of time
+  breakdowns and units.
+- Date parsing includes fallback to AI-based date generation if parsing fails.
 """
 
 import socket
@@ -328,324 +378,6 @@ def print_results(total_seconds: Decimal) -> None:
 
     # Print years, days, hours, minutes, seconds
     print(prefix + return_old_time_breakdown(years, days, hours, minutes, seconds))
-
-
-def print_all_conversions() -> None:
-    """
-    Prints all available time conversion tables.
-
-    This function prints three different time conversion tables:
-    - A standard conversion table (`print_conversion_table`)
-    - A reversed conversion table (`print_reversed_conversion_table`)
-    - A concise conversion table (`print_concise_conversion_table`)
-
-    The function provides a comprehensive set of time conversions for
-    different use cases and displays them sequentially.
-
-    Args:
-        None: This function does not accept any arguments.
-
-    Returns:
-        None: This function prints the conversion tables directly to the console.
-
-    Example:
-        >>> print_all_conversions()
-        Prints all three conversion tables to the console.
-
-    Exceptions:
-        - This function assumes that the respective functions for
-          printing conversion tables (`print_conversion_table`,
-          `print_reversed_conversion_table`, and
-          `print_concise_conversion_table`) are defined and callable.
-    """
-    print_conversion_table()
-    print_reversed_conversion_table()
-    print_concise_conversion_table()
-
-
-def format_unit_output(unit: str, *values: tuple[str, Decimal, int]) -> str:
-    """
-    Helper function to format unit output with alignment.
-
-    Args:
-        unit: The unit string.
-        values: Tuples of (label, value, precision) to format.
-
-    Returns:
-        Formatted string for printing.
-    """
-    formatted_values = ", ".join(
-        f"{value:.{precision}f} {label}" for label, value, precision in values
-    )
-    return f"{unit:<20} {formatted_values}"
-
-
-def print_concise_conversion_table() -> None:
-    """
-    Prints a concise time conversion table that displays the
-    relationship between various time units.
-
-    This function generates and prints a table of time units, including:
-    - Kiloseconds (KSec), Megaseconds (MSec), Gigaseconds (GSec),
-      Teraseconds (TSec), and Petaseconds (PSec)
-    - The corresponding conversions to larger units such as minutes,
-      hours, days, weeks, months, and years for each unit
-    - The time breakdown for human-readable time units like hours,
-      days, weeks, months, years, centuries, and millennia.
-
-    Each unit's conversion is displayed with different levels of
-    precision for clarity, and the output is formatted into a neatly
-    aligned table.
-
-    Args:
-        None: This function does not accept any arguments.
-
-    Returns:
-        None: This function prints the concise conversion table directly to the console.
-
-    Example:
-        >>> print_concise_conversion_table()
-        Prints a concise table with conversions for KSec, MSec, GSec, TSec, and PSec.
-
-    Exceptions:
-        - This function assumes that `constants.TIME_UNITS` and
-          `constants.HUMAN_TIME_UNITS` are defined and contain valid
-          unit values.
-        - This function also relies on the `format_unit_output`
-          function to format the unit conversions.
-    """
-    print(f"{'Time Unit':<20}{'Relevant Units':<50}")
-    print("-" * 70)
-
-    # Process constants.TIME_UNITS
-    for unit, factor in constants.TIME_UNITS.items():
-        seconds = factor
-        minutes = seconds / constants.SECONDS_IN_MINUTE
-        hours = seconds / constants.SECONDS_IN_HOUR
-        days = seconds / constants.SECONDS_IN_DAY
-        weeks = seconds / constants.SECONDS_IN_WEEK
-        months = seconds / constants.SECONDS_IN_MONTH
-        years = seconds / constants.SECONDS_IN_YEAR
-
-        if unit == "Kilosecond (KSec)":
-            print(
-                format_unit_output(
-                    unit, ("minutes", minutes, 3), ("hours", hours, 3), ("days", days, 3)
-                )
-            )
-        elif unit == "Megasecond (MSec)":
-            print(
-                format_unit_output(
-                    unit,
-                    ("hours", hours, 2),
-                    ("days", days, 2),
-                    ("weeks", weeks, 2),
-                    ("months", months, 2),
-                    ("years", years, 2),
-                )
-            )
-        elif unit == "Gigasecond (GSec)":
-            print(
-                format_unit_output(
-                    unit,
-                    ("days", days, 1),
-                    ("weeks", weeks, 1),
-                    ("months", months, 1),
-                    ("years", years, 1),
-                )
-            )
-        elif unit == "Terasecond (TSec)":
-            print(
-                format_unit_output(
-                    unit, ("years", years, 1), ("centuries", years / Decimal(100), 1)
-                )
-            )
-        elif unit == "Petasecond (PSec)":
-            print(
-                format_unit_output(
-                    unit,
-                    ("years", years, 0),
-                    ("centuries", years / Decimal(100), 0),
-                    ("millennia", years / Decimal(1000), 0),
-                )
-            )
-
-    print("-" * 70)
-
-    # Process constants.HUMAN_TIME_UNITS
-    for unit, factor in constants.HUMAN_TIME_UNITS.items():
-        values = [("KSec", factor / Decimal("1e3"), 3)]
-
-        if unit in {"1 Hour", "1 Day", "1 Week", "1 Month", "1 Year"}:
-            values.append(("MSec", factor / Decimal("1e6"), 3))
-        if unit in {"1 Week", "1 Month", "1 Year", "1 Century", "1 Millennium"}:
-            values.append(("GSec", factor / Decimal("1e9"), 3))
-        if unit in {"1 Century", "1 Millennium"}:
-            values.append(("TSec", factor / Decimal("1e12"), 3))
-
-        print(format_unit_output(unit, *values))
-
-    print()
-
-
-def format_reversed_row(row: list[str]) -> str:
-    """
-    Helper function to format a row for reversed conversion table.
-
-    Args:
-        row: List of row values.
-
-    Returns:
-        Formatted string for printing.
-    """
-    return f"{row[0]:<20}{row[1]:<20}{row[2]:<20}{row[3]:<20}{row[4]:<20}{row[5]}"
-
-
-def format_reversed_header(units: list[str]) -> str:
-    """
-    Helper function to format the header for reversed conversion table.
-
-    Args:
-        units: List of unit headers.
-
-    Returns:
-        Formatted string for printing.
-    """
-    return "".join(f"{unit:<20}" for unit in units)
-
-
-def print_reversed_conversion_table() -> None:
-    """
-    Prints a reversed time conversion table that displays the
-    relationship between human-readable time units and UTMS time units.
-
-    This function generates and prints a table where human time units
-    (e.g., hours, days, months, years) are converted to the following
-    UTMS (Universal Time Measurement System) units:
-    - Kiloseconds (KSec), Megaseconds (MSec), Gigaseconds (GSec),
-      Teraseconds (TSec), and Petaseconds (PSec).
-
-    The table presents each human-readable unit alongside its
-    conversion to UTMS time units, displaying the values with six
-    decimal places of precision.
-
-    Args:
-        None: This function does not accept any arguments.
-
-    Returns:
-        None: This function prints the reversed conversion table directly to the console.
-
-    Example:
-        >>> print_reversed_conversion_table()
-        Prints a reversed table with human time units converted to UTMS time units.
-
-    Exceptions:
-        - This function assumes that `constants.HUMAN_TIME_UNITS` and
-          `constants.TIME_UNITS` are defined and contain valid unit
-          values.
-        - This function also relies on the `format_reversed_header`
-          and `format_reversed_row` functions to format the table
-          output.
-    """
-    header_units = [
-        "Time Units",
-        "Kiloseconds (KSec)",
-        "Megaseconds (MSec)",
-        "Gigaseconds (GSec)",
-        "Teraseconds (TSec)",
-        "Petaseconds (PSec)",
-    ]
-    print(format_reversed_header(header_units))
-    print("-" * 120)
-
-    # Iterate over human time units and convert to UTMS
-    for unit, seconds in constants.HUMAN_TIME_UNITS.items():
-        row = [unit]  # Start with the time unit label
-
-        # Convert to each UTMS time unit
-        for utms_factor in constants.TIME_UNITS.values():
-            utms_value = seconds / utms_factor
-            row.append(f"{utms_value:.6f}")
-
-        # Print the row with appropriate formatting
-        print(format_reversed_row(row))
-    print()
-
-
-def print_conversion_table() -> None:
-    """
-    Prints a time conversion table that displays the relationship between various time units.
-
-    This function generates and prints a table with different time
-    units (e.g., Kiloseconds, Megaseconds, Gigaseconds) and their
-    equivalent values in seconds, minutes, hours, days, weeks, months,
-    years, centuries, and millennia.
-
-    The table includes the following columns:
-    - Time Unit: The name of the time unit (e.g., Kilosecond, Megasecond)
-    - Seconds: Equivalent value in seconds
-    - Minutes: Equivalent value in minutes
-    - Hours: Equivalent value in hours
-    - Days: Equivalent value in days
-    - Weeks: Equivalent value in weeks
-    - Months: Equivalent value in months
-    - Years: Equivalent value in years
-    - Centuries: Equivalent value in centuries
-    - Millennia: Equivalent value in millennia
-
-    Args:
-        None: This function does not accept any arguments.
-
-    Returns:
-        None: This function prints the time conversion table directly to the console.
-
-    Example:
-        >>> print_conversion_table()
-        Prints a table showing conversions from various time units to
-        other standard time units.
-
-    Exceptions:
-        - This function assumes that `constants.TIME_UNITS`,
-          `constants.SECONDS_IN_MINUTE`, `constants.SECONDS_IN_HOUR`,
-          `constants.SECONDS_IN_DAY`, `constants.SECONDS_IN_WEEK`,
-          `constants.SECONDS_IN_MONTH`, `constants.SECONDS_IN_YEAR`,
-          `constants.SECONDS_IN_CENTURY`, and
-          `constants.SECONDS_IN_MILLENNIUM` are defined and contain
-          valid numerical values.
-    """
-
-    header_units = [
-        "Time Unit",
-        "Seconds",
-        "Minutes",
-        "Hours",
-        "Days",
-        "Weeks",
-        "Months",
-        "Years",
-        "Centuries",
-        "Millennium",
-    ]
-    print("".join(f"{unit:<20}" for unit in header_units))
-    print("-" * 200)
-
-    # Loop through each unit and calculate conversions
-    for unit, factor in constants.TIME_UNITS.items():
-        seconds = factor
-        minutes = seconds / constants.SECONDS_IN_MINUTE
-        hours = seconds / constants.SECONDS_IN_HOUR
-        days = seconds / constants.SECONDS_IN_DAY
-        weeks = seconds / constants.SECONDS_IN_WEEK
-        months = seconds / constants.SECONDS_IN_MONTH
-        years = seconds / constants.SECONDS_IN_YEAR
-        centuries = seconds / constants.SECONDS_IN_CENTURY
-        millennia = seconds / constants.SECONDS_IN_MILLENNIUM
-
-        print(
-            f"{unit:<25}{seconds:<20.0f}{minutes:<20.3f}{hours:<20.3f}{days:<20.3f}"
-            f"{weeks:<20.3f}{months:<20.3f}{years:<20.3f}{centuries:<20.3f}{millennia:<20.3f}"
-        )
-    print()
 
 
 def resolve_date_dateparser(input_text: str) -> Optional[datetime]:
