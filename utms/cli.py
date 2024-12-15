@@ -36,8 +36,9 @@ Prompt> .conv concise
 from datetime import datetime
 from decimal import Decimal
 
-from prompt_toolkit import ANSI, PromptSession
+from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.formatted_text import FormattedText
 from prompt_toolkit.history import InMemoryHistory
 from prompt_toolkit.shortcuts import print_formatted_text
 from prompt_toolkit.styles import Style
@@ -209,7 +210,14 @@ def main() -> None:
 
         except ValueError as e:
             # If the input is invalid, print the error message
-            print_formatted_text(ANSI(f"[bold red]Error: {str(e)}[/bold red]"))
+            print_formatted_text(
+                FormattedText([("class:error", f"Error: {str(e)}")]),
+                style=Style.from_dict(
+                    {
+                        "error": "bold fg:red",
+                    }
+                ),
+            )
             continue
         except KeyboardInterrupt:
             continue
