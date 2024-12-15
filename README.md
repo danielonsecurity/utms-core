@@ -175,18 +175,46 @@ Create an Gemini API key here https://aistudio.google.com/app/apikey and add it 
 
 ### 5. Run the Python Package
 
-Once the virtual environment is activated, you can run the package using the following command:
-
+Once the virtual environment is activated, you can run UTMS command line:
 ```bash
-poetry run python -m utms
+$ utms
+
+Welcome to UTMS CLI (Version 0.1.0)!
+
+Input the date you want to check. If not a standard date format, AI will be used to convert your
+text into a parseable date. If your input starts with a dot (`.`) it'll be interpreted as a command.
+
+Available Commands:
+
+.unit [unit] [columns] [rows]
+    Display a conversion table for a specific unit. The parameters are optional:
+    - [unit]: The base unit for the conversion table ("s", "m", etc)
+      Defaults to "s" if omitted.
+    - [columns]: Number of columns before and after the base unit in
+      the table. Defaults to a standard layout if omitted.
+    - [rows]: Number of rows before and after the base unit in
+      the table. Defaults to a standard layout if omitted.
+    Examples:
+        .unit s
+        .unit m 5
+        .unit h 3 10
+
+.conv <value> <source_unit> [target_unit]
+    Convert a value from one unit to another. The `target_unit` is optional:
+    - <value>: The numerical value to be converted.
+    - <source_unit>: The unit of the value to be converted.
+    - [target_unit]: The desired unit to convert to. If omitted,
+      defaults to a standard unit conversion.
+    Examples:
+        .conv 60 s m
+        .conv 1 h
+
+General:
+    .exit
+        Exit the UTMS CLI.
+    .help
+        Display this help message.
+
+Notes:
+- Commands are case-sensitive and must begin with a period (`.`).
 ```
-
-OR just simply run it like this:
-
-```bash
-utms
-```
-
-
-This will execute the package. If you have specific commands or
-functionality to run, you can adjust the command accordingly.
