@@ -50,7 +50,7 @@ style = Style.from_dict({"prompt": "#ff6600 bold", "input": "#008800", "output":
 
 # Define a simple WordCompleter (autocompletion for date formats, or any other completions)
 completer = WordCompleter(
-    ["yesterday", "tomorrow", "today", "now", "exit", ".conv"],
+    ["yesterday", "tomorrow", "today", "now", "exit", ".conv", ".unit"],
     ignore_case=True,
 )
 
@@ -65,7 +65,7 @@ def handle_input(input_text: str) -> None:
     """
     Processes the input text to execute a corresponding command based on the provided input.
 
-    This function handles commands that start with `.conv` followed by a subcommand. The supported
+    This function handles commands that start with `.unit` followed by a subcommand. The supported
     subcommands are:
 
     - **"concise"**: Calls the `print_concise_conversion_table` function.
@@ -77,15 +77,15 @@ def handle_input(input_text: str) -> None:
     `print_all_conversions`.
 
     Args:
-        input_text (str): The input string, typically a command prefixed with `.conv`.
+        input_text (str): The input string, typically a command prefixed with `.unit`.
 
     Returns:
         None: The function performs actions based on the input and does not return any value.
     """
-    if input_text.startswith(".conv"):
+    if input_text.startswith(".unit"):
         # Split the command to check arguments (if any)
         parts = input_text.split()
-        if len(parts) == 2:  # .conv <subcommand>
+        if len(parts) == 2:  # .unit <subcommand>
             unit = parts[1]
             manager.print_conversion_table(unit)
         elif len(parts) == 3:
@@ -99,6 +99,18 @@ def handle_input(input_text: str) -> None:
             manager.print_conversion_table(unit, columns, rows)
         else:
             manager.print_conversion_table("s")
+    if input_text.startswith(".conv"):
+        # Split the command to check arguments (if any)
+        parts = input_text.split()
+        if len(parts) == 3:  # .conv <subcommand>
+            value = parts[1]
+            unit = parts[2]
+            manager.convert_units(value, unit)
+        if len(parts) == 4:
+            value = parts[1]
+            unit = parts[2]
+            converted = parts[3]
+            manager.convert_units(value, unit, converted)
 
 
 def main() -> None:
@@ -140,7 +152,7 @@ def main() -> None:
                 print("Exiting shell...")
                 break
 
-            if input_text.startswith(".conv"):
+            if input_text.startswith("."):
                 handle_input(input_text)
                 continue
 

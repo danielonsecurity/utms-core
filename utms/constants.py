@@ -139,8 +139,8 @@ manager.add_time_unit("Petasecond", "PS", Decimal("1e15"))
 manager.add_time_unit("Exasecond", "ES", Decimal("1e18"))
 manager.add_time_unit("Zettasecond", "ZS", Decimal("1e21"))
 manager.add_time_unit("Yottasecond", "YS", Decimal("1e24"))
-manager.add_time_unit("Ronnasecond", "RS", Decimal("1e24"))
-manager.add_time_unit("Quettasecond", "QS", Decimal("1e24"))
+manager.add_time_unit("Ronnasecond", "RS", Decimal("1e27"))
+manager.add_time_unit("Quettasecond", "QS", Decimal("1e30"))
 
 manager.add_time_unit("Minute", "m", SECONDS_IN_MINUTE)
 manager.add_time_unit("Hour", "h", SECONDS_IN_HOUR)
@@ -151,6 +151,10 @@ manager.add_time_unit("Year", "Y", SECONDS_IN_YEAR)
 manager.add_time_unit("Decade", "D", SECONDS_IN_YEAR * 10)
 manager.add_time_unit("Century", "C", SECONDS_IN_YEAR * 100)
 manager.add_time_unit("Millennium", "Mn", SECONDS_IN_YEAR * 1000)
+
+manager.add_time_unit("Deciday", "dd", SECONDS_IN_DAY / 10)
+manager.add_time_unit("Centiday", "cd", SECONDS_IN_DAY / 100)
+
 
 manager.add_time_unit("Lunar Cycle", "lc", SECONDS_IN_LUNAR_CYCLE)
 

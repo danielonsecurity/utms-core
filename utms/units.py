@@ -45,7 +45,7 @@ manager.print_conversion_table("s", num_columns=2, num_rows=5)
 """
 
 from decimal import Decimal
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 from colorama import Fore, Style, init
 
@@ -194,7 +194,10 @@ class TimeUnitManager:
         Prints all time units sorted by their value in seconds.
         """
         for key, unit in self._units.items():
-            print(f"{unit['full_name']} ({key}): {unit['value']} seconds")
+            print(
+                f"{unit['full_name']} ({key}):".ljust(25)
+                + f"{format_value(self.get_value('value'))} s"
+            )
 
     def print_conversion_table(
         self, center_unit: str, num_columns: int = 5, num_rows: int = 100
@@ -253,4 +256,38 @@ class TimeUnitManager:
                 + "".join(
                     f"{format_value(conversions[col_abbrev])}" for col_abbrev in displayed_columns
                 )
+            )
+
+    def convert_units(self, value: str, input_unit: str, output_unit: Optional[str] = None) -> None:
+        """
+        Convert a given value from one unit to all other units and print the results.
+
+        Args:
+            value (Decimal): The value to be converted.
+            input_unit (str): The abbreviation of the unit of the input value.
+
+        Raises:
+            ValueError: If the input unit is not found in the manager.
+        """
+        decimal_value = Decimal(value)
+        if input_unit not in self._units:
+            raise ValueError(f"Input unit '{input_unit}' not found in time units.")
+
+        input_unit_value = self.get_value(input_unit)
+
+        print(f"Converting {value} {input_unit}:")
+        print("-" * 50)
+
+        if not output_unit:
+            for abbrev, unit_info in self._units.items():
+                converted_value = decimal_value * (input_unit_value / self.get_value(abbrev))
+                print(
+                    f"{unit_info['full_name']} ({abbrev}):".ljust(25)
+                    + f"{format_value(converted_value)}"
+                )
+        else:
+            converted_value = decimal_value * (input_unit_value / self.get_value(output_unit))
+            print(
+                f"{self._units[output_unit]['full_name']} ({output_unit}):".ljust(25)
+                + f"{format_value(converted_value)}"
             )
