@@ -50,7 +50,7 @@ style = Style.from_dict({"prompt": "#ff6600 bold", "input": "#008800", "output":
 
 # Define a simple WordCompleter (autocompletion for date formats, or any other completions)
 completer = WordCompleter(
-    ["yesterday", "tomorrow", "today", "now", "exit", ".conv", ".unit"],
+    ["yesterday", "tomorrow", "today", "now", "exit", ".conv", ".unit", ".help"],
     ignore_case=True,
 )
 
@@ -59,6 +59,45 @@ history = InMemoryHistory()
 
 # Create the interactive session
 session: PromptSession[str] = PromptSession(completer=completer, history=history, style=style)
+
+HELP_MESSAGE = """
+Input the date you want to check. If not a standard date format, AI will be used to convert your
+text into a parseable date. If your input starts with a dot (`.`) it'll be interpreted as a command.
+
+Available Commands:
+
+.unit [unit] [columns] [rows]
+    Display a conversion table for a specific unit. The parameters are optional:
+    - [unit]: The base unit for the conversion table ("s", "m", etc)
+      Defaults to "s" if omitted.
+    - [columns]: Number of columns before and after the base unit in
+      the table. Defaults to a standard layout if omitted.
+    - [rows]: Number of rows before and after the base unit in
+      the table. Defaults to a standard layout if omitted.
+    Examples:
+        .unit s
+        .unit m 5
+        .unit h 3 10
+
+.conv <value> <source_unit> [target_unit]
+    Convert a value from one unit to another. The `target_unit` is optional:
+    - <value>: The numerical value to be converted.
+    - <source_unit>: The unit of the value to be converted.
+    - [target_unit]: The desired unit to convert to. If omitted,
+      defaults to a standard unit conversion.
+    Examples:
+        .conv 60 s m
+        .conv 1 h
+
+General:
+    .exit
+        Exit the UTMS CLI.
+    .help
+        Display this help message.
+
+Notes:
+- Commands are case-sensitive and must begin with a period (`.`).
+"""
 
 
 def handle_input(input_text: str) -> None:
@@ -69,9 +108,6 @@ def handle_input(input_text: str) -> None:
     subcommands are:
 
     - **"concise"**: Calls the `print_concise_conversion_table` function.
-    - **"new"**: Calls the `print_conversion_table` function.
-    - **"old"**: Calls the `print_reversed_conversion_table` function.
-    - **"."**: Calls the `print_all_conversions` function (default action).
 
     If the input does not match any subcommand, the function defaults to executing
     `print_all_conversions`.
@@ -141,6 +177,7 @@ def main() -> None:
               returning a value.
     """
     print(f"Welcome to UTMS CLI (Version {VERSION})!")
+    print(HELP_MESSAGE)
     print_time(get_current_time_ntp())
     while True:
         try:
@@ -148,9 +185,12 @@ def main() -> None:
             input_text = session.prompt("Prompt> ")
 
             # Exit condition
-            if input_text.lower() == "exit":
+            if input_text.lower() == "exit" or input_text.lower() == ".exit":
                 print("Exiting shell...")
                 break
+
+            if input_text.startswith(".help"):
+                print(HELP_MESSAGE)
 
             if input_text.startswith("."):
                 handle_input(input_text)
