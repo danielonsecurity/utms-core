@@ -219,7 +219,105 @@ Notes:
 - Commands are case-sensitive and must begin with a period (`.`).
 ```
 
+#### Look up a date
+
+Just type the date in any format you can think of, and UTMS will try to make sense of it, first using python's dateparser, and if that fails it'll use the Gemini AI to look up any event known to the AI and get a parseable time value out of it:
+
+```bash
+Prompt> today
+2024-12-15 03:34:29.518541+01:00
+CE Time:
+  + 63 GSec, 901 MSec, 384 KSec, 469 Sec
+  + 2024 Years, 333 Days, 8 Hours, 34 Minutes, 29 Seconds
+Millenium Time:
+  + 787 MSec, 545 KSec, 269 Sec
+  + 24 Years, 349 Days, 2 Hours, 34 Minutes, 29 Seconds
+Now Time:
+  - 0 Sec
+  - 0 Seconds
+Unix Time:
+  + 1 GSec, 734 MSec, 230 KSec, 69 Sec
+  + 54 Years, 348 Days, 14 Hours, 34 Minutes, 29 Seconds
+UPC Time:
+  + 435 PSec, 494 TSec, 883 GSec, 468 MSec, 460 KSec, 139 Sec
+  + 13800000109 Years, 331 Days, 23 Hours, 8 Minutes, 59 Seconds
+Life Time:
+  + 1 GSec, 24 MSec, 626 KSec, 869 Sec
+  + 32 Years, 171 Days, 2 Hours, 34 Minutes, 29 Seconds
+Prompt> 5 days ago
+2024-12-10 03:34:36.179889+01:00
+CE Time:
+  + 63 GSec, 900 MSec, 952 KSec, 476 Sec
+  + 2024 Years, 328 Days, 8 Hours, 34 Minutes, 36 Seconds
+Millenium Time:
+  + 787 MSec, 113 KSec, 276 Sec
+  + 24 Years, 344 Days, 2 Hours, 34 Minutes, 36 Seconds
+Now Time:
+  - 432 KSec
+  - 5 Days
+Unix Time:
+  + 1 GSec, 733 MSec, 798 KSec, 76 Sec
+  + 54 Years, 343 Days, 14 Hours, 34 Minutes, 36 Seconds
+UPC Time:
+  + 435 PSec, 494 TSec, 883 GSec, 468 MSec, 28 KSec, 152 Sec
+  + 13800000109 Years, 326 Days, 23 Hours, 9 Minutes, 12 Seconds
+Life Time:
+  + 1 GSec, 24 MSec, 194 KSec, 876 Sec
+  + 32 Years, 166 Days, 2 Hours, 34 Minutes, 36 Seconds
+Prompt> beginning of world war 1
+1914-07-28T00:00:00+00:00
+
+CE Time:
+  + 60 GSec, 417 MSec, 900 KSec
+  + 1914 Years, 192 Days, 18 Hours
+Millenium Time:
+  - 2 GSec, 695 MSec, 939 KSec, 200 Sec
+  - 85 Years, 156 Days, 18 Hours
+Now Time:
+  - 3 GSec, 483 MSec, 484 KSec, 501 Sec
+  - 110 Years, 140 Days, 14 Hours, 35 Minutes, 1 Seconds
+Unix Time:
+  - 1 GSec, 749 MSec, 254 KSec, 400 Sec
+  - 55 Years, 157 Days, 6 Hours
+UPC Time:
+  + 435 PSec, 494 TSec, 879 GSec, 984 MSec, 975 KSec, 701 Sec
+  + 13799999999 Years, 191 Days, 8 Hours, 35 Minutes, 1 Seconds
+Life Time:
+  - 2 GSec, 458 MSec, 857 KSec, 600 Sec
+  - 77 Years, 334 Days, 18 Hours
+Prompt> extinction of dinosaurs
+-0000066000000
+
+Resolved date (integer timestamp): 2082801600000000.00
+  + 2 PSec, 82 TSec, 801 GSec, 600 MSec
+  + 66000000 Years
+Prompt> fall of roman empire
+0476-09-04T00:00:00+00:00
+
+CE Time:
+  + 15 GSec, 42 MSec, 434 KSec, 400 Sec
+  + 476 Years, 243 Days, 6 Hours
+Millenium Time:
+  - 48 GSec, 71 MSec, 404 KSec, 800 Sec
+  - 1523 Years, 106 Days, 6 Hours
+Now Time:
+  - 48 GSec, 858 MSec, 950 KSec, 129 Sec
+  - 1548 Years, 90 Days, 2 Hours, 35 Minutes, 29 Seconds
+Unix Time:
+  - 47 GSec, 124 MSec, 720 KSec
+  - 1493 Years, 106 Days, 18 Hours
+UPC Time:
+  + 435 PSec, 494 TSec, 834 GSec, 609 MSec, 510 KSec, 129 Sec
+  + 13799998561 Years, 241 Days, 20 Hours, 35 Minutes, 29 Seconds
+Life Time:
+  - 47 GSec, 834 MSec, 323 KSec, 200 Sec
+  - 1515 Years, 284 Days, 6 Hours
+Prompt>
+```
+
 #### Print units conversion table
+
+Use the `.unit` command to display a conversion table between time units:
 
 ```bash
 Prompt> .unit
@@ -265,4 +363,123 @@ Yottasecond (YS)         1.000e+39           1.000e+36           1.000e+33      
 Ronnasecond (RS)         1.000e+42           1.000e+39           1.000e+36           1.000e+33           1.000e+30           1.000e+27           1.667e+25           1.157e+24           1.000e+24           2.778e+23           1.157e+23
 Quettasecond (QS)        1.000e+45           1.000e+42           1.000e+39           1.000e+36           1.000e+33           1.000e+30           1.667e+28           1.157e+27           1.000e+27           2.778e+26           1.157e+26
 Galaxial Era (GE)        3.156e+142          3.156e+139          3.156e+136          3.156e+133          3.156e+130          3.156e+127          5.260e+125          3.652e+124          3.156e+124          8.766e+123          3.652e+123
+```
+
+If you want to only print the relevant ones, choose the unit you want to center the table to and the number of columns and rows to display inbetween:
+
+```bash
+Prompt> .unit h 3 5
+Time Unit                Minute (m)          Centiday (cd)       Kilosecond (KS)     Hour (h)            Deciday (dd)        Day (d)             Week (w)
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------
+Millisecond (ms)         1.667e-5            1.157e-6            1.000e-6            2.778e-7            1.157e-7            1.157e-8            1.653e-9
+Second (s)               0.01667             0.00116             0.001               2.778e-4            1.157e-4            1.157e-5            1.653e-6
+Minute (m)               1                   0.06944             0.060               0.01667             0.00694             6.944e-4            9.921e-5
+Centiday (cd)            14.40000            1                   0.864               0.240               0.100               0.010               0.00143
+Kilosecond (KS)          16.66667            1.15741             1                   0.27778             0.11574             0.01157             0.00165
+Hour (h)                 60                  4.16667             3.60000             1                   0.41667             0.04167             0.00595
+Deciday (dd)             144                 10                  8.64000             2.40000             1                   0.100               0.01429
+Day (d)                  1440                100                 86.40000            24                  10                  1                   0.14286
+Week (w)                 10080               700                 604.80000           168                 70                  7                   1
+Megasecond (MS)          16666.66667         1157.40741          1000                277.77778           115.74074           11.57407            1.65344
+Lunar Cycle (lc)         42524.04667         2953.05880          2551.44280          708.73411           295.30588           29.53059            4.21866
+Prompt>
+```
+
+#### Convert units
+
+Use the `.conv` command to convert between units:
+
+```bash
+Prompt> .conv 5 h
+Converting 5 h:
+--------------------------------------------------
+Planck Time (pt):        3.339e+47
+Quectosecond (qs):       1.800e+34
+Rontosecond (rs):        1.800e+31
+Yoctosecond (ys):        1.800e+28
+Zeptosecond (zs):        1.800e+25
+Attosecond (as):         1.800e+22
+Femtosecond (fs):        1.800e+19
+Picosecond (ps):         1.800e+16
+Nanosecond (ns):         1.800e+13
+Microsecond (us):        1.800e+10
+Millisecond (ms):        1.800e+7
+Second (s):              18000
+Minute (m):              300
+Centiday (cd):           20.83333
+Kilosecond (KS):         18
+Hour (h):                5
+Deciday (dd):            2.08333
+Day (d):                 0.20833
+Week (w):                0.02976
+Megasecond (MS):         0.018
+Lunar Cycle (lc):        0.00705
+Month (M):               0.00694
+Year (Y):                5.704e-4
+Decade (D):              5.704e-5
+Gigasecond (GS):         1.800e-5
+Century (C):             5.704e-6
+Millennium (Mn):         5.704e-7
+Terasecond (TS):         1.800e-8
+Megaannum (Ma):          5.704e-10
+Petasecond (PS):         1.800e-11
+Gigaannum (Ga):          5.704e-13
+Age of Universe (au):    4.133e-14
+Hubble Time (ht):        3.961e-14
+Exasecond (ES):          1.800e-14
+Teraannum (Ta):          5.704e-16
+Zettasecond (ZS):        1.800e-17
+Yottasecond (YS):        1.800e-20
+Ronnasecond (RS):        1.800e-23
+Quettasecond (QS):       1.800e-26
+Galaxial Era (GE):       5.704e-124
+
+Prompt> .conv 1.25e7 s
+Converting 1.25e7 s:
+--------------------------------------------------
+Planck Time (pt):        2.319e+50
+Quectosecond (qs):       1.250e+37
+Rontosecond (rs):        1.250e+34
+Yoctosecond (ys):        1.250e+31
+Zeptosecond (zs):        1.250e+28
+Attosecond (as):         1.250e+25
+Femtosecond (fs):        1.250e+22
+Picosecond (ps):         1.250e+19
+Nanosecond (ns):         1.250e+16
+Microsecond (us):        1.250e+13
+Millisecond (ms):        1.250e+10
+Second (s):              1.250e+7
+Minute (m):              208333.33333
+Centiday (cd):           14467.59259
+Kilosecond (KS):         12500
+Hour (h):                3472.22222
+Deciday (dd):            1446.75926
+Day (d):                 144.67593
+Week (w):                20.66799
+Megasecond (MS):         12.50000
+Lunar Cycle (lc):        4.89919
+Month (M):               4.82253
+Year (Y):                0.39610
+Decade (D):              0.03961
+Gigasecond (GS):         0.01250
+Century (C):             0.00396
+Millennium (Mn):         3.961e-4
+Terasecond (TS):         1.250e-5
+Megaannum (Ma):          3.961e-7
+Petasecond (PS):         1.250e-8
+Gigaannum (Ga):          3.961e-10
+Age of Universe (au):    2.870e-11
+Hubble Time (ht):        2.751e-11
+Exasecond (ES):          1.250e-11
+Teraannum (Ta):          3.961e-13
+Zettasecond (ZS):        1.250e-14
+Yottasecond (YS):        1.250e-17
+Ronnasecond (RS):        1.250e-20
+Quettasecond (QS):       1.250e-23
+Galaxial Era (GE):       3.961e-121
+Prompt> .conv 1.25e7 s h
+Converting 1.25e7 s:
+--------------------------------------------------
+Hour (h):                3472.22222
+Prompt>
 ```
