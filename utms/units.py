@@ -1,14 +1,14 @@
 """
-Time Unit Management Module
+Unit Management Module
 ===========================
 
-This module provides a class, `TimeUnitManager`, for managing time units. It allows users to
+This module provides a class, `UnitManager`, for managing time units. It allows users to
 add, retrieve, and sort time units by their values (in seconds), as well as print the units
 and generate conversion tables for easy comparison.
 
 Classes:
 --------
-- `TimeUnitManager`: Handles the addition, management, and retrieval of time units.
+- `UnitManager`: Handles the addition, management, and retrieval of time units.
 
 Dependencies:
 -------------
@@ -27,10 +27,10 @@ Usage:
 ------
 ```python
 from decimal import Decimal
-from time_unit_manager import TimeUnitManager
+from time_unit_manager import UnitManager
 
 # Initialize the manager
-manager = TimeUnitManager()
+manager = UnitManager()
 
 # Add time units
 manager.add_time_unit("Second", "s", Decimal("1"))
@@ -122,7 +122,7 @@ def format_value(
     )  # Fixed-point notation with 3 decimal places
 
 
-class TimeUnitManager:
+class UnitManager:
     """
     A class to manage time units, allowing adding new units, sorting
     by value, and accessing them by abbreviation.
@@ -140,8 +140,7 @@ class TimeUnitManager:
             abbreviation (str): The abbreviation of the time unit.
             value (Decimal): The value of the unit in seconds.
         """
-        key = abbreviation
-        self._units[key] = {
+        self._units[abbreviation] = {
             "full_name": full_name,
             "value": value,
         }

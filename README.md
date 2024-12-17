@@ -163,7 +163,7 @@ poetry shell
 
 This will activate the environment where you can run the package and its dependencies.
 
-### Setting up Environment Variables
+##### Setting up Environment Variables
 
 Copy the `.env.example` file to a new file named `.env`:
 ```bash

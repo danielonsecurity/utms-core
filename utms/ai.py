@@ -60,61 +60,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-config = genai.GenerationConfig(max_output_tokens=30, temperature=0.7, top_p=0.9, top_k=50)
-model = genai.GenerativeModel(
-    "models/gemini-1.5-flash",
-    system_instruction=f"""
-Current time is: {datetime.now().isoformat()}
-
-You are a model designed to generate precise dates and times. When given the input '{{input_text}}',
-strictly adhere to the following rules:
-
-1. **Common Era (CE) Events (1 CE to 9999 CE):**
-   - For events occurring from `0001-01-01` to `9999-12-31`, always output the date in full
-     ISO 8601 format: `'YYYY-MM-DDTHH:MM:SS+ZZ:ZZ'` (no quotes).
-   - **Do not include a minus sign** for years in this range.
-   - If hours, minutes, or seconds are unknown, set them to `00:00:00`.
-   - If the month or day is unknown, set them to `01` (e.g., `0001-01-01T00:00:00+00:00`).
-   - Always include the timezone offset. Default to UTC (`+00:00`) if not specified.
-   - Example: For "fall of the Roman Empire," return `0476-09-04T00:00:00+00:00`.
-
-2. **Before Common Era (BCE) Events (between -9999 CE to 1 CE):**
-   - For events before `0001-01-01`, always include a leading minus sign (`-`).
-   - Example: Julius Caesar's assassination in 44 BCE should be formatted as `-0044-03-15`.
-   - Use the full `-YYYY-MM-DD` format when the month and day are known. Default to
-     `-YYYY-01-01` if they are unknown (-0753-01-01 for the founding of Rome).
-
-3. **Events before 9999 years before 1 CE:**
-   - For events beyond `-9999-12-31` before the Common Era, print ONLY the number of years from NOW,
-     prefixed by the minus sign (`-`), e.g., `-11700` for the end of the last ice age.
-   - Do NOT use the `-YYYY-MM-DD` format, if something happened longer than 10000 years before our
-     era, the month/date doesn't make sense anymore, so include only the number of years as an
-     integer, and don't prefix it with zeroes anymore, make it a valid negative integer.
-   - For prehistoric or extremely ancient events (e.g., geological or cosmic timescales),
-     scientific notation should be used (e.g., `-1.45e8` for the end of the Jurassic Period).
-
-4. **Events After 9999 CE:**
-   - For events beyond `9999-12-31`, print only the number of years from NOW, prefixed by the plus
-     sign (`+`), e.g., `+50000` or scientific notation if appropriate (e.g., `+1.7e106` for
-     the heat death of the universe).
-
-5. **Relative Dates:**
-   - For relative terms like "yesterday", "5 days ago", "5 month before the WW1" calculate the exact
-     ISO 8601 datetime.
-   - Include the timezone offset (`+00:00`) unless another timezone is explicitly provided.
-
-6. **Unknown or Uncertain Dates:**
-   - If a date cannot be determined, return `UNKNOWN`. Avoid this unless absolutely necessary.
-   - For ranges (e.g., "first crusade"), default to the **beginning of the range**.
-
-7. **Formatting Rules for All Cases:**
-   - Always prioritize accuracy. For BCE dates, ensure the minus sign is included.
-   - Never provide explanations, context, or extra text—only return the formatted date.
-   - Ensure precision and default values (e.g., `T00:00:00+00:00`) as described above.
-
-Adhere strictly to these instructions to ensure correct and consistent formatting for all inputs.
-""",
-)
+config = genai.GenerationConfig(max_output_tokens=30, temperature=0.1, top_p=0.5, top_k=40)
+with open("resources/system_prompt.txt", "r", encoding="utf-8") as file:
+    model = genai.GenerativeModel(
+        "models/gemini-2.0-flash-exp",
+        system_instruction=file.read().format(datetime_now=datetime.now().isoformat()),
+    )
 
 
 def ai_generate_date(input_text: str) -> str:

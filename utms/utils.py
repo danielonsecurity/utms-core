@@ -34,7 +34,7 @@ Functions:
 - `print_results()`: Prints time breakdown in both human-readable and scientific units.
 - `resolve_date_dateparser()`: Resolves a date using the `dateparser` library.
 - `resolve_date()`: Resolves a date using `dateparser` and AI generation as a fallback.
-- `print_time()`: Prints time in various formats (CE, Millennium, Unix, UPC, etc.).
+- `print_datetime()`: Prints time in various formats (CE, Millennium, Unix, UPC, etc.).
 - `print_header()`: Prints a header with cyan and bright styling.
 - `old_unit()`: Applies magenta styling to a unit string.
 - `new_unit()`: Applies green styling to a unit string.
@@ -64,6 +64,7 @@ from colorama import Fore, Style, init
 
 from utms import constants
 from utms.ai import ai_generate_date
+from utms.anchors import AnchorManager
 
 init()
 
@@ -122,57 +123,6 @@ def get_current_time_ntp() -> datetime:
     """
     ntp_timestamp = get_ntp_time()
     return datetime.fromtimestamp(ntp_timestamp, timezone.utc)  # Convert to UTC datetime
-
-
-# Function to calculate the total time since the Big Bang in seconds
-def calculate_total_time_seconds() -> Decimal:
-    """
-    Calculates the total time elapsed since the Big Bang in seconds.
-
-    This function calculates the total time by adding the current NTP
-    time (in seconds) to the known age of the universe, which is
-    provided in years (multiplied by the number of seconds in a year).
-    The result is returned as a `Decimal` to maintain precision.
-
-    Args:
-        None: This function does not take any arguments.
-
-    Returns:
-        Decimal: The total time since the Big Bang, in seconds.
-
-    Exceptions:
-        - This function relies on `get_ntp_time()` to fetch the
-          current time, and will return a total time based on the
-          system's NTP time if the server request fails.
-    """
-    current_timestamp_seconds = Decimal(get_ntp_time())
-    age_of_universe_seconds = constants.AGE_OF_UNIVERSE_YEARS * constants.SECONDS_IN_YEAR
-    return age_of_universe_seconds + current_timestamp_seconds
-
-
-# Function to calculate UPC (Universal Planck Count)
-def calculate_upc() -> Decimal:  # pragma: no cover
-    """
-    Calculates the Universal Planck Count (UPC).
-
-    This function computes the UPC by dividing the total time since
-    the Big Bang (in seconds) by the Planck time, which is a
-    fundamental physical constant. The result is returned as a
-    `Decimal` to maintain precision.
-
-    Args:
-        None: This function does not take any arguments.
-
-    Returns:
-        Decimal: The Universal Planck Count (UPC), representing the
-        total time since the Big Bang divided by the Planck time.
-
-    Exceptions:
-        - This function depends on `calculate_total_time_seconds()`,
-          so any error in fetching or calculating the total time
-          (e.g., due to NTP issues) will affect the UPC calculation.
-    """
-    return calculate_total_time_seconds() / constants.PLANCK_TIME_SECONDS
 
 
 def return_old_time_breakdown(years: int, days: int, hours: int, minutes: int, seconds: int) -> str:
@@ -490,13 +440,16 @@ def resolve_date(input_text: str) -> Union[datetime, Decimal, None]:
     # Handle AI response for historical dates
     if ai_result.startswith("-"):
         if ai_result.count("-") == 3:  # -YYYY-MM-DD
-            now = datetime.now()
+            epoch = constants.UNIX_DATE
             bc_date = datetime.strptime(ai_result, "-%Y-%m-%d")
-            delta_years = now.year + abs(bc_date.year) - 1
-            delta_days = (now - now.replace(year=now.year, month=1, day=1)).days
+            delta_years = epoch.year + abs(bc_date.year) - 1
+            delta_days = (epoch - epoch.replace(year=epoch.year, month=1, day=1)).days
             return -Decimal((delta_years * Decimal(365.25) + delta_days) * constants.SECONDS_IN_DAY)
         # -YYYYYYYY or -1.5e9
-        return -Decimal(Decimal(ai_result) * constants.SECONDS_IN_YEAR)
+        epoch = constants.UNIX_DATE
+        return -Decimal(
+            Decimal(epoch.year + abs(Decimal(ai_result)) - 1) * constants.SECONDS_IN_YEAR
+        )
 
     # Handle AI response for future events
     if ai_result.startswith("+"):
@@ -508,7 +461,7 @@ def resolve_date(input_text: str) -> Union[datetime, Decimal, None]:
         return None
 
 
-def print_time(timestamp: datetime) -> None:
+def print_datetime(timestamp: datetime, anchors: AnchorManager) -> None:
     """
     Prints the time-related calculations for a given timestamp in various formats:
     'CE Time', 'Millenium Time', 'Now Time', 'UPC Time', and 'Life Time'.
@@ -518,35 +471,59 @@ def print_time(timestamp: datetime) -> None:
         None: This function prints out the results of various time calculations.
     Example:
         >>> timestamp = datetime(2023, 1, 1, tzinfo=timezone.utc)
-        >>> print_time(timestamp)
+        >>> print_datetime(timestamp)
         # This will print time calculations based on the provided timestamp.
     """
-    delta = Decimal(
-        (timestamp - datetime(1, 1, 1, 0, 0, tzinfo=timezone.utc)).total_seconds()
-    ) + +Decimal(constants.SECONDS_IN_YEAR)
-    print_header("CE Time:")
-    print_results(delta)
-    if timestamp >= datetime(1970, 1, 1, tzinfo=timezone.utc):
-        total_seconds = Decimal(timestamp.timestamp())
-    else:
-        total_seconds = Decimal(
-            (timestamp - datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)).total_seconds()
-        )
-    delta = total_seconds - Decimal(constants.MILLENNIUM_DATE.timestamp())
-    print_header("Millenium Time:")
-    print_results(delta)
-    delta = total_seconds - Decimal(get_current_time_ntp().timestamp())
-    print_header("Now Time:")
-    print_results(delta)
-    delta = total_seconds - Decimal(constants.UNIX_DATE.timestamp())
-    print_header("Unix Time:")
-    print_results(delta)
-    delta = Decimal(calculate_total_time_seconds()) + delta
-    print_header("UPC Time:")
-    print_results(delta)
-    delta = total_seconds - Decimal(constants.LIFE_DATE.timestamp())
-    print_header("Life Time:")
-    print_results(delta)
+    # total_seconds = years from UNIX time in seconds
+    total_seconds = Decimal(timestamp.timestamp())
+
+    for anchor in anchors:
+        print_header(anchor.full_name)
+        print_results(total_seconds - anchor.value)
+
+
+def print_decimal_timestamp(total_seconds: Decimal, anchors: AnchorManager) -> None:
+    """
+    Prints the results of time-related calculations for a given total seconds value
+    in various formats based on predefined anchors.
+
+    The function iterates through a collection of time anchors, calculates the difference
+    between the given total seconds and the anchor values, and prints the formatted results.
+
+    :param total_seconds:
+        The total number of seconds as a Decimal value, typically representing
+        elapsed time since the UNIX epoch or a custom time calculation.
+    :return:
+        None. This function directly prints results for each anchor.
+
+    **Example**:
+
+    .. code-block:: python
+
+        from decimal import Decimal
+
+        total_seconds = Decimal("1672531200")  # Seconds for 2023-01-01 00:00:00 UTC
+        print_decimal_timestamp(total_seconds)
+
+    **Output**:
+
+    .. code-block:: text
+
+        CE Time
+        <calculated difference>
+
+        Millenium Time
+        <calculated difference>
+
+        Now Time
+        <calculated difference>
+
+        Life Time
+        <calculated difference>
+    """
+    for anchor in anchors:
+        print_header(anchor.full_name)
+        print_results(total_seconds - anchor.value)
 
 
 def print_header(header: str) -> None:

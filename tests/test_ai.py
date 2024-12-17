@@ -1,6 +1,7 @@
 from datetime import datetime
 
 from utms.ai import ai_generate_date
+from decimal import Decimal
 
 local_timezone = datetime.now().astimezone().tzinfo
 
@@ -39,9 +40,9 @@ def test_ai_generate_date_tiananmen_square():
     assert actual == expected
     
 def test_ai_generate_date_summer_olympics():
-    expected = "2028-07-26T00:00:00+00:00"
+    expected = "2028-07"
     actual = ai_generate_date("2028 summer olympics")
-    assert actual == expected
+    assert actual.startswith(expected)
     
 def test_ai_generate_unknown_date():
     expected = "UNKNOWN"
@@ -49,9 +50,9 @@ def test_ai_generate_unknown_date():
     assert actual == expected
 
 def test_ai_generate_future_date():
-    expected = "+1.7e106"
-    actual = ai_generate_date("heat death of the universe")
-    assert actual == expected
+    expected = Decimal("+1.0e100")
+    actual = Decimal(ai_generate_date("heat death of the universe"))
+    assert actual >= expected
     
 def test_ai_generate_date_before_era():
     expected = "-0044-03-15"

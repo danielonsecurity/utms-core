@@ -11,7 +11,7 @@ Modules:
     datetime: For date and time handling.
     decimal: For high-precision decimal arithmetic.
     importlib.metadata: For fetching package version information.
-    utms.units: For managing time units through the `TimeUnitManager`.
+    utms.units: For managing time units through the `UnitManager`.
 
 Constants:
     - HBAR: Reduced Planck constant in Joule-seconds (J⋅s).
@@ -35,7 +35,7 @@ Time Units:
       seconds, and `HUMAN_TIME_UNITS` offers more familiar human units.
 
 Functions:
-    - TimeUnitManager instance to manage and convert between these units.
+    - UnitManager instance to manage and convert between these units.
     - The manager is used to add custom time units, such as "Lunar cycle", "Hubble time",
       and others, to provide a comprehensive set of time units for conversions and
       calculations.
@@ -54,8 +54,6 @@ import math
 from datetime import datetime, timezone
 from decimal import Decimal, getcontext
 from importlib.metadata import PackageNotFoundError, version
-
-from utms.units import TimeUnitManager
 
 try:
     VERSION = version("utms")
@@ -110,58 +108,3 @@ MILLENNIUM_DATE = datetime(2000, 1, 1, 0, 0, tzinfo=timezone.utc)
 CE_DATE = datetime(1, 1, 1, 0, 0, tzinfo=timezone.utc)
 LIFE_DATE = datetime(1992, 6, 27, 0, 0, tzinfo=timezone.utc)
 UNIX_DATE = datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
-
-
-# Create a TimeUnitManager instance
-manager = TimeUnitManager()
-
-# Add time units
-manager.add_time_unit("Planck Time", "pt", PLANCK_TIME_SECONDS)
-
-manager.add_time_unit("Quectosecond", "qs", Decimal("1e-30"))
-manager.add_time_unit("Rontosecond", "rs", Decimal("1e-27"))
-manager.add_time_unit("Yoctosecond", "ys", Decimal("1e-24"))
-manager.add_time_unit("Zeptosecond", "zs", Decimal("1e-21"))
-manager.add_time_unit("Attosecond", "as", Decimal("1e-18"))
-manager.add_time_unit("Femtosecond", "fs", Decimal("1e-15"))
-manager.add_time_unit("Picosecond", "ps", Decimal("1e-12"))
-manager.add_time_unit("Nanosecond", "ns", Decimal("1e-9"))
-manager.add_time_unit("Microsecond", "us", Decimal("1e-6"))
-manager.add_time_unit("Millisecond", "ms", Decimal("1e-3"))
-
-manager.add_time_unit("Second", "s", Decimal(1))
-
-manager.add_time_unit("Kilosecond", "KS", Decimal("1e3"))
-manager.add_time_unit("Megasecond", "MS", Decimal("1e6"))
-manager.add_time_unit("Gigasecond", "GS", Decimal("1e9"))
-manager.add_time_unit("Terasecond", "TS", Decimal("1e12"))
-manager.add_time_unit("Petasecond", "PS", Decimal("1e15"))
-manager.add_time_unit("Exasecond", "ES", Decimal("1e18"))
-manager.add_time_unit("Zettasecond", "ZS", Decimal("1e21"))
-manager.add_time_unit("Yottasecond", "YS", Decimal("1e24"))
-manager.add_time_unit("Ronnasecond", "RS", Decimal("1e27"))
-manager.add_time_unit("Quettasecond", "QS", Decimal("1e30"))
-
-manager.add_time_unit("Minute", "m", SECONDS_IN_MINUTE)
-manager.add_time_unit("Hour", "h", SECONDS_IN_HOUR)
-manager.add_time_unit("Day", "d", SECONDS_IN_DAY)
-manager.add_time_unit("Week", "w", SECONDS_IN_WEEK)
-manager.add_time_unit("Month", "M", SECONDS_IN_MONTH)
-manager.add_time_unit("Year", "Y", SECONDS_IN_YEAR)
-manager.add_time_unit("Decade", "D", SECONDS_IN_YEAR * 10)
-manager.add_time_unit("Century", "C", SECONDS_IN_YEAR * 100)
-manager.add_time_unit("Millennium", "Mn", SECONDS_IN_YEAR * 1000)
-
-manager.add_time_unit("Deciday", "dd", SECONDS_IN_DAY / 10)
-manager.add_time_unit("Centiday", "cd", SECONDS_IN_DAY / 100)
-
-
-manager.add_time_unit("Lunar Cycle", "lc", SECONDS_IN_LUNAR_CYCLE)
-
-manager.add_time_unit("Megaannum", "Ma", SECONDS_IN_YEAR * Decimal(1e6))
-manager.add_time_unit("Gigaannum", "Ga", SECONDS_IN_YEAR * Decimal(1e9))
-manager.add_time_unit("Teraannum", "Ta", SECONDS_IN_YEAR * Decimal(1e12))
-
-manager.add_time_unit("Age of Universe", "au", AGE_OF_UNIVERSE_SECONDS)
-manager.add_time_unit("Hubble Time", "ht", HUBBLE_TIME_SECONDS)
-manager.add_time_unit("Galaxial Era", "GE", GALAXIAL_ERA)
