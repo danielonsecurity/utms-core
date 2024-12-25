@@ -52,282 +52,19 @@ Notes:
 - Date parsing includes fallback to AI-based date generation if parsing fails.
 """
 
-import socket
 from datetime import datetime, timezone
 from decimal import Decimal
-from time import time
 from typing import Optional, Union
 
 import dateparser
-import ntplib
 from colorama import Fore, Style, init
+from prettytable import PrettyTable
 
 from utms import constants
 from utms.ai import ai_generate_date
-from utms.anchors import AnchorManager
+from utms.config import Config
 
 init()
-
-
-# Function to get time via NTP
-def get_ntp_time() -> float:
-    """
-    Retrieves the current time from an NTP (Network Time Protocol) server.
-
-    This function queries an NTP server (default is "pool.ntp.org") to
-    get the accurate current time.  If the NTP request is successful,
-    it returns the transmit timestamp as a float. If the NTP request
-    fails (due to network issues or other errors), the function falls
-    back to returning the system time.
-
-    Args:
-        None: This function does not take any arguments.
-
-    Returns:
-        float: The current time, either from the NTP server (as a
-        float timestamp) or the system time (as a fallback).
-
-    Exceptions:
-        - If the NTP request fails, the system time is returned instead.
-    """
-    client = ntplib.NTPClient()
-    try:
-        # Query an NTP server
-        response = client.request("pool.ntp.org", version=3)
-        return float(response.tx_time)  # Return the transmit timestamp
-    except (ntplib.NTPException, socket.error, OSError) as e:  # pragma: no cover
-        print(f"Error fetching NTP time: {e}")
-        return float(time())  # Fallback to system time
-
-
-# Function to calculate the current NTP time as a datetime object
-def get_current_time_ntp() -> datetime:
-    """
-    Retrieves the current NTP time and converts it to a UTC datetime object.
-
-    This function fetches the current time from an NTP (Network Time
-    Protocol) server by calling `get_ntp_time()`, which returns a
-    timestamp. The timestamp is then converted to a `datetime` object
-    in UTC timezone using `datetime.fromtimestamp()`.
-
-    Args:
-        None: This function does not take any arguments.
-
-    Returns:
-        datetime: The current time as a `datetime` object in UTC.
-
-    Exceptions:
-        - If `get_ntp_time()` encounters an error, it will return the
-        system time, which will be converted to a UTC `datetime`
-        object.
-    """
-    ntp_timestamp = get_ntp_time()
-    return datetime.fromtimestamp(ntp_timestamp, timezone.utc)  # Convert to UTC datetime
-
-
-def return_old_time_breakdown(years: int, days: int, hours: int, minutes: int, seconds: int) -> str:
-    """
-    Converts a time breakdown into a human-readable string using
-    custom unit names.
-
-    This function takes individual time components (years, days,
-    hours, minutes, and seconds) and creates a formatted string that
-    describes the total time in a human-readable format. The string
-    includes only non-zero components and uses a custom unit name for
-    each time unit via the `old_unit` function.
-
-    If all components are zero, the function returns a string
-    indicating zero time in "Seconds".
-
-    Args:
-        years (int): The number of years in the time breakdown.
-        days (int): The number of days in the time breakdown.
-        hours (int): The number of hours in the time breakdown.
-        minutes (int): The number of minutes in the time breakdown.
-        seconds (int): The number of seconds in the time breakdown.
-
-    Returns:
-        str: A formatted string representing the time breakdown with
-        custom unit names for each non-zero component.
-
-    Example:
-        >>> return_old_time_breakdown(2, 3, 4, 5, 6)
-        '2 Years, 3 Days, 4 Hours, 5 Minutes, 6 Seconds'
-
-    Exceptions:
-        - This function assumes that the input values are non-negative
-          integers representing the components of the time breakdown.
-    """
-    # Check if all values are zero
-    if years == 0 and days == 0 and hours == 0 and minutes == 0 and seconds == 0:
-        return f"0 {old_unit('Seconds')}"
-
-    # Create the breakdown
-    breakdown = []
-
-    if years > 0:
-        breakdown.append(f"{years} {old_unit('Years')}")
-    if days > 0:
-        breakdown.append(f"{days} {old_unit('Days')}")
-    if hours > 0:
-        breakdown.append(f"{hours} {old_unit('Hours')}")
-    if minutes > 0:
-        breakdown.append(f"{minutes} {old_unit('Minutes')}")
-    if seconds > 0:
-        breakdown.append(f"{seconds} {old_unit('Seconds')}")
-
-    return ", ".join(breakdown)
-
-
-def return_time_breakdown(
-    integer_petaseconds: int,
-    integer_teraseconds: int,
-    integer_gigaseconds: int,
-    integer_megaseconds: int,
-    integer_kiloseconds: int,
-    remaining_seconds: int,
-) -> str:
-    """
-    Converts a time breakdown into a human-readable string with custom units.
-
-    This function takes individual time components (petaseconds,
-    teraseconds, gigaseconds, megaseconds, kiloseconds, and remaining
-    seconds) and creates a formatted string describing the total time
-    in a human-readable format.  The string includes only non-zero
-    components, using custom unit names for each time unit via the
-    `new_unit` function.
-
-    If all components are zero, the function returns a string
-    indicating zero time in "Sec".
-
-    Args:
-        integer_petaseconds (int): The number of petaseconds in the time breakdown.
-        integer_teraseconds (int): The number of teraseconds in the time breakdown.
-        integer_gigaseconds (int): The number of gigaseconds in the time breakdown.
-        integer_megaseconds (int): The number of megaseconds in the time breakdown.
-        integer_kiloseconds (int): The number of kiloseconds in the time breakdown.
-        remaining_seconds (int): The remaining number of seconds in the time breakdown.
-
-    Returns:
-        str: A formatted string representing the time breakdown with
-        custom unit names for each non-zero component.
-
-    Example:
-        >>> return_time_breakdown(2, 3, 4, 5, 6, 7)
-        '2 PSec, 3 TSec, 4 GSec, 5 MSec, 6 KSec, 7 Sec'
-
-    Exceptions:
-        - This function assumes that the input values are non-negative
-          integers representing the components of the time breakdown.
-    """
-    # Check if all values are zero
-    if (
-        integer_petaseconds == 0
-        and integer_teraseconds == 0
-        and integer_gigaseconds == 0
-        and integer_megaseconds == 0
-        and integer_kiloseconds == 0
-        and remaining_seconds == 0
-    ):
-        return f"0 {new_unit('Sec')}"
-
-    # Create the breakdown
-    breakdown = []
-
-    if integer_petaseconds > 0:
-        breakdown.append(f"{integer_petaseconds} {new_unit('PSec')}")
-    if integer_teraseconds > 0:
-        breakdown.append(f"{integer_teraseconds} {new_unit('TSec')}")
-    if integer_gigaseconds > 0:
-        breakdown.append(f"{integer_gigaseconds} {new_unit('GSec')}")
-    if integer_megaseconds > 0:
-        breakdown.append(f"{integer_megaseconds} {new_unit('MSec')}")
-    if integer_kiloseconds > 0:
-        breakdown.append(f"{integer_kiloseconds} {new_unit('KSec')}")
-    if remaining_seconds > 0:
-        breakdown.append(f"{remaining_seconds} {new_unit('Sec')}")
-
-    return ", ".join(breakdown)
-
-
-def print_results(total_seconds: Decimal) -> None:
-    """
-    Prints the breakdown of total time in various units and a
-    human-readable format based on the total time in seconds.
-
-    This function accepts a time duration in seconds and prints its
-    equivalent in different time units, including:
-    - Petaseconds (Ps), Teraseconds (Ts), Gigaseconds (Gs), Megaseconds (Ms), Kiloseconds (ks)
-    - A human-readable breakdown in years, days, hours, minutes, and seconds.
-
-    The time is formatted with appropriate color coding for positive
-    (green) or negative (red) values.
-
-    The function is flexible and can be reused for any time duration,
-    including specialized durations like the Universal Planck Count
-    (UPC).
-
-    Args:
-        total_seconds (Decimal): The total time in seconds to be
-        broken down and printed in various units.
-
-    Returns:
-        None: This function prints the time breakdown to the console.
-
-    Example:
-        >>> print_results(12345678901234)
-        '+ 12345678901234 PSec, 0 TSec, 0 GSec, 0 MSec, 0 KSec, 12345678901234 Sec'
-        '+ 392 Years, 5 Days, 0 Hours, 15 Minutes, 34 Seconds'
-
-    Exceptions:
-        - This function assumes that the input `total_seconds` is a
-          valid `Decimal` representing the total time in seconds.
-    """
-
-    if total_seconds < 0:
-        prefix = Fore.RED + Style.BRIGHT + "  - " + Style.RESET_ALL
-        total_seconds = -total_seconds
-    else:
-        prefix = Fore.GREEN + Style.BRIGHT + "  + " + Style.RESET_ALL
-
-    # Breakdown of total time into integer units
-    remaining_seconds = int(total_seconds)
-    integer_petaseconds = remaining_seconds // int(1e15)
-    remaining_seconds %= int(1e15)
-    integer_teraseconds = remaining_seconds // int(1e12)
-    remaining_seconds %= int(1e12)
-    integer_gigaseconds = remaining_seconds // int(1e9)
-    remaining_seconds %= int(1e9)
-    integer_megaseconds = remaining_seconds // int(1e6)
-    remaining_seconds %= int(1e6)
-    integer_kiloseconds = remaining_seconds // int(1e3)
-    remaining_seconds %= int(1e3)
-
-    # Human-readable breakdown of the time (in years, days, hours, minutes, seconds)
-    years = int(total_seconds // int(constants.SECONDS_IN_YEAR))
-    remaining_seconds_in_year = int(total_seconds % int(constants.SECONDS_IN_YEAR))
-    days = remaining_seconds_in_year // (60 * 60 * 24)
-    remaining_seconds_in_year %= 60 * 60 * 24
-    hours = remaining_seconds_in_year // (60 * 60)
-    remaining_seconds_in_year %= 60 * 60
-    minutes = remaining_seconds_in_year // 60
-    seconds = remaining_seconds_in_year % 60
-
-    # Print petaseconds, teraseconds, etc.
-    print(
-        prefix
-        + return_time_breakdown(
-            integer_petaseconds,
-            integer_teraseconds,
-            integer_gigaseconds,
-            integer_megaseconds,
-            integer_kiloseconds,
-            remaining_seconds,
-        )
-    )
-
-    # Print years, days, hours, minutes, seconds
-    print(prefix + return_old_time_breakdown(years, days, hours, minutes, seconds))
 
 
 def resolve_date_dateparser(input_text: str) -> Optional[datetime]:
@@ -379,7 +116,7 @@ def resolve_date_dateparser(input_text: str) -> Optional[datetime]:
 
 
 # Function to resolve dates
-def resolve_date(input_text: str) -> Union[datetime, Decimal, None]:
+def resolve_date(input_text: str) -> Union[datetime, Decimal, str, None]:
     """
     Resolves a date from a given string input. The function first
     attempts to parse the date using `dateparser`, and if unsuccessful,
@@ -458,72 +195,42 @@ def resolve_date(input_text: str) -> Union[datetime, Decimal, None]:
         # If the AI produces a valid ISO 8601 timestamp
         return datetime.fromisoformat(ai_result)
     except ValueError:  # pragma: no cover
-        return None
+        return ai_result
 
 
-def print_datetime(timestamp: datetime, anchors: AnchorManager) -> None:
+def print_time(timestamp: "Union[datetime, Decimal]", config: Config) -> None:
     """
-    Prints the time-related calculations for a given timestamp in various formats:
-    'CE Time', 'Millenium Time', 'Now Time', 'UPC Time', and 'Life Time'.
+    Prints the time-related calculations for a given timestamp or total seconds value
+    in various formats: 'CE Time', 'Millenium Time', 'Now Time', 'UPC Time', and 'Life Time'.
+
+    The function handles both `datetime` (in UTC) or `Decimal` representing seconds since the UNIX
+    epoch.
+
     Args:
-        timestamp (datetime): The input timestamp (in UTC) to be used for the calculations.
+        timestamp (Union[datetime, Decimal]): The input timestamp (in UTC) or total seconds
+                                              since the UNIX epoch to be used for the calculations.
+        config (Config): The configuration object containing time anchors and other settings.
+
     Returns:
         None: This function prints out the results of various time calculations.
+
     Example:
         >>> timestamp = datetime(2023, 1, 1, tzinfo=timezone.utc)
-        >>> print_datetime(timestamp)
-        # This will print time calculations based on the provided timestamp.
+        >>> print_time_related_data(timestamp, config)
+        # OR
+        >>> total_seconds = Decimal("1672531200")
+        >>> print_time_related_data(total_seconds, config)
     """
-    # total_seconds = years from UNIX time in seconds
-    total_seconds = Decimal(timestamp.timestamp())
+    # If the input is a datetime object, convert it to total seconds
+    if isinstance(timestamp, datetime):
+        total_seconds = Decimal(timestamp.timestamp())
+    else:
+        total_seconds = timestamp
 
-    for anchor in anchors:
-        print_header(anchor.full_name)
-        print_results(total_seconds - anchor.value)
-
-
-def print_decimal_timestamp(total_seconds: Decimal, anchors: AnchorManager) -> None:
-    """
-    Prints the results of time-related calculations for a given total seconds value
-    in various formats based on predefined anchors.
-
-    The function iterates through a collection of time anchors, calculates the difference
-    between the given total seconds and the anchor values, and prints the formatted results.
-
-    :param total_seconds:
-        The total number of seconds as a Decimal value, typically representing
-        elapsed time since the UNIX epoch or a custom time calculation.
-    :return:
-        None. This function directly prints results for each anchor.
-
-    **Example**:
-
-    .. code-block:: python
-
-        from decimal import Decimal
-
-        total_seconds = Decimal("1672531200")  # Seconds for 2023-01-01 00:00:00 UTC
-        print_decimal_timestamp(total_seconds)
-
-    **Output**:
-
-    .. code-block:: text
-
-        CE Time
-        <calculated difference>
-
-        Millenium Time
-        <calculated difference>
-
-        Now Time
-        <calculated difference>
-
-        Life Time
-        <calculated difference>
-    """
-    for anchor in anchors:
-        print_header(anchor.full_name)
-        print_results(total_seconds - anchor.value)
+    # Iterate over the anchors and print results
+    for anchor in config.anchors:
+        print_header(f"{config.anchors.get_label(anchor)}: {anchor.full_name}")
+        print(anchor.breakdown(total_seconds - anchor.value, config.units))
 
 
 def print_header(header: str) -> None:
@@ -566,3 +273,157 @@ def new_unit(unit: str) -> str:
         # This will return the string "Years" in green color.
     """
     return str(Fore.GREEN) + unit + str(Style.RESET_ALL)
+
+
+def calculate_decimal_time(seconds: int) -> tuple[int, int, int, float]:
+    """Calculate deciday, centiday, decimal seconds, and decidays as a float."""
+    deciday = seconds // 8640
+    centiday = (seconds % 8640) // 864
+    decimal_seconds = int(seconds - centiday * 864 - deciday * 8640)
+    decidays_float = seconds / 8640
+    return deciday, centiday, decimal_seconds, decidays_float
+
+
+def calculate_standard_time(seconds: int) -> str:
+    """Calculate standard time in HH:MM:SS format."""
+    total_minutes = seconds // 60
+    hours = (total_minutes // 60) % 24
+    minutes = total_minutes % 60
+    standard_seconds = seconds - hours * 3600 - minutes * 60
+    return f"{hours:02}:{minutes:02}:{standard_seconds:02}"
+
+
+def format_with_color(value: str, condition: bool, color_code: str = "\033[31m") -> str:
+    """Format a value with color if the condition is met."""
+    reset_code = "\033[0m"
+    return f"{color_code}{value}{reset_code}" if condition else value
+
+
+def generate_time_table() -> str:
+    """Generate a time table mapping seconds to decidays, centidays, standard time, and kiloseconds.
+
+    Returns:
+        str: Formatted table as a string.
+    """
+    table = PrettyTable()
+    table.field_names = [
+        "Decimal Time (D.C.SSS)",
+        "Decidays (float)",
+        "Standard Time (HH:MM:SS)",
+        "Kiloseconds (86.4)",
+    ]
+
+    for seconds_since_midnight in range(86400):
+        # Calculate time components
+        deciday, centiday, decimal_seconds, decidays_float = calculate_decimal_time(
+            seconds_since_midnight
+        )
+        standard_time = calculate_standard_time(seconds_since_midnight)
+        kiloseconds = seconds_since_midnight / 1000
+
+        # Check conditions for coloring
+        is_decimal_red = centiday % 5 == 0 and decimal_seconds == 0
+        is_standard_red = ":" in standard_time and standard_time.endswith("00:00")
+        is_kiloseconds_red = kiloseconds % 10 == 0
+
+        # Apply conditional coloring
+        decimal_time_colored = format_with_color(
+            f"{deciday}.{centiday}.{decimal_seconds:03}", is_decimal_red
+        )
+        standard_time_colored = format_with_color(standard_time, is_standard_red)
+        kiloseconds_colored = format_with_color(f"{kiloseconds:.2f}", is_kiloseconds_red)
+        decidays_colored = format_with_color(f"{decidays_float:.5f}", is_decimal_red)
+
+        # Add row if any condition is satisfied
+        if is_decimal_red or is_standard_red or is_kiloseconds_red:
+            table.add_row(
+                [
+                    decimal_time_colored,
+                    decidays_colored,
+                    standard_time_colored,
+                    kiloseconds_colored,
+                ]
+            )
+
+    return str(table)
+
+
+def convert_time(input_time: str) -> str:
+    """
+    Converts time between 24-hour format (HH:MM:SS or HH:MM) and decimal format (DD.CD.SSS or
+    DD.CD).
+
+    Args:
+        input_time (str): The input time in either 24-hour format or decimal format.
+
+    Returns:
+        str: The converted time in the opposite format.
+    """
+    # Check if the input is in 24-hour format (HH:MM:SS or HH:MM)
+    if ":" in input_time:
+        return convert_to_decimal(input_time)
+
+    # Check if the input is in decimal format (DD.CD.SSS or DD.CD)
+    if "." in input_time:
+        return convert_to_24hr(input_time)
+
+    raise ValueError("Invalid time format. Use HH:MM:SS, HH:MM, DD.CD.SSS, or DD.CD.")
+
+
+def convert_to_decimal(time_24hr: str) -> str:
+    """
+    Converts 24-hour format (HH:MM:SS or HH:MM) to decimal format (DD.CD.SSS or DD.CD).
+
+    Args:
+        time_24hr (str): The time in 24-hour format (HH:MM:SS or HH:MM).
+
+    Returns:
+        str: The time in decimal format (DD.CD.SSS or DD.CD).
+    """
+    # Extract hours, minutes, and optional seconds
+    time_parts = time_24hr.split(":")
+    hours = int(time_parts[0])
+    minutes = int(time_parts[1])
+    seconds = int(time_parts[2]) if len(time_parts) > 2 else 0
+
+    # Total seconds since midnight
+    total_seconds = hours * 3600 + minutes * 60 + seconds
+
+    # Convert to decimal time
+    decidays = total_seconds // 8640  # 1 deciday = 8640 seconds
+    remaining_seconds = total_seconds % 8640
+    centidays = remaining_seconds // 864  # 1 centiday = 864 seconds
+    decimal_seconds = (remaining_seconds % 864) / 864  # The fractional part of decimal seconds
+
+    # Format the decimal time to have one digit for centiday and optional milliseconds
+    decimal_time = f"{decidays}.{centidays}.{int(decimal_seconds * 864):03}"
+
+    return decimal_time
+
+
+def convert_to_24hr(decimal_time: str) -> str:
+    """
+    Converts decimal format (DD.CD.SSS or DD.CD) to 24-hour format (HH:MM:SS or HH:MM).
+
+    Args:
+        decimal_time (str): The time in decimal format (DD.CD.SSS or DD.CD).
+
+    Returns:
+        str: The time in 24-hour format (HH:MM:SS or HH:MM).
+    """
+    # Split decimal time into deciday and centiday (and optional centisecond)
+    time_parts = decimal_time.split(".")
+    decidays = int(time_parts[0])
+    centidays = int(time_parts[1])
+    decimal_seconds = int(time_parts[2]) if len(time_parts) > 2 else 0
+
+    # Calculate total seconds
+    total_seconds = (decidays * 8640) + (centidays * 864) + decimal_seconds
+
+    # Convert total seconds to hours, minutes, and seconds
+    hours = total_seconds // 3600
+    total_seconds %= 3600
+    minutes = total_seconds // 60
+    seconds = total_seconds % 60
+
+    return f"{hours:02}:{minutes:02}:{seconds:02}"

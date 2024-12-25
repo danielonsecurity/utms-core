@@ -56,14 +56,24 @@ from datetime import datetime
 import google.generativeai as genai
 import requests
 from dotenv import load_dotenv
+from google.api_core.exceptions import ResourceExhausted
 
 load_dotenv()
 
 genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-config = genai.GenerationConfig(max_output_tokens=30, temperature=0.1, top_p=0.5, top_k=40)
-with open("resources/system_prompt.txt", "r", encoding="utf-8") as file:
+config = genai.GenerationConfig(max_output_tokens=200, temperature=0.1, top_p=0.5, top_k=40)
+
+# Get the directory of the current script (ai.py)
+script_dir = os.path.dirname(os.path.abspath(__file__))
+resources_dir = os.path.join(script_dir, "../resources")
+
+with open(os.path.join(resources_dir, "system_prompt.txt"), "r", encoding="utf-8") as file:
     model = genai.GenerativeModel(
-        "models/gemini-2.0-flash-exp",
+        # "models/gemini-exp-1206",
+        # "models/gemini-2.0-flash-exp",
+        # "models/gemini-1.5-pro",
+        "models/gemini-1.5-flash",
+        # "models/gemini-2.0-flash-thinking-exp-1219",
         system_instruction=file.read().format(datetime_now=datetime.now().isoformat()),
     )
 
@@ -138,8 +148,7 @@ def ai_generate_date(input_text: str) -> str:
             print(response.text)
             iso_date: str = response.text.strip()
             return iso_date
-
-        return "No valid response received from the API."  # pragma: no cover
+        raise ValueError("No valid response received from the API.")  # pragma: no cover
 
     except requests.ConnectionError:  # pragma: no cover
         return "Connection error: Unable to reach the API."
@@ -150,8 +159,5 @@ def ai_generate_date(input_text: str) -> str:
     except requests.RequestException as e:  # pragma: no cover
         return f"Request error: {e}"
 
-    except AttributeError:  # pragma: no cover
-        return "Unexpected response structure: Missing 'text' attribute."
-
-    except ValueError:  # pragma: no cover
-        return "Value error: Invalid input data."
+    except ResourceExhausted as e:  # pragma: no cover
+        return f"Resource exhausted: {e}"

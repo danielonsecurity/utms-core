@@ -47,9 +47,7 @@ manager.print_conversion_table("s", num_columns=2, num_rows=5)
 from decimal import Decimal
 from typing import Dict, Optional, Union
 
-from colorama import Fore, Style, init
-
-init()
+from colorama import Fore, Style
 
 
 def format_value(
@@ -91,35 +89,47 @@ def format_value(
         >>> format_value(0.000000123)
         '\x1b[31m\x1b[1m1.230e-07\x1b[39m\x1b[22m'  # Example output for a small value
     """
-    # Handle values smaller than small_threshold (0.001)
+
+    def apply_red_style(value: str) -> str:
+        """Applies bright red style to the formatted value."""
+        return f"{Style.BRIGHT}{Fore.RED}{value}{Style.RESET_ALL}"
+
+    def apply_green_style(value: str) -> str:
+        """Applies bright green style to the formatted value."""
+        return f"{Style.BRIGHT}{Fore.GREEN}{value}{Style.RESET_ALL}"
+
+    # Handle absolute value less than small_threshold
     if abs(value) < small_threshold:
-        return f"{Fore.RED}{Style.BRIGHT}{value:.3e}{Style.RESET_ALL}".ljust(
-            33
+        formatted_value = apply_red_style(
+            f"{value:.3e}"
         )  # Scientific notation with 3 decimal places
     # Handle values smaller than threshold (1e7) but larger than small_threshold
-    if abs(value) < threshold:
+    elif abs(value) < threshold:
         if value == value.to_integral_value():
-            return f"{Fore.GREEN}{Style.BRIGHT}{value:.0f}{Style.RESET_ALL}".ljust(
-                33
-            )  # Integer formatting
-        if value > 1:
-            return f"{Fore.GREEN}{Style.BRIGHT}{value:.5f}{Style.RESET_ALL}".ljust(
-                33
+            formatted_value = apply_green_style(f"{value:.0f}")  # Integer formatting
+        elif value > 1:
+            formatted_value = apply_green_style(
+                f"{value:.5f}"
             )  # Fixed-point notation with 5 decimal places
-        if value == value.quantize(small_threshold):
-            return f"{Fore.RED}{Style.BRIGHT}{value:.3f}{Style.RESET_ALL}".ljust(
-                33
-            )  # Fixed-point notation with 3 decimal places if there are no further digits
-        return f"{Fore.RED}{Style.BRIGHT}{value:.5f}{Style.RESET_ALL}".ljust(
-            33
-        )  # Fixed-point notation with 5 decimal places
-    if abs(value) >= threshold:
-        return f"{Fore.GREEN}{Style.BRIGHT}{value:.3e}{Style.RESET_ALL}".ljust(
-            33
+        elif value == value.quantize(small_threshold):
+            formatted_value = apply_red_style(
+                f"{value:.3f}"
+            )  # Fixed-point with 3 decimal places if no further digits
+        else:
+            formatted_value = apply_red_style(
+                f"{value:.5f}"
+            )  # Fixed-point notation with 5 decimal places
+    # Handle absolute value greater than or equal to threshold
+    elif abs(value) >= threshold:
+        formatted_value = apply_green_style(
+            f"{value:.3e}"
         )  # Scientific notation with 3 decimal places
-    return f"{Fore.GREEN}{Style.BRIGHT}{value:.3f}{Style.RESET_ALL}".ljust(
-        33
-    )  # Fixed-point notation with 3 decimal places
+    else:
+        formatted_value = apply_green_style(
+            f"{value:.3f}"
+        )  # Fixed-point notation with 3 decimal places
+
+    return formatted_value.ljust(33)
 
 
 class UnitManager:
@@ -257,7 +267,9 @@ class UnitManager:
                 )
             )
 
-    def convert_units(self, value: str, input_unit: str, output_unit: Optional[str] = None) -> None:
+    def convert_units(
+        self, value: Decimal, input_unit: str, output_unit: Optional[str] = None
+    ) -> None:
         """
         Convert a given value from one unit to all other units and print the results.
 

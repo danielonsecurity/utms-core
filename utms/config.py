@@ -18,11 +18,47 @@ Usage:
 - Instantiate the `Config` class to initialize the units and anchors with predefined values.
 """
 
+import socket
+from datetime import datetime, timezone
 from decimal import Decimal
+from time import time
+
+import ntplib
 
 from utms import constants
 from utms.anchors import AnchorManager
 from utms.units import UnitManager
+
+
+def get_ntp_date() -> datetime:
+    """
+    Retrieves the current date in datetime format using an NTP (Network Time Protocol) server.
+
+    This function queries an NTP server (default is "pool.ntp.org") to
+    get the accurate current time. The NTP timestamp is converted to a
+    UTC `datetime` object and formatted as a date string. If the NTP
+    request fails (due to network issues or other errors), the function
+    falls back to the system time.
+
+    Returns:
+        str: The current date in 'YYYY-MM-DD' format, either from the
+        NTP server or the system clock as a fallback.
+
+    Exceptions:
+        - If the NTP request fails, the system time is used instead.
+    """
+    client = ntplib.NTPClient()
+    try:
+        # Query the NTP server
+        response = client.request("pool.ntp.org", version=3)
+        ntp_timestamp = float(response.tx_time)
+    except (ntplib.NTPException, socket.error, OSError) as e:  # pragma: no cover
+        print(f"Error fetching NTP time: {e}")
+        ntp_timestamp = float(time())  # Fallback to system time
+
+    # Convert the timestamp to a UTC datetime and format as 'YYYY-MM-DD'
+    current_date = datetime.fromtimestamp(ntp_timestamp, timezone.utc)
+    return current_date
 
 
 class Config:
@@ -42,8 +78,8 @@ class Config:
         This method calls `populate_units()` to add time units and `populate_anchors()` to add
         datetime anchors.
         """
-        self.anchors = AnchorManager()
         self.units = UnitManager()
+        self.anchors = AnchorManager(self.units)
         self.populate_units()
         self.populate_anchors()
 
@@ -114,8 +150,72 @@ class Config:
         using the `add_datetime_anchor` and `add_decimal_anchor` methods of the `AnchorManager`
         instance.  Each anchor is added with its name, symbol, and corresponding datetime value.
         """
-        self.anchors.add_datetime_anchor("Unix Time", "UT", constants.UNIX_DATE)
-        self.anchors.add_datetime_anchor("CE Time", "CE", constants.CE_DATE)
-        self.anchors.add_datetime_anchor("Millennium Time", "MT", constants.MILLENNIUM_DATE)
-        self.anchors.add_datetime_anchor("Life Time", "LT", constants.LIFE_DATE)
-        self.anchors.add_decimal_anchor("Big Bang Time", "BB", -constants.AGE_OF_UNIVERSE_SECONDS)
+        self.anchors.add_anchor(
+            f"Now Time ({datetime.now().strftime('%Y-%m-%d')})", "NT", get_ntp_date()
+        )
+        self.anchors.add_anchor(
+            f"Day Time ({datetime.now().strftime('%Y-%m-%d 00:00:00')})",
+            "DT",
+            datetime(
+                datetime.now().year,
+                datetime.now().month,
+                datetime.now().day,
+                tzinfo=datetime.now().astimezone().tzinfo,
+            ),
+            precision=Decimal(1e-6),
+            breakdowns=[["dd", "cd", "s", "ms"], ["h", "m", "s", "ms"], ["KS", "s", "ms"]],
+        )
+        self.anchors.add_anchor(
+            f"Year Time ({datetime.now().strftime('%Y-01-01 00:00:00')})",
+            "YT",
+            datetime(
+                datetime.now().year,
+                1,
+                1,
+                tzinfo=datetime.now().astimezone().tzinfo,
+            ),
+            precision=Decimal(1e-6),
+            breakdowns=[
+                ["d", "dd", "cd", "s", "ms"],
+                ["w", "d", "dd", "cd", "s", "ms"],
+                ["M", "d", "dd", "cd", "s", "ms"],
+                ["MS", "KS", "s", "ms"],
+            ],
+        )
+        self.anchors.add_anchor(
+            f"Month Time ({datetime.now().strftime('%Y-%m-01 00:00:00')})",
+            "MT",
+            datetime(
+                datetime.now().year,
+                datetime.now().month,
+                1,
+                tzinfo=datetime.now().astimezone().tzinfo,
+            ),
+            precision=Decimal(1e-6),
+            breakdowns=[
+                ["d", "dd", "cd", "s", "ms"],
+                ["w", "d", "dd", "cd", "s", "ms"],
+                ["MS", "KS", "s", "ms"],
+            ],
+        )
+        self.anchors.add_anchor(
+            "Unix Time (1970-01-01)",
+            "UT",
+            constants.UNIX_DATE,
+            breakdowns=[
+                ["s"],
+                ["PS", "TS", "GS", "MS", "KS", "s"],
+                ["Ga", "Ma", "Mn", "Y", "d", "h", "m", "s"],
+                ["Y"],
+            ],
+        )
+        self.anchors.add_anchor("CE Time (1 CE)", "CE", constants.CE_DATE)
+        self.anchors.add_anchor("Millennium Time (2000-01-01)", "mT", constants.MILLENNIUM_DATE)
+        self.anchors.add_anchor("Life Time (1992-27-06)", "LT", constants.LIFE_DATE)
+        self.anchors.add_anchor(
+            "Big Bang Time (13.8e9 years ago)",
+            "BB",
+            -constants.AGE_OF_UNIVERSE_SECONDS,
+            precision=Decimal(1e6),
+            breakdowns=[["Y"], ["Ga", "Ma"], ["TS", "GS", "MS", "KS", "s", "ms"]],
+        )

@@ -9,7 +9,6 @@ readme = "README.md"
 [tool.poetry.scripts]
 utms = "utms.cli:main"
 
-
 [tool.poetry.dependencies]
 python = ">=3.10"
 ntplib = "^0.4.0"
@@ -20,6 +19,8 @@ importlib-metadata = "^8.5.0"
 prompt-toolkit = "^3.0.48"
 black = "^24.10.0"
 python-dotenv = "^1.0.1"
+prettytable = "^3.12.0"
+pillow = "^11.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -57,12 +58,7 @@ line_length = 100
 
 [tool.pylint]
 disable = [
-    "import-error",
-    "too-many-lines",
-    "too-many-arguments",
-    "too-many-positional-arguments",
-    "too-many-boolean-expressions",
-    "too-many-return-statements"]
+    "import-error"]
 max-line-length = 100
 ignore = ["docs", "tests", ".tox", ".git"]
 

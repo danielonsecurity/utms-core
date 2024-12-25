@@ -34,9 +34,9 @@ def test_ai_generate_date_fall_of_roman_empire():
     assert actual == expected
     
     
-def test_ai_generate_date_tiananmen_square():
+def test_ai_generate_date_tiannanmen_square():
     expected = "1989-06-04T00:00:00+00:00"
-    actual = ai_generate_date("tiananmen square massacre")
+    actual = ai_generate_date("tiannanmen square massacre")
     assert actual == expected
     
 def test_ai_generate_date_summer_olympics():
