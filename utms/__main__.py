@@ -12,5 +12,4 @@ This will run the UTM CLI as defined in the `main` function of the `utms.cli` mo
 
 from utms.cli import main
 
-if __name__ == "__main__":
-    main()
+main()

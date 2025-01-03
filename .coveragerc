@@ -3,11 +3,10 @@ branch = True
 source = uts
 omit =
     tests/*
-    uts/cli.py
 
 [coverage:report]
 show_missing = True
-skip_covered = True
+skip_covered = False
 
 [coverage:html]
 directory = htmlcov

@@ -131,8 +131,8 @@ styles: Styles = {
     "frame_color": "#636363",
     "center_circle_color": "#636363",
     "hand_colors": {
-        "hour": "#000000",
-        "minute": "#4A4A4A",
+        "hour": "#4A4A4A",
+        "minute": "#000000",
         "second": "#FF3131",
         "deciday": "#4A4A4A",
         "centiday": "#000000",
@@ -249,7 +249,7 @@ def draw_clock_hands(
             )
             draw_hand(canvas_config, hand_config)
         else:
-            base_width = 15 if name == "hour" else 10
+            base_width = 15 if (name in ("hour", "deciday")) else 10
             hand_config = HandConfig(
                 length, angle, base_width, styles["hand_colors"][name], f"{tag_prefix}_hands"
             )

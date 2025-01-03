@@ -1,10 +1,10 @@
-
 import os
-import pytest
 
+import pytest
 from dotenv import load_dotenv
 
 load_dotenv()
+
 
 def pytest_collection_modifyitems(config, items):
     if os.getenv("CI") == "true":

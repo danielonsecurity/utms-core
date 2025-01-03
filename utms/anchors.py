@@ -260,8 +260,7 @@ class Anchor:
                 continue
 
             breakdown_result = self._calculate_breakdown(total_seconds, breakdown_units, units)
-            if breakdown_result:
-                output.append(" ".join(breakdown_result))
+            output.append(" ".join(breakdown_result))
 
         return "\n".join(f"{prefix}{line}" for line in output)
 

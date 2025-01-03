@@ -1,10 +1,10 @@
 import unittest
-from unittest.mock import patch
-from io import StringIO
 from datetime import datetime, timezone
+from io import StringIO
+from unittest.mock import patch
 
-from utms.utils import print_time
 from utms.config import Config
+from utms.utils import print_time
 
 local_timezone = datetime.now().astimezone().tzinfo
 config = Config()
