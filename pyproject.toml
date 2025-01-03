@@ -15,8 +15,7 @@
         "pyproject.toml",
         "tox.ini",
         "docs/*",
-        "resources/*",
-    ]
+        "resources/*"]
     exclude = [
         "*.pyc",
         "__pycache__/*",
@@ -25,16 +24,14 @@
         ".tox/*",
         ".coverage",
         ".pytest_cache/*",
-        "tests/*",
-    ]
+        "tests/*"]
     keywords = [
         "time",
         "utms",
         "time-tracking",
         "universal-time-measurement-system",
         "python",
-        "clock",
-    ]
+        "clock"]
     classifiers = [
         "Development Status :: 1 - Planning",
         "Environment :: Console",
@@ -63,8 +60,7 @@
         "Topic :: Software Development :: Libraries :: Python Modules",
         "Topic :: Software Development :: Testing",
         "Topic :: System :: Networking :: Time Synchronization",
-        "Topic :: Utilities",
-    ]
+        "Topic :: Utilities"]
 
 [tool.poetry.scripts]
     utms = "utms.cli:main"
