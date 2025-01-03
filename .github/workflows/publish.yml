@@ -33,8 +33,8 @@ jobs:
 
       - name: Publish to PyPI
         env:
-          PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
-          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+          TWINE_USERNAME: '__token__'
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
         run: |
           pip install twine  # Install twine for uploading to PyPI.
-          twine upload dist/*  # Upload the built package to PyPI.
+          twine upload dist/* -u __token__ -p ${{ secrets.PYPI_API_TOKEN }}
