@@ -1,0 +1,40 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - "v*"  # This will trigger the workflow when a tag starting with 'v' (e.g., v1.0.0) is pushed.
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry  # Install poetry for dependency management.
+          poetry install  # Install project dependencies.
+
+      # Ensure versioning is updated via git tag
+      - name: Update version from tag
+        run: poetry version $(echo ${GITHUB_REF#refs/tags/} | sed 's/^v//')
+
+      - name: Build the package
+        run: poetry build
+
+      - name: Publish to PyPI
+        env:
+          PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}
+          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}
+        run: |
+          pip install twine  # Install twine for uploading to PyPI.
+          twine upload dist/*  # Upload the built package to PyPI.

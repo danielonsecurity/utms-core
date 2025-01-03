@@ -1,75 +1,135 @@
 [tool.poetry]
-name = "utms"
-version = "0.1.0"
-description = "Universal Time Measurement System"
-authors = ["Daniel Neagaru <daniel@neagaru.com>"]
-license = "GPL-3.0-or-later"
-readme = "README.md"
+    name = "utms"
+    version = "0.1.0"
+    description = "Universal Time Measurement System"
+    authors = ["Daniel Neagaru <daniel@neagaru.com>"]
+    homepage = "https://github.com/danielonsecurity/utms"
+    repository = "https://github.com/danielonsecurity/utms"
+    documentation = "https://github.com/danielonsecurity/utms"
+    license = "GPL-3.0-or-later"
+    readme = "README.md"
+    include = [
+        "utms/*",
+        "README.md",
+        "LICENSE",
+        "pyproject.toml",
+        "tox.ini",
+        "docs/*",
+        "resources/*",
+    ]
+    exclude = [
+        "*.pyc",
+        "__pycache__/*",
+        "dist/*",
+        "htmlcov/*",
+        ".tox/*",
+        ".coverage",
+        ".pytest_cache/*",
+        "tests/*",
+    ]
+    keywords = [
+        "time",
+        "utms",
+        "time-tracking",
+        "universal-time-measurement-system",
+        "python",
+        "clock",
+    ]
+    classifiers = [
+        "Development Status :: 1 - Planning",
+        "Environment :: Console",
+        "Framework :: Pytest",
+        "Framework :: tox",
+        "Intended Audience :: Developers",
+        "Intended Audience :: Education",
+        "Intended Audience :: End Users/Desktop",
+        "Intended Audience :: System Administrators",
+        "Intended Audience :: Science/Research",
+        "Intended Audience :: Information Technology",
+        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+        "Natural Language :: English",
+        "Operating System :: OS Independent",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Topic :: Internet :: WWW/HTTP",
+        "Topic :: Office/Business :: Scheduling",
+        "Topic :: Scientific/Engineering :: Artificial Intelligence",
+        "Topic :: Scientific/Engineering :: Physics",
+        "Topic :: Sociology :: History",
+        "Topic :: Software Development :: Libraries :: Python Modules",
+        "Topic :: Software Development :: Testing",
+        "Topic :: System :: Networking :: Time Synchronization",
+        "Topic :: Utilities",
+    ]
 
 [tool.poetry.scripts]
-utms = "utms.cli:main"
+    utms = "utms.cli:main"
 
 [tool.poetry.dependencies]
-python = ">=3.10"
-ntplib = "^0.4.0"
-colorama = "^0.4.6"
-dateparser = "^1.2.0"
-google-generativeai = "^0.8.3"
-importlib-metadata = "^8.5.0"
-prompt-toolkit = "^3.0.48"
-black = "^24.10.0"
-python-dotenv = "^1.0.1"
-prettytable = "^3.12.0"
-pillow = "^11.0.0"
+    python = ">=3.10"
+    ntplib = "^0.4.0"
+    colorama = "^0.4.6"
+    dateparser = "^1.2.0"
+    google-generativeai = "^0.8.3"
+    importlib-metadata = "^8.5.0"
+    prompt-toolkit = "^3.0.48"
+    black = "^24.10.0"
+    python-dotenv = "^1.0.1"
+    prettytable = "^3.12.0"
+    pillow = "^11.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.3.4"
-mypy = "^1.13.0"
-tox = "^4.23.2"
-coverage = "^7.6.9"
-pyflakes = "^3.2.0"
-pylint = "^3.3.2"
-sphinx = "^8.1.3"
-sphinx-autodoc-typehints = "^2.5.0"
-bandit = "^1.8.0"
-pre-commit = "^4.0.1"
-pre-commit-hooks = "^5.0.0"
-types-requests = "^2.32.0.20241016"
-types-dateparser = "^1.2.0.20240420"
-pytest-cov = "^6.0.0"
+    pytest = "^8.3.4"
+    mypy = "^1.13.0"
+    tox = "^4.23.2"
+    coverage = "^7.6.9"
+    pyflakes = "^3.2.0"
+    pylint = "^3.3.2"
+    sphinx = "^8.1.3"
+    sphinx-autodoc-typehints = "^2.5.0"
+    bandit = "^1.8.0"
+    pre-commit = "^4.0.1"
+    pre-commit-hooks = "^5.0.0"
+    types-requests = "^2.32.0.20241016"
+    types-dateparser = "^1.2.0.20240420"
+    pytest-cov = "^6.0.0"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+    requires = ["poetry-core"]
+    build-backend = "poetry.core.masonry.api"
 
 [tool.black]
-line-length = 100
-target-version = ['py39']
-include = '\.pyi?$'
-exclude = ''
+    line-length = 100
+    target-version = ['py39']
+    include = '\.pyi?$'
+    exclude = ''
 
 [tool.isort]
-multi_line_output = 3
-include_trailing_comma = true
-force_grid_wrap = 0
-use_parentheses = true
-line_length = 100
+    multi_line_output = 3
+    include_trailing_comma = true
+    force_grid_wrap = 0
+    use_parentheses = true
+    line_length = 100
 
 [tool.pylint]
-disable = [
-    "import-error"]
-max-line-length = 100
-ignore = ["docs", "tests", ".tox", ".git"]
+    disable = [
+        "import-error"]
+    max-line-length = 100
+    ignore = ["docs", "tests", ".tox", ".git"]
 
 
 [tool.mypy]
-disallow_untyped_calls = true
-disallow_untyped_defs = true
-strict = true
-files = "src, tests"
-ignore_missing_imports = true
+    disallow_untyped_calls = true
+    disallow_untyped_defs = true
+    strict = true
+    files = "src, tests"
+    ignore_missing_imports = true
 
 
 [flake8]
-max-line-length = 100
+    max-line-length = 100
