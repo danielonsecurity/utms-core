@@ -1,9 +1,10 @@
 import math
-from datetime import timedelta
+from datetime import datetime
+from unittest.mock import patch
 
 import pytest
 
-from utms.clock import calculate_angles, prepare_hands_and_angles
+from utms.clock import *
 
 
 def test_calculate_angles_noon():
@@ -11,9 +12,9 @@ def test_calculate_angles_noon():
     seconds_since_midnight = 12 * 3600
     angles = calculate_angles(seconds_since_midnight, is_decimal=False)
     assert len(angles) == 5
-    assert pytest.approx(angles[0]) == 0  # Hour hand at top (0 radians)
-    assert pytest.approx(angles[1]) == 0  # Minute hand at top
-    assert pytest.approx(angles[2]) == 0  # Second hand at top
+    assert pytest.approx(angles[0]) == 0
+    assert pytest.approx(angles[1]) == 0
+    assert pytest.approx(angles[2]) == 0
     assert pytest.approx(angles[3]) == None
     assert pytest.approx(angles[4]) == None
 

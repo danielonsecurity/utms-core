@@ -43,8 +43,9 @@ Dependencies:
 
 import math
 import tkinter as tk
-from datetime import datetime
 from typing import Dict, List, NamedTuple, Optional, Tuple, TypedDict, Union
+
+from utms.utils import get_seconds_since_midnight
 
 
 class CanvasConfig(NamedTuple):
@@ -155,16 +156,6 @@ styles: Styles = {
     "kilosecond_color": "#000000",
     "deciday_color": "#000000",
 }
-
-
-def get_seconds_since_midnight() -> int:
-    """
-    Get the number of seconds that have passed since midnight today.
-    """
-    now = datetime.now(datetime.now().astimezone().tzinfo)  # Get the current local time
-    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    seconds_since_midnight = (now - midnight).seconds
-    return seconds_since_midnight
 
 
 def calculate_angles(

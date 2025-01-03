@@ -427,3 +427,13 @@ def convert_to_24hr(decimal_time: str) -> str:
     seconds = total_seconds % 60
 
     return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+
+def get_seconds_since_midnight() -> int:
+    """
+    Get the number of seconds that have passed since midnight today.
+    """
+    now = datetime.now(datetime.now().astimezone().tzinfo)  # Get the current local time
+    midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    seconds_since_midnight = (now - midnight).seconds
+    return seconds_since_midnight
