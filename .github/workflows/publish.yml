@@ -26,7 +26,10 @@ jobs:
 
       # Ensure versioning is updated via git tag
       - name: Update version from tag
-        run: poetry version $(echo ${GITHUB_REF#refs/tags/} | sed 's/^v//')
+        run: |
+          TAG_VERSION=$(git describe --tags --abbrev=0 | sed 's/^v//')
+          echo "TAG_VERSION=${TAG_VERSION}" >> $GITHUB_ENV
+          poetry version $TAG_VERSION
 
       # Commit the changes to pyproject.toml
       - name: Commit version update
@@ -34,7 +37,9 @@ jobs:
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
           git add pyproject.toml
-          git commit -m "Update version in pyproject.toml to $TAG_VERSION"
+          git commit -m "Bump version in pyproject.toml to ${TAG_VERSION}"
+        env:
+          TAG_VERSION: ${{ env.TAG_VERSION }}
 
       # Push the changes to GitHub
       - name: Push changes to GitHub
