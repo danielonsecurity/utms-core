@@ -39,8 +39,7 @@ jobs:
       # Push the changes to GitHub
       - name: Push changes to GitHub
         run: |
-          git push origin HEAD:main
-
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main  # Push to the main branch
 
       - name: Build the package
         run: poetry build
