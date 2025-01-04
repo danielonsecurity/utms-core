@@ -1,6 +1,6 @@
 [tool.poetry]
     name = "utms"
-    version = "0.1.2"
+    version = "0.1.4"
     description = "Universal Time Measurement System"
     authors = ["Daniel Neagaru <daniel@neagaru.com>"]
     homepage = "https://github.com/danielonsecurity/utms"
