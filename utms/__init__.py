@@ -10,10 +10,10 @@ and more....
 Author: [Daniel Neagaru]
 """
 
-from .ai import ai_generate_date
+from .ai import AI
 from .constants import VERSION
 
 # from .utils import *  # Import utility functions
 
 
-__all__ = ["ai_generate_date", "VERSION"]
+__all__ = ["AI", "VERSION"]

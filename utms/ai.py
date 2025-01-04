@@ -58,108 +58,144 @@ from google.api_core.exceptions import ResourceExhausted
 
 from utms.config import Config
 
-config = Config()
-if config.has_value("gemini.api_key"):
-    api_key = config.get_value("gemini.api_key")
-else:
-    api_key = input("Gemini API key: ")
-    config.set_value("gemini.api_key", api_key)
 
-genai.configure(api_key=api_key)
-ai_config = genai.GenerationConfig(
-    max_output_tokens=int(config.get_value("gemini.max_output_tokens")),
-    temperature=float(config.get_value("gemini.temperature")),
-    top_p=float(config.get_value("gemini.top_p")),
-    top_k=int(config.get_value("gemini.top_k")),
-)
-
-with open(os.path.join(config.utms_dir, "system_prompt.txt"), "r", encoding="utf-8") as file:
-    model = genai.GenerativeModel(
-        "models/" + config.get_value("gemini.model"),
-        system_instruction=file.read().format(datetime_now=datetime.now().isoformat()),
-    )
-
-
-def ai_generate_date(input_text: str) -> str:
+class AI:  # pylint: disable=too-few-public-methods
     """
-    Generate a date string in ISO 8601 format from an input text using the Gemini model.
+    A class for interfacing with the Gemini Generative AI model.
 
-    This function generates a precise date in ISO 8601 format based on
-    the input text using the Gemini model.  The model is configured to
-    handle dates in various ranges, including Common Era (CE), Before
-    Common Era (BCE), events beyond 9999 CE, relative dates (e.g.,
-    "yesterday", "5 days ago"), and uncertain or unknown dates.
+    This class manages the configuration, initialization, and interaction with the Gemini AI API.
+    It includes functionality for generating date-related outputs in ISO format.
 
-    The generated date adheres to strict formatting rules, such as
-    including the correct timezone offset (`+00:00` for UTC) and
-    handling missing or uncertain date components by substituting
-    default values like `01` for missing days and months, or
-    `00:00:00` for missing time.
+    Attributes:
+        config (genai.GenerationConfig): The configuration for generation, including parameters
+            such as maximum output tokens, temperature, top-p, and top-k.
+        model (genai.GenerativeModel): The initialized generative AI model.
 
-    If the model's response is valid and provides a correctly
-    formatted ISO 8601 date, the function returns it.  If the response
-    is invalid, an appropriate fallback message is returned. In case
-    of errors during the model call, the error message is returned.
-
-    Args:
-        input_text (str): The input text describing the event or
-        concept for which a date should be generated.
-
-    Returns:
-        str: The generated date in ISO 8601 format, or a fallback
-             message if the model's response is invalid or an error
-             occurs.
-
-    Example:
-        >>> ai_generate_date("What is the date of the Apollo 11 moon landing?")
-        "1969-07-20T00:00:00+00:00"
-
-        >>> ai_generate_date("Tell me a random date")
-        "No valid response received from the API."
-
-    **Model Configuration**:
-        The model is configured with the following settings:
-
-        - `max_output_tokens=30`: Limits the length of the model's response.
-        - `temperature=0.7`: Controls the randomness of the generated content.
-        - `top_p=0.9`: Implements nucleus sampling to select from the
-          top 90% of possible outputs.
-        - `top_k=50`: Limits the possible outputs to the top 50 tokens.
-
-    **Date Formatting Rules**:
-        The model is instructed to strictly adhere to the following date formatting rules:
-
-        - **For Common Era (CE) events**: Output the date in full ISO
-            8601 format (`YYYY-MM-DDTHH:MM:SS+ZZ:ZZ`).
-        - **For Before Common Era (BCE) events**: Output the date with
-            a leading minus (`-YYYY-MM-DD`).
-        - **For events after 9999 CE**: Use a `+` prefix and ISO 8601 format.
-        - **For relative dates**: Calculate the exact ISO 8601 date.
-        - **For unknown dates**: Return `UNKNOWN`, but avoid unless absolutely necessary.
-        - **For date ranges**: Default to the beginning of the range.
-
-    The model is also instructed to avoid providing explanations or
-    context; it should return only the date.
+    Methods:
+        generate_date(input_text: str) -> str:
+            Generates a date based on the provided input text using the Gemini AI model.
     """
-    try:
-        # Call the Gemini model
-        response = model.generate_content(input_text, generation_config=ai_config)
 
-        if response and response.text:
-            # Clean the response text to ensure it's a valid ISO date format
-            print(response.text)
-            iso_date: str = response.text.strip()
-            return iso_date
-        raise ValueError("No valid response received from the API.")  # pragma: no cover
+    def __init__(self) -> None:
+        """
+        Initializes the AI class by setting up the Gemini API configuration and loading the model.
 
-    except requests.ConnectionError:  # pragma: no cover
-        return "Connection error: Unable to reach the API."
+        Configuration values are loaded from a `Config` object, which retrieves settings from a
+        persistent configuration store. If an API key is not present, the user is prompted to
+        input one, which is then saved for future use.
 
-    except requests.Timeout:  # pragma: no cover
-        return "Timeout error: The API request timed out."
+        Model Configuration:
+            - The model name is dynamically loaded from the configuration.
+            - A system instruction prompt is loaded from a file (`system_prompt.txt`), with the
+              current date and time injected into the prompt.
 
-    except requests.RequestException as e:  # pragma: no cover
-        return f"Request error: {e}"
+        Raises:
+            FileNotFoundError: If the system prompt file does not exist.
+            ValueError: If required configuration values are missing.
+        """
+        config = Config()
+        if config.has_value("gemini.api_key"):
+            api_key = config.get_value("gemini.api_key")
+        else:
+            api_key = input("Gemini API key: ")
+            config.set_value("gemini.api_key", api_key)
 
-    except ResourceExhausted as e:  # pragma: no cover
-        return f"Resource exhausted: {e}"
+        genai.configure(api_key=api_key)
+        self.config = genai.GenerationConfig(
+            max_output_tokens=int(config.get_value("gemini.max_output_tokens")),
+            temperature=float(config.get_value("gemini.temperature")),
+            top_p=float(config.get_value("gemini.top_p")),
+            top_k=int(config.get_value("gemini.top_k")),
+        )
+
+        with open(
+            os.path.join(config.utms_dir, "system_prompt.txt"), "r", encoding="utf-8"
+        ) as file:
+            self.model = genai.GenerativeModel(
+                "models/" + config.get_value("gemini.model"),
+                system_instruction=file.read().format(datetime_now=datetime.now().isoformat()),
+            )
+
+    def generate_date(self, input_text: str) -> str:
+        """
+        Generate a date string in ISO 8601 format from an input text using the Gemini model.
+
+        This function generates a precise date in ISO 8601 format based on
+        the input text using the Gemini model.  The model is configured to
+        handle dates in various ranges, including Common Era (CE), Before
+        Common Era (BCE), events beyond 9999 CE, relative dates (e.g.,
+        "yesterday", "5 days ago"), and uncertain or unknown dates.
+
+        The generated date adheres to strict formatting rules, such as
+        including the correct timezone offset (`+00:00` for UTC) and
+        handling missing or uncertain date components by substituting
+        default values like `01` for missing days and months, or
+        `00:00:00` for missing time.
+
+        If the model's response is valid and provides a correctly
+        formatted ISO 8601 date, the function returns it.  If the response
+        is invalid, an appropriate fallback message is returned. In case
+        of errors during the model call, the error message is returned.
+
+        Args:
+            input_text (str): The input text describing the event or
+            concept for which a date should be generated.
+
+        Returns:
+            str: The generated date in ISO 8601 format, or a fallback
+                 message if the model's response is invalid or an error
+                 occurs.
+
+        Example:
+            >>> ai_generate_date("What is the date of the Apollo 11 moon landing?")
+            "1969-07-20T00:00:00+00:00"
+
+            >>> ai_generate_date("Tell me a random date")
+            "No valid response received from the API."
+
+        **Model Configuration**:
+            The model is configured with the following settings:
+
+            - `max_output_tokens=30`: Limits the length of the model's response.
+            - `temperature=0.7`: Controls the randomness of the generated content.
+            - `top_p=0.9`: Implements nucleus sampling to select from the
+              top 90% of possible outputs.
+            - `top_k=50`: Limits the possible outputs to the top 50 tokens.
+
+        **Date Formatting Rules**:
+            The model is instructed to strictly adhere to the following date formatting rules:
+
+            - **For Common Era (CE) events**: Output the date in full ISO
+                8601 format (`YYYY-MM-DDTHH:MM:SS+ZZ:ZZ`).
+            - **For Before Common Era (BCE) events**: Output the date with
+                a leading minus (`-YYYY-MM-DD`).
+            - **For events after 9999 CE**: Use a `+` prefix and ISO 8601 format.
+            - **For relative dates**: Calculate the exact ISO 8601 date.
+            - **For unknown dates**: Return `UNKNOWN`, but avoid unless absolutely necessary.
+            - **For date ranges**: Default to the beginning of the range.
+
+        The model is also instructed to avoid providing explanations or
+        context; it should return only the date.
+        """
+        try:
+            # Call the Gemini model
+            response = self.model.generate_content(input_text, generation_config=self.config)
+
+            if response and response.text:
+                # Clean the response text to ensure it's a valid ISO date format
+                print(response.text)
+                iso_date: str = response.text.strip()
+                return iso_date
+            raise ValueError("No valid response received from the API.")  # pragma: no cover
+
+        except requests.ConnectionError:  # pragma: no cover
+            return "Connection error: Unable to reach the API."
+
+        except requests.Timeout:  # pragma: no cover
+            return "Timeout error: The API request timed out."
+
+        except requests.RequestException as e:  # pragma: no cover
+            return f"Request error: {e}"
+
+        except ResourceExhausted as e:  # pragma: no cover
+            return f"Resource exhausted: {e}"

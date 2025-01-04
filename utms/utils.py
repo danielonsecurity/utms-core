@@ -61,7 +61,7 @@ from colorama import Fore, Style, init
 from prettytable import PrettyTable
 
 from utms import constants
-from utms.ai import ai_generate_date
+from utms.ai import AI
 from utms.config import Config
 
 init()
@@ -170,7 +170,8 @@ def resolve_date(input_text: str) -> Union[datetime, Decimal, str, None]:
         return resolved_date
 
     # If parsing fails, fallback to AI
-    ai_result = ai_generate_date(input_text)
+    ai = AI()
+    ai_result = ai.generate_date(input_text)
     if ai_result == "UNKNOWN":
         raise ValueError(f"Unable to resolve date for input: {input_text}")
 
