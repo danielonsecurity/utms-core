@@ -261,7 +261,7 @@ options:
 To show current time with analog/digital clocks in both standard and decimal times use `utms --clock` or run `.clock` command:
 
 
-![Analog Clock](resources/clock.png)
+![Analog Clock](utms/resources/clock.png)
 
 To convert between time formats use `utms --dconv` or `.dconv` commands:
 

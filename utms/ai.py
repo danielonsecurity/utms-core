@@ -39,7 +39,6 @@ The module is specifically designed to handle a wide range of date inputs, inclu
 **Dependencies**:
 - `google.generativeai`: For interacting with the Gemini model.
 - `requests`: For handling API connectivity.
-- `dotenv`: For managing API keys securely using environment variables.
 
 **Usage Example**:
 ```python
@@ -55,25 +54,28 @@ from datetime import datetime
 
 import google.generativeai as genai
 import requests
-from dotenv import load_dotenv
 from google.api_core.exceptions import ResourceExhausted
 
-load_dotenv()
+from utms.config import Config
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-config = genai.GenerationConfig(max_output_tokens=200, temperature=0.1, top_p=0.5, top_k=40)
+config = Config()
+if config.has_value("gemini.api_key"):
+    api_key = config.get_value("gemini.api_key")
+else:
+    api_key = input("Gemini API key: ")
+    config.set_value("gemini.api_key", api_key)
 
-# Get the directory of the current script (ai.py)
-script_dir = os.path.dirname(os.path.abspath(__file__))
-resources_dir = os.path.join(script_dir, "../resources")
+genai.configure(api_key=api_key)
+ai_config = genai.GenerationConfig(
+    max_output_tokens=int(config.get_value("gemini.max_output_tokens")),
+    temperature=float(config.get_value("gemini.temperature")),
+    top_p=float(config.get_value("gemini.top_p")),
+    top_k=int(config.get_value("gemini.top_k")),
+)
 
-with open(os.path.join(resources_dir, "system_prompt.txt"), "r", encoding="utf-8") as file:
+with open(os.path.join(config.utms_dir, "system_prompt.txt"), "r", encoding="utf-8") as file:
     model = genai.GenerativeModel(
-        # "models/gemini-exp-1206",
-        # "models/gemini-2.0-flash-exp",
-        # "models/gemini-1.5-pro",
-        "models/gemini-1.5-flash",
-        # "models/gemini-2.0-flash-thinking-exp-1219",
+        "models/" + config.get_value("gemini.model"),
         system_instruction=file.read().format(datetime_now=datetime.now().isoformat()),
     )
 
@@ -141,7 +143,7 @@ def ai_generate_date(input_text: str) -> str:
     """
     try:
         # Call the Gemini model
-        response = model.generate_content(input_text, generation_config=config)
+        response = model.generate_content(input_text, generation_config=ai_config)
 
         if response and response.text:
             # Clean the response text to ensure it's a valid ISO date format

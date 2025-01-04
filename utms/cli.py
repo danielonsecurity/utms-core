@@ -69,6 +69,7 @@ completer = WordCompleter(
         "exit",
         ".clock",
         ".conv",
+        ".config",
         ".dconv",
         ".debug",
         ".help",
@@ -160,7 +161,11 @@ def handle_input(input_text: str) -> None:
     if input_text.startswith(".unit"):
         handle_unit_command(input_text)
     elif input_text.startswith(".conv"):
-        handle_conversion_command(input_text)
+        handle_conv_command(input_text)
+    elif input_text.startswith(".dconv"):
+        handle_dconv_command(input_text)
+    elif input_text.startswith(".config"):
+        handle_config_command(input_text)
 
 
 def handle_unit_command(input_text: str) -> None:
@@ -180,7 +185,7 @@ def handle_unit_command(input_text: str) -> None:
     config.units.print_conversion_table(unit, columns, rows)
 
 
-def handle_conversion_command(input_text: str) -> None:
+def handle_conv_command(input_text: str) -> None:
     """
     Handles unit conversion commands, processing the value and units specified.
 
@@ -197,6 +202,39 @@ def handle_conversion_command(input_text: str) -> None:
     config.units.convert_units(value, source_unit, target_unit)
 
 
+def handle_dconv_command(input_text: str) -> None:
+    """
+    Handles time conversion commands, converting between decimal to duodecimal systems.
+
+    Args:
+        input_text (str): The input string for the conversion command.
+
+    Returns:
+        None: The function performs time conversion and displays the result.
+    """
+    value = input_text.split()[1]
+    print(convert_time(value))
+
+
+def handle_config_command(input_text: str) -> None:
+    """
+    Handles unit conversion commands, processing the value and units specified.
+
+    Args:
+        input_text (str): The input string for the conversion command.
+
+    Returns:
+        None: The function performs unit conversion and displays the result.
+    """
+    parts = input_text.split()
+    if len(parts) == 1:
+        config.print_values()
+    elif len(parts) == 2:
+        config.print_values(parts[1])
+    elif len(parts) == 3:
+        config.set_value(parts[1], parts[2])
+
+
 def parse_args() -> argparse.Namespace:
     """
     Parse command-line arguments.
@@ -210,6 +248,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--unit", nargs="*", help="Unit conversion table")
     parser.add_argument("--conv", nargs="+", help="Convert value between units")
     parser.add_argument("--dconv", nargs="+", help="Convert day time between units")
+    parser.add_argument("--config", nargs="*", help="Configure UTMS")
     parser.add_argument("--timetable", action="store_true", help="Generate timetable")
     parser.add_argument("--clock", action="store_true", help="Run clock")
     return parser.parse_args()
@@ -233,6 +272,8 @@ def process_args(args: argparse.Namespace) -> bool:
         handle_conversion_args(args.conv)
     elif args.dconv:
         handle_dconv_args(args.dconv)
+    elif args.config or args.config == []:
+        handle_config_args(args.config)
     elif args.timetable:
         print(generate_time_table())
     elif args.clock:
@@ -286,6 +327,32 @@ def handle_dconv_args(dconv_args: List[str]) -> None:
     """
     value = dconv_args[0]
     print(convert_time(value))
+
+
+def handle_config_args(config_args: List[str]) -> None:
+    """
+    Handles the `--config` argument for UTMS configuration.
+
+    Args:
+        config_args (list): The list of arguments for the `--config` flag.
+
+    Returns:
+        None: The function configures UTMS.
+    """
+    if not config_args:
+        config.print_values()
+        return
+    if config_args[0] == "set":
+        if len(config_args) == 1:
+            print_error("At least a key should be specified with `config set <key> [value]`")
+            return
+        if len(config_args) == 2:
+            config.select_from_choices(config_args[1])
+            return
+        config.set_value(config_args[1], config_args[2])
+    else:
+        config.print_values(config_args[0])
+        return
 
 
 def handle_command(input_text: str) -> bool:

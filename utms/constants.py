@@ -60,6 +60,9 @@ try:
 except PackageNotFoundError:  # pragma: no cover
     VERSION = "0.0.0"
 
+APP_NAME = "utms"
+COMPANY_NAME = "DigeeX"
+
 # Set precision for Decimal calculations
 getcontext().prec = 200
 

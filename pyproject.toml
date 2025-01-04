@@ -6,6 +6,7 @@
     homepage = "https://github.com/danielonsecurity/utms"
     repository = "https://github.com/danielonsecurity/utms"
     documentation = "https://github.com/danielonsecurity/utms"
+    packages = [{ include = "utms" }]
     license = "GPL-3.0-or-later"
     readme = "README.md"
     include = [
@@ -14,8 +15,7 @@
         "LICENSE",
         "pyproject.toml",
         "tox.ini",
-        "docs/*",
-        "resources/*"]
+        "docs/*"]
     exclude = [
         "*.pyc",
         "__pycache__/*",
@@ -77,6 +77,7 @@
     python-dotenv = "^1.0.1"
     prettytable = "^3.12.0"
     pillow = "^11.0.0"
+    appdirs = "^1.4.4"
 
 
 [tool.poetry.group.dev.dependencies]

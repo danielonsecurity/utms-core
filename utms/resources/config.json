@@ -1,0 +1,17 @@
+{
+    "gemini": {
+        "api_key": null,
+        "model": "gemini-1.5-flash",
+	"model_choices": ["gemini-exp-1206",
+			  "gemini-2.0-flash-exp",
+			  "gemini-1.5-pro",
+			  "gemini-2.0-flash-thinking-exp-1219"],
+	"max_output_tokens": 200,
+	"temperature": 0.1,
+	"top_p": 0.5,
+	"top_k": 40
+    },
+    "anchors": [
+        {"Millennium": "2000-01-01T00:00:00+00:00"}
+    ]
+}
