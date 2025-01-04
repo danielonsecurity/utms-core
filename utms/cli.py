@@ -145,29 +145,6 @@ Notes:
 """
 
 
-def handle_input(input_text: str) -> None:
-    """
-    Processes the input text to execute a corresponding command based on the provided input.
-
-    This function handles commands starting with `.unit` and `.conv`. Each command has
-    its own handler for arguments.
-
-    Args:
-        input_text (str): The input string, typically a command prefixed with `.unit` or `.conv`.
-
-    Returns:
-        None: The function performs actions based on the input and does not return any value.
-    """
-    if input_text.startswith(".unit"):
-        handle_unit_command(input_text)
-    elif input_text.startswith(".conv"):
-        handle_conv_command(input_text)
-    elif input_text.startswith(".dconv"):
-        handle_dconv_command(input_text)
-    elif input_text.startswith(".config"):
-        handle_config_command(input_text)
-
-
 def handle_unit_command(input_text: str) -> None:
     """
     Handles commands related to unit conversion tables, including formatting options.
@@ -371,10 +348,15 @@ def handle_command(input_text: str) -> bool:
     """
     command_map = {
         "exit": exit_shell,
+        ".exit": exit_shell,
         ".help": show_help,
         ".debug": start_debugging,
         ".clock": start_clock,
         ".timetable": show_timetable,
+        ".unit": handle_unit_command,
+        ".conv": handle_conv_command,
+        ".dconv": handle_dconv_command,
+        ".config": handle_config_command,
     }
 
     # Check for known commands
@@ -382,8 +364,7 @@ def handle_command(input_text: str) -> bool:
         command_map[input_text.lower()](input_text)
         return True
     if input_text.startswith("."):
-        handle_input(input_text)
-        return True
+        return False
     # Resolve date or other input logic
     parsed_timestamp = resolve_date(input_text)
     if isinstance(parsed_timestamp, (datetime, Decimal)):
@@ -504,7 +485,7 @@ def main() -> None:
 
             # Handle commands using a dictionary map
             if not handle_command(input_text):
-                print(f"Unknown command: {input_text}")
+                print_error(f"Unknown command: {input_text}")
 
         except (ValueError, KeyboardInterrupt) as e:
             print_error(str(e))
