@@ -10,6 +10,6 @@ Usage:
 This will run the UTM CLI as defined in the `main` function of the `utms.cli` module.
 """
 
-from utms.cli import main
+from utms.cli.shell import main
 
 main()

@@ -63,7 +63,7 @@
         "Topic :: Utilities"]
 
 [tool.poetry.scripts]
-    utms = "utms.cli:main"
+    utms = "utms.cli.shell:main"
 
 [tool.poetry.dependencies]
     python = ">=3.10"
