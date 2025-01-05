@@ -32,11 +32,12 @@ jobs:
           poetry version $TAG_VERSION
 
       # Commit the changes to pyproject.toml
-      - name: Commit version update
+      - name: Commit version update and update README
         run: |
           git config --global user.name 'GitHub Actions'
           git config --global user.email 'actions@github.com'
-          git add pyproject.toml
+          python tools/update_readme.py
+          git add pyproject.toml README.md
           git commit -m "Bump version in pyproject.toml to ${TAG_VERSION}"
         env:
           TAG_VERSION: ${{ env.TAG_VERSION }}

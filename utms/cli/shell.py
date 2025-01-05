@@ -39,6 +39,7 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.styles import Style
 
+from utms import VERSION
 from utms.cli.args import parse_args, process_args
 from utms.cli.commands import CommandManager, load_default_commands
 from utms.cli.helpers import exit_shell
@@ -65,7 +66,7 @@ def interactive_shell(command_manager: CommandManager) -> None:
     Returns:
         None: This function runs in an infinite loop until the user exits the shell.
     """
-    print("Welcome to UTMS CLI!")
+    print(f"Welcome to UTMS CLI! (Version {VERSION})!")
     print(command_manager.generate_help_message())
 
     completer = WordCompleter(

@@ -56,13 +56,16 @@ To configure UTMS settings:
 """
 
 import argparse
+from datetime import datetime
 from decimal import Decimal
 from typing import List, Union
 
+from utms import VERSION
+from utms.cli.commands import CommandManager, load_default_commands
 from utms.cli.helpers import print_error
 from utms.clock import run_clock
 from utms.config import Config
-from utms.utils import convert_time, generate_time_table
+from utms.utils import convert_time, generate_time_table, print_time, resolve_date
 
 config = Config()
 
@@ -76,13 +79,16 @@ def parse_args() -> argparse.Namespace:
     Namespace
         An argparse.Namespace object containing the parsed arguments.
     """
-    parser = argparse.ArgumentParser(description="UTMS CLI")
+    parser = argparse.ArgumentParser(description=f"UTMS CLI version {VERSION}")
     parser.add_argument("--unit", nargs="*", help="Unit conversion table")
     parser.add_argument("--conv", nargs="+", help="Convert value between units")
     parser.add_argument("--dconv", nargs="+", help="Convert day time between units")
     parser.add_argument("--config", nargs="*", help="Configure UTMS")
-    parser.add_argument("--timetable", action="store_true", help="Generate timetable")
     parser.add_argument("--clock", action="store_true", help="Run clock")
+    parser.add_argument("--timetable", action="store_true", help="Generate timetable")
+    parser.add_argument("--help-prompt", action="store_true", help="Prompt help message")
+    parser.add_argument("--version", action="store_true", help="Show UTMS version")
+    parser.add_argument("input_string", nargs="*", help="String to be resolved into time")
     return parser.parse_args()
 
 
@@ -110,6 +116,17 @@ def process_args(args: argparse.Namespace) -> bool:
         print(generate_time_table())
     elif args.clock:
         run_clock()
+    elif args.version:
+        print(VERSION)
+    elif args.help_prompt:
+        command_manager = CommandManager()
+        load_default_commands(command_manager)
+        print(command_manager.generate_help_message())
+    elif args.input_string:
+        parsed_timestamp = resolve_date(" ".join(args.input_string))
+        if isinstance(parsed_timestamp, (datetime, Decimal)):
+            print_time(parsed_timestamp, config)
+            return True
     else:
         return False
     return True
