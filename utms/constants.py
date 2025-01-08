@@ -57,7 +57,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 try:
     VERSION = version("utms")
-except PackageNotFoundError:  # pragma: no cover
+except PackageNotFoundError:
     VERSION = "0.0.0"
 
 APP_NAME = "utms"
@@ -109,5 +109,13 @@ PLANCK_TIME_EPOCH = GALAXIAL_ERA / PLANCK_TIME_SECONDS
 
 MILLENNIUM_DATE = datetime(2000, 1, 1, 0, 0, tzinfo=timezone.utc)
 CE_DATE = datetime(1, 1, 1, 0, 0, tzinfo=timezone.utc)
-LIFE_DATE = datetime(1992, 6, 27, 0, 0, tzinfo=timezone.utc)
 UNIX_DATE = datetime(1970, 1, 1, 0, 0, tzinfo=timezone.utc)
+
+
+STANDARD_BREAKDOWN = [
+    ["Y"],
+    ["Ga", "Ma", "Mn", "Y", "d", "h", "m", "s"],
+    ["PS", "TS", "GS", "MS", "KS", "s"],
+]
+
+STANDARD_PRECISION = Decimal(1e-6)

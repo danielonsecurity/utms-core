@@ -285,5 +285,5 @@ class AI:
         try:
             # If the AI produces a valid ISO 8601 timestamp
             return datetime.fromisoformat(ai_result)
-        except ValueError:  # pragma: no cover
+        except ValueError:
             return ai_result

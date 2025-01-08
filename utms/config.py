@@ -34,7 +34,7 @@ import appdirs
 import ntplib
 
 from utms import constants
-from utms.anchors import AnchorManager
+from utms.anchors import AnchorConfig, AnchorManager
 from utms.units import UnitManager
 
 
@@ -60,7 +60,7 @@ def get_ntp_date() -> datetime:
         # Query the NTP server
         response = client.request("pool.ntp.org", version=3)
         ntp_timestamp = float(response.tx_time)
-    except (ntplib.NTPException, socket.error, OSError) as e:  # pragma: no cover
+    except (ntplib.NTPException, socket.error, OSError) as e:
         print(f"Error fetching NTP time: {e}", file=sys.stderr)
         ntp_timestamp = float(time())  # Fallback to system time
 
@@ -186,17 +186,17 @@ class Config:
             for key, anchor in anchors_data.items():
                 name = anchor.get("name")
                 timestamp = anchor.get("timestamp")
-                precision = anchor.get("precision", Decimal(1e-6))
+                precision = anchor.get("precision")
                 breakdowns = anchor.get("breakdowns")
-
                 # Add anchor using the details loaded from the JSON
-                self.anchors.add_anchor(
-                    name,
-                    key,
-                    Decimal(timestamp),
+                anchor_config = AnchorConfig(
+                    label=key,
+                    name=name,
+                    value=Decimal(timestamp),
                     precision=Decimal(precision) if precision else None,
                     breakdowns=breakdowns,
                 )
+                self.anchors.add_anchor(anchor_config)
 
         else:
             print(f"Error: '{anchors_file}' not found.")
@@ -456,52 +456,57 @@ class Config:
         using the `add_datetime_anchor` and `add_decimal_anchor` methods of the `AnchorManager`
         instance.  Each anchor is added with its name, symbol, and corresponding datetime value.
         """
+
         self.anchors.add_anchor(
-            f"Now Time ({datetime.now().strftime('%Y-%m-%d')})", "NT", get_ntp_date()
+            AnchorConfig(
+                label="NT",
+                name=f"Now Time ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})",
+                value=get_ntp_date(),
+            )
         )
         self.anchors.add_anchor(
-            f"Day Time ({datetime.now().strftime('%Y-%m-%d 00:00:00')})",
-            "DT",
-            datetime(
-                datetime.now().year,
-                datetime.now().month,
-                datetime.now().day,
-                tzinfo=datetime.now().astimezone().tzinfo,
-            ),
-            precision=Decimal(1e-6),
-            breakdowns=[["dd", "cd", "s", "ms"], ["h", "m", "s", "ms"], ["KS", "s", "ms"]],
+            AnchorConfig(
+                label="DT",
+                name=f"Day Time ({datetime.now().strftime('%Y-%m-%d 00:00:00')})",
+                value=datetime(
+                    datetime.now().year,
+                    datetime.now().month,
+                    datetime.now().day,
+                    tzinfo=datetime.now().astimezone().tzinfo,
+                ),
+                breakdowns=[["dd", "cd", "s", "ms"], ["h", "m", "s", "ms"], ["KS", "s", "ms"]],
+            )
         )
         self.anchors.add_anchor(
-            f"Year Time ({datetime.now().strftime('%Y-01-01 00:00:00')})",
-            "YT",
-            datetime(
-                datetime.now().year,
-                1,
-                1,
-                tzinfo=datetime.now().astimezone().tzinfo,
-            ),
-            precision=Decimal(1e-6),
-            breakdowns=[
-                ["d", "dd", "cd", "s", "ms"],
-                ["w", "d", "dd", "cd", "s", "ms"],
-                ["M", "d", "dd", "cd", "s", "ms"],
-                ["MS", "KS", "s", "ms"],
-            ],
+            AnchorConfig(
+                label="MT",
+                name=f"Month Time ({datetime.now().strftime('%Y-%m-01 00:00:00')})",
+                value=datetime(
+                    datetime.now().year,
+                    datetime.now().month,
+                    1,
+                    tzinfo=datetime.now().astimezone().tzinfo,
+                ),
+                breakdowns=[
+                    ["d", "dd", "cd", "s", "ms"],
+                    ["w", "d", "dd", "cd", "s", "ms"],
+                    ["MS", "KS", "s", "ms"],
+                ],
+            )
         )
+
         self.anchors.add_anchor(
-            f"Month Time ({datetime.now().strftime('%Y-%m-01 00:00:00')})",
-            "MT",
-            datetime(
-                datetime.now().year,
-                datetime.now().month,
-                1,
-                tzinfo=datetime.now().astimezone().tzinfo,
-            ),
-            precision=Decimal(1e-6),
-            breakdowns=[
-                ["d", "dd", "cd", "s", "ms"],
-                ["w", "d", "dd", "cd", "s", "ms"],
-                ["MS", "KS", "s", "ms"],
-            ],
+            AnchorConfig(
+                label="YT",
+                name=f"Year Time ({datetime.now().strftime('%Y-01-01 00:00:00')})",
+                value=datetime(
+                    datetime.now().year, 1, 1, tzinfo=datetime.now().astimezone().tzinfo
+                ),
+                breakdowns=[
+                    ["d", "dd", "cd", "s", "ms"],
+                    ["w", "d", "dd", "cd", "s", "ms"],
+                    ["M", "d", "dd", "cd", "s", "ms"],
+                    ["MS", "KS", "s", "ms"],
+                ],
+            )
         )
-        self.anchors.add_anchor("Life Time (1992-27-06)", "LT", constants.LIFE_DATE)

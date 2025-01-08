@@ -9,7 +9,7 @@ The module includes two main classes:
 
 1. **Anchor**:
    - Represents a single time anchor with a name, value, and precision.
-   - Designed for simplicity, allowing direct access to attributes such as `full_name`,
+   - Designed for simplicity, allowing direct access to attributes such as `name`,
      `value`, and `precision`.
 
 2. **AnchorManager**:
@@ -41,14 +41,14 @@ manager = AnchorManager()
 
 # Add a datetime anchor
 manager.add_datetime_anchor(
-    full_name="Epoch Start",
+    name="Epoch Start",
     label="epoch",
     value=datetime(1970, 1, 1, tzinfo=timezone.utc)
 )
 
 # Add a decimal anchor
 manager.add_decimal_anchor(
-    full_name="Custom Anchor",
+    name="Custom Anchor",
     label="custom",
     value=Decimal("12345.6789"),
     precision=Decimal("0.001")
@@ -59,26 +59,21 @@ epoch_anchor = manager["epoch"]
 
 # Iterate through all anchors
 for anchor in manager:
-    print(anchor.full_name, anchor.value, anchor.precision)
+    print(anchor.name, anchor.value, anchor.precision)
 
 # Get the number of anchors
 print(len(manager))
 """
 
-from datetime import datetime, timezone
+from datetime import datetime
 from decimal import Decimal
-from typing import Any, Dict, Iterator, List, NamedTuple, Optional, Union, cast
+from typing import Dict, Iterator, List, NamedTuple, Optional, Union
 
 from colorama import Fore, Style
 
 from utms import constants
 from utms.units import UnitManager
-
-standard_breakdown = [
-    ["Y"],
-    ["Ga", "Ma", "Mn", "Y", "d", "h", "m", "s"],
-    ["PS", "TS", "GS", "MS", "KS", "s"],
-]
+from utms.utils import value_to_decimal
 
 
 class AnchorConfig(NamedTuple):
@@ -90,7 +85,7 @@ class AnchorConfig(NamedTuple):
 
     Attributes
     ----------
-    full_name : str
+    name : str
         The full descriptive name of the anchor.
     value : Decimal
         The numeric value associated with the anchor.
@@ -101,10 +96,12 @@ class AnchorConfig(NamedTuple):
         represents a level of detail (e.g., ["hours", "minutes", "seconds"]).
     """
 
-    full_name: str
-    value: Decimal
-    precision: Decimal
-    breakdowns: List[List[str]]
+    label: str
+    name: str
+    value: Union[Decimal, datetime]
+    breakdowns: Optional[List[List[str]]] = None
+    groups: Optional[List[str]] = None
+    precision: Optional[Decimal] = None
 
 
 class Anchor:
@@ -118,7 +115,7 @@ class Anchor:
     for breakdown.
 
     Attributes:
-        full_name (str): The full name of the anchor (e.g., "Total Time").
+        name (str): The full name of the anchor (e.g., "Total Time").
         value (Decimal): The value associated with the anchor (e.g., total time value in seconds).
         precision (Decimal): The precision threshold for unit breakdown (e.g., the smallest unit for
         display).
@@ -146,62 +143,27 @@ class Anchor:
         """
         Create the Anchor object with its parameters inside.
         """
-        self.full_name = anchor_config.full_name
-        self.value = anchor_config.value
-        self.precision = anchor_config.precision
-        self.breakdowns = anchor_config.breakdowns
-
-    @classmethod
-    def from_datetime(
-        cls,
-        full_name: str,
-        value: datetime,
-        precision: Decimal = Decimal(1e-6),
-        breakdowns: Optional[List[List[str]]] = None,
-    ) -> "Anchor":
-        """
-        Create an Anchor from a datetime object.
-        """
-        if not breakdowns:
-            breakdowns = standard_breakdown
-
-        # Convert datetime to Decimal (timestamp)
-        if value >= datetime(1, 1, 2, 0, 0, tzinfo=timezone.utc):
-            value_as_decimal = Decimal(value.timestamp())
-        else:
-            value_as_decimal = Decimal(value.timestamp()) - Decimal(constants.SECONDS_IN_YEAR)
-
-        anchor_config = AnchorConfig(full_name, value_as_decimal, precision, breakdowns)
-        return cls(anchor_config)
-
-    @classmethod
-    def from_decimal(
-        cls,
-        full_name: str,
-        value: Decimal,
-        precision: Decimal = Decimal(1e-6),
-        breakdowns: Optional[List[List[str]]] = None,
-    ) -> "Anchor":
-        """
-        Create an Anchor from a Decimal value.
-        """
-        if not breakdowns:
-            breakdowns = standard_breakdown
-
-        anchor_config = AnchorConfig(full_name, value, precision, breakdowns)
-
-        return cls(anchor_config)
-
-    def _apply_color(self, value: str, color: str = Fore.BLUE) -> str:
-        """Applies the specified color style to the given value."""
-        return f"{color}{value}{Style.RESET_ALL}"
+        self.label = anchor_config.label
+        self.name = anchor_config.name
+        self.value = value_to_decimal(anchor_config.value)
+        self.precision = (
+            anchor_config.precision if anchor_config.precision else constants.STANDARD_PRECISION
+        )
+        self.breakdowns = (
+            anchor_config.breakdowns if anchor_config.breakdowns else constants.STANDARD_BREAKDOWN
+        )
 
     def _format_breakdown_entry(self, count: Union[int, Decimal], unit: str) -> str:
         """Formats a single breakdown entry."""
+
+        def apply_blue_color(value: str) -> str:
+            """Applies the specified color style to the given value."""
+            return f"{Fore.BLUE}{value}{Style.RESET_ALL}"
+
         formatted_count = (
             f"{count:.3f}" if isinstance(count, Decimal) and count % 1 != 0 else str(count)
         )
-        return f"{formatted_count} {self._apply_color(unit)}".ljust(25)
+        return f"{formatted_count} {apply_blue_color(unit)}".ljust(25)
 
     def _calculate_breakdown(
         self, total_seconds: Decimal, breakdown_units: List[str], units: "UnitManager"
@@ -229,6 +191,22 @@ class Anchor:
                 breakdown.append(self._format_breakdown_entry(unit_count, unit_abbreviation))
 
         return breakdown
+
+    def print(self) -> None:
+        """Print details of a single anchor by label"""
+
+        def apply_green_color(value: str) -> str:
+            """Applies the specified color style to the given value."""
+            return f"{Style.BRIGHT}{Fore.GREEN}{value}{Style.RESET_ALL}"
+
+        print(f"{apply_green_color('Label')}: {self.label}")
+        print(f"{apply_green_color('Full Name')}: {self.name}")
+        print(f"{apply_green_color('Value')}: {self.value:.3f}")
+        print(f"{apply_green_color('Precision')}: {self.precision:.3e}")
+        print(f"{apply_green_color('Breakdowns')}:")
+        for breakdown in self.breakdowns:
+            print(f"  - {', '.join(breakdown)}")
+        print("-" * 50)
 
     def breakdown(self, total_seconds: Decimal, units: "UnitManager") -> str:
         """
@@ -278,30 +256,17 @@ class AnchorManager:
         self._anchors: Dict[str, Anchor] = {}
         self.units = units
 
-    def add_anchor(
-        self,
-        full_name: str,
-        label: str,
-        value: Union[datetime, Decimal],
-        **kwargs: Any,
-    ) -> None:
+    def add_anchor(self, anchor_config: AnchorConfig) -> None:
         """
-        Creates an anchor based on the type of the value (datetime or Decimal)
-        and adds it to the manager.
+        Adds a new anchor using the given configuration object.
+
+        Args:
+            anchor_config: AnchorConfig object containing the configuration for the new anchor.
         """
-        # Default values for precision and breakdowns
-        precision: Decimal = cast(Decimal, kwargs.get("precision", Decimal(1e-6)))
-        breakdowns: Optional[List[List[str]]] = cast(
-            Optional[List[List[str]]], kwargs.get("breakdowns", None)
-        )
+        decimal_anchor = anchor_config._replace(value=value_to_decimal(anchor_config.value))
 
-        if isinstance(value, datetime):
-            anchor = Anchor.from_datetime(full_name, value, precision, breakdowns)
-        else:
-            anchor = Anchor.from_decimal(full_name, value, precision, breakdowns)
-
-        # Directly add the anchor to the _anchors dictionary
-        self._anchors[label] = anchor
+        # Add the anchor to the dictionary
+        self._anchors[anchor_config.label] = Anchor(decimal_anchor)
 
     def __iter__(self) -> Iterator[Anchor]:
         """
@@ -358,24 +323,10 @@ class AnchorManager:
             # If a label is provided, print only the anchor with that label
             anchor = self._anchors.get(label)
             if anchor:
-                print(f"Label: {label}")
-                print(f"Full Name: {anchor.full_name}")
-                print(f"Value: {anchor.value:.3f}")
-                print(f"Precision: {anchor.precision:.3e}")
-                print("Breakdowns:")
-                for breakdown in anchor.breakdowns:
-                    print(f"  - {', '.join(breakdown)}")
-                print("-" * 50)
+                anchor.print()
             else:
                 print(f"Anchor with label '{label}' not found.")
         else:
             # If no label is provided, print all anchors
-            for key, value in self._anchors.items():
-                print(f"Label: {key}")
-                print(f"Full Name: {value.full_name}")
-                print(f"Value: {value.value:.3f}")
-                print(f"Precision: {value.precision:.3e}")
-                print("Breakdowns:")
-                for breakdown in value.breakdowns:
-                    print(f"  - {', '.join(breakdown)}")
-                print("-" * 50)  # Separator for better readability
+            for anchor in self._anchors.values():
+                anchor.print()

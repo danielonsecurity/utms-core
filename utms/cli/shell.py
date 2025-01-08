@@ -39,7 +39,7 @@ import sys
 from datetime import datetime
 from decimal import Decimal
 from io import StringIO
-from typing import List
+from typing import Any, List
 
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
@@ -196,7 +196,7 @@ command.\n"""
     print_prompt_help(command_manager.parser)
 
     completer = get_word_completer(command_manager)
-    session = PromptSession(completer=completer, style=style)
+    session: PromptSession[Any] = PromptSession(completer=completer, style=style)
 
     while True:
         try:
