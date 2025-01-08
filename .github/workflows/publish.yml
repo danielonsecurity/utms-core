@@ -23,9 +23,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install poetry  # Install poetry for dependency management.
           poetry install  # Install project dependencies.
-          poetry build
-          pip install dist/*.whl
-          utms config set gemini.api_key ${{ secrets.GEMINI_API_KEY }}
 
       # Ensure versioning is updated via git tag
       - name: Update version from tag
@@ -33,6 +30,13 @@ jobs:
           TAG_VERSION=$(git describe --tags --abbrev=0 | sed 's/^v//')
           echo "TAG_VERSION=${TAG_VERSION}" >> $GITHUB_ENV
           poetry version $TAG_VERSION
+
+      - name: Set up utms
+        run: |
+          poetry build
+          pip install dist/*.whl
+          utms config set gemini.api_key ${{ secrets.GEMINI_API_KEY }}
+
 
       # Commit the changes to pyproject.toml
       - name: Commit version update and update README
