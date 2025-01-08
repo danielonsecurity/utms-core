@@ -186,6 +186,7 @@ class Config:
             for key, anchor in anchors_data.items():
                 name = anchor.get("name")
                 timestamp = anchor.get("timestamp")
+                groups = anchor.get("groups")
                 precision = anchor.get("precision")
                 breakdowns = anchor.get("breakdowns")
                 # Add anchor using the details loaded from the JSON
@@ -193,6 +194,7 @@ class Config:
                     label=key,
                     name=name,
                     value=Decimal(timestamp),
+                    groups=groups,
                     precision=Decimal(precision) if precision else None,
                     breakdowns=breakdowns,
                 )
@@ -462,6 +464,7 @@ class Config:
                 label="NT",
                 name=f"Now Time ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})",
                 value=get_ntp_date(),
+                groups=["default", "dynamic", "modern"],
             )
         )
         self.anchors.add_anchor(
@@ -475,6 +478,7 @@ class Config:
                     tzinfo=datetime.now().astimezone().tzinfo,
                 ),
                 breakdowns=[["dd", "cd", "s", "ms"], ["h", "m", "s", "ms"], ["KS", "s", "ms"]],
+                groups=["dynamic", "modern"],
             )
         )
         self.anchors.add_anchor(
@@ -492,6 +496,7 @@ class Config:
                     ["w", "d", "dd", "cd", "s", "ms"],
                     ["MS", "KS", "s", "ms"],
                 ],
+                groups=["dynamic", "modern"],
             )
         )
 
@@ -508,5 +513,6 @@ class Config:
                     ["M", "d", "dd", "cd", "s", "ms"],
                     ["MS", "KS", "s", "ms"],
                 ],
+                groups=["dynamic", "modern"],
             )
         )

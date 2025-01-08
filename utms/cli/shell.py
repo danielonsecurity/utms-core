@@ -83,32 +83,6 @@ def add_global_arguments(command_manager: CommandManager) -> None:
     command_manager.parser.add_argument("--debug", action="store_true", help="Enter Python's PDB")
 
 
-# def find_subparser(
-#     parser: argparse.ArgumentParser, commands: List[str]
-# ) -> Optional[argparse.ArgumentParser]:
-#     """
-#     Recursively find the subparser for a given list of commands.
-
-#     Args:
-#         parser (argparse.ArgumentParser): The current parser to search.
-#         commands (List[str]): The list of commands/subcommands to locate.
-
-#     Returns:
-#         Optional[argparse.ArgumentParser]: The matching subparser, or None if not found.
-#     """
-#     current_parser = parser
-#     for command in commands:
-#         if hasattr(current_parser, "_subparsers") and current_parser._subparsers:
-#             subparsers_action = current_parser._subparsers._group_actions[0]
-#             if command in subparsers_action.choices:
-#                 current_parser = subparsers_action.choices[command]
-#             else:
-#                 return None
-#         else:
-#             return None
-#     return current_parser
-
-
 def print_prompt_help(parser: argparse.ArgumentParser) -> None:
     """
     Custom print_help to modify the 'usage' line for the prompt help.
@@ -157,6 +131,9 @@ def get_word_completer(command_manager: CommandManager) -> WordCompleter:
     """
 
     commands: List[str] = []
+
+    for command in command_manager.hierarchy.parent_parsers.keys():
+        commands.append(f".{command}")
 
     for command, subcommands in command_manager.hierarchy.child_parsers.items():
         commands.append(f".{command}")

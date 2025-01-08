@@ -50,7 +50,7 @@ def handle_resolve_command(args: argparse.Namespace, config: Config) -> None:
     input_string = " ".join(args.input)
     parsed_timestamp = ai.resolve_date(input_string)
     if isinstance(parsed_timestamp, (datetime, Decimal)):
-        print_time(parsed_timestamp, config)
+        print_time(parsed_timestamp, config, args.anchors)
 
 
 def register_resolve_command(command_manager: CommandManager) -> None:
@@ -77,6 +77,14 @@ def register_resolve_command(command_manager: CommandManager) -> None:
     )
     command.set_help("Resolve arbitrary string into date with dateparser or with the AI")
     command.set_description("Resolve arbitrary string into date with dateparser or with the AI")
+
+    command.add_argument(
+        "-a",
+        "--anchors",
+        type=str,
+        nargs="?",
+        help="Anchor/Anchor groups to display",
+    )
 
     command.add_argument(
         "input",

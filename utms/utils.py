@@ -117,7 +117,9 @@ def resolve_date_dateparser(input_text: str) -> Optional[datetime]:
     return None
 
 
-def print_time(timestamp: "Union[datetime, Decimal]", config: "Config") -> None:
+def print_time(
+    timestamp: "Union[datetime, Decimal]", config: "Config", anchors: Optional[str] = None
+) -> None:
     """
     Prints the time-related calculations for a given timestamp or total seconds value
     in various formats: 'CE Time', 'Millenium Time', 'Now Time', 'UPC Time', and 'Life Time'.
@@ -146,8 +148,14 @@ def print_time(timestamp: "Union[datetime, Decimal]", config: "Config") -> None:
     else:
         total_seconds = timestamp
 
+    if not anchors:
+        anchor_list = config.anchors.get_anchors_by_group("default")
+    else:
+        anchor_list = config.anchors.get_anchors_from_str(anchors)
+    anchor_list = list(set(anchor_list))
+
     # Iterate over the anchors and print results
-    for anchor in config.anchors:
+    for anchor in anchor_list:
         print_header(f"{config.anchors.get_label(anchor)}: {anchor.name}")
         print(anchor.breakdown(total_seconds - anchor.value, config.units))
 

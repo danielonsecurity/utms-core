@@ -7,15 +7,18 @@
             ["Y"],
 	    ["PS", "TS", "GS", "MS", "KS", "s", "ms"],
             ["Ga", "Ma", "Mn", "Y", "d", "h", "m", "s"]
-	]
+	],
+	"groups": ["default", "standard", "fixed", "modern"]
     },
     "mT": {
 	"name": "Millennium Time (2000-01-01)",
-	"timestamp": "946684800"
+	"timestamp": "946684800",
+	"groups": ["default", "standard", "fixed", "modern"]
     },
     "CE": {
 	"name": "CE Time (1 CE)",
-	"timestamp": "-62167153726"
+	"timestamp": "-62167153726",
+	"groups": ["default", "standard", "fixed", "historical"]
     },
     "BB": {
 	"name": "Big Bang Time (13.8e9 years ago)",
@@ -24,6 +27,7 @@
 	    ["Y"],
 	    ["Ga", "Ma"],
 	    ["TS", "GS", "MS", "KS", "s", "ms"]
-	]
+	],
+	"groups": ["astronomical", "fixed"]
     }
 }

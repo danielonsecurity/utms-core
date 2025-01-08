@@ -146,12 +146,9 @@ class Anchor:
         self.label = anchor_config.label
         self.name = anchor_config.name
         self.value = value_to_decimal(anchor_config.value)
-        self.precision = (
-            anchor_config.precision if anchor_config.precision else constants.STANDARD_PRECISION
-        )
-        self.breakdowns = (
-            anchor_config.breakdowns if anchor_config.breakdowns else constants.STANDARD_BREAKDOWN
-        )
+        self.precision = anchor_config.precision or constants.STANDARD_PRECISION
+        self.breakdowns = anchor_config.breakdowns or constants.STANDARD_BREAKDOWN
+        self.groups = anchor_config.groups or []
 
     def _format_breakdown_entry(self, count: Union[int, Decimal], unit: str) -> str:
         """Formats a single breakdown entry."""
@@ -202,6 +199,7 @@ class Anchor:
         print(f"{apply_green_color('Label')}: {self.label}")
         print(f"{apply_green_color('Full Name')}: {self.name}")
         print(f"{apply_green_color('Value')}: {self.value:.3f}")
+        print(f"{apply_green_color('Groups')}: {', '.join(self.groups)}")
         print(f"{apply_green_color('Precision')}: {self.precision:.3e}")
         print(f"{apply_green_color('Breakdowns')}:")
         for breakdown in self.breakdowns:
@@ -302,6 +300,18 @@ class AnchorManager:
         """
         return len(self._anchors)
 
+    def get(self, label: str) -> Optional[Anchor]:
+        """
+        Retrieves the anchor with the specified label.
+
+        Args:
+            label (str): The label of the anchor to retrieve.
+
+        Returns:
+            Optional[Anchor]: The anchor with the given label, or None if no such anchor exists.
+        """
+        return self._anchors.get(label, None)
+
     def get_label(self, anchor: Anchor) -> str:
         """
         Returns the label associated with a given anchor.
@@ -314,6 +324,52 @@ class AnchorManager:
             if stored_anchor == anchor:
                 return label
         raise ValueError("Anchor not found in the manager.")
+
+    def get_anchors_by_group(self, group_name: str) -> List[Anchor]:
+        """
+        Retrieves a list of anchors that belong to the specified group.
+
+        Args:
+            group_name (str): The name of the group to filter anchors.
+
+        Returns:
+            List[Anchor]: A list of anchors belonging to the specified group.
+        """
+        return [anchor for anchor in self._anchors.values() if group_name in (anchor.groups or [])]
+
+    def get_anchors_from_str(self, input_text: str) -> List[Anchor]:
+        """
+        Parses a comma-separated string and returns a sorted list of `Anchor` objects.
+
+        This method splits the input string by commas, retrieves `Anchor` objects associated
+        with each item, and adds them to a list. It also includes additional anchors based on
+        groups associated with each item. The resulting list is sorted by the `value` attribute
+        of the `Anchor` objects.
+
+        Args:
+            input_text (str): A comma-separated string of items, each representing
+                               an anchor or group identifier.
+
+        Returns:
+            List[Anchor]: A sorted list of `Anchor` objects.
+
+        Raises:
+            ValueError: If any of the items in the input string cannot be resolved to
+                        an `Anchor` object.
+
+        Notes:
+            - The method first retrieves anchors using the `get()` method, and then
+              appends anchors retrieved by group using `get_anchors_by_group()`.
+            - The sorting is done based on the `value` attribute of the `Anchor` objects.
+        """
+        anchor_list = []
+        for item in input_text.split(","):
+            anchor = self.get(item)
+            if anchor:
+                anchor_list.append(anchor)
+            anchor_list.extend(self.get_anchors_by_group(item))
+        anchor_list.sort(key=lambda anchor: anchor.value)
+        return anchor_list
 
     def print(self, label: Optional[str] = None) -> None:
         """

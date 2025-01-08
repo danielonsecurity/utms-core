@@ -20,7 +20,40 @@ Usage:
         register_anchor_get_command(command_manager)
 """
 
+import argparse
+
+from utms import Config
 from utms.cli.commands.core import Command, CommandManager
+
+
+def get_anchors(args: argparse.Namespace, config: Config) -> None:
+    """
+    Parses a comma-separated string and returns a sorted list of `Anchor` objects.
+
+    This method splits the input string by commas, retrieves `Anchor` objects associated
+    with each item, and adds them to a list. It also includes additional anchors based on
+    groups associated with each item. The resulting list is sorted by the `value` attribute
+    of the `Anchor` objects.
+
+    Args:
+        input_text (str): A comma-separated string of items, each representing
+                           an anchor or group identifier.
+
+    Returns:
+        List[Anchor]: A sorted list of `Anchor` objects.
+
+    Raises:
+        ValueError: If any of the items in the input string cannot be resolved to
+                    an `Anchor` object.
+
+    Notes:
+        - The method first retrieves anchors using the `get()` method, and then
+          appends anchors retrieved by group using `get_anchors_by_group()`.
+        - The sorting is done based on the `value` attribute of the `Anchor` objects.
+    """
+    anchor_list = config.anchors.get_anchors_from_str(args.anchor_list)
+    for anchor in anchor_list:
+        anchor.print()
 
 
 def register_anchor_get_command(command_manager: CommandManager) -> None:
@@ -51,15 +84,14 @@ def register_anchor_get_command(command_manager: CommandManager) -> None:
         In CLI:
             anchor get <label>
     """
-    anchor_manager = command_manager.config.anchors
-    command = Command("anchor", "get", lambda args: anchor_manager.print(args.label))
+    command = Command("anchor", "get", lambda args: get_anchors(args, command_manager.config))
     command.set_help("Get an anchor by label")
     command.set_description("Print one anchor properties given its label")
     # Add the arguments for this command
     command.add_argument(
-        "label",
+        "anchor_list",
         type=str,
-        help="Anchor label to print",
+        help="Anchor list to print by labels and groups, separated by commas (NT,UT,default)",
     )
 
     command_manager.register_command(command)

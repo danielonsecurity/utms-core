@@ -56,6 +56,7 @@ from typing import Union
 
 import google.generativeai as genai
 import requests
+from colorama import Fore, Style
 from google.api_core.exceptions import ResourceExhausted
 
 from utms import constants
@@ -104,7 +105,7 @@ class AI:
             api_key = input("Gemini API key: ")
             config.set_value("gemini.api_key", api_key)
 
-        genai.configure(api_key=api_key)
+        genai.configure(api_key=api_key, transport="rest")
         self.ai_config = genai.GenerationConfig(
             max_output_tokens=int(config.get_value("gemini.max_output_tokens")),
             temperature=float(config.get_value("gemini.temperature")),
@@ -187,7 +188,7 @@ class AI:
 
             if response and response.text:
                 # Clean the response text to ensure it's a valid ISO date format
-                print(response.text)
+                print(Fore.RED + Style.BRIGHT + response.text + Style.RESET_ALL)
                 iso_date: str = response.text.strip()
                 return iso_date
             raise ValueError("No valid response received from the API.")
