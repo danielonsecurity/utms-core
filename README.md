@@ -129,7 +129,7 @@ $ utms --help
 usage: utms [-h] [--version] [--debug]
             {config,unit,daytime,resolve,anchor,clock} ...
 
-UTMS CLI version 0.1.6
+UTMS CLI version 0.1.10
 
 positional arguments:
   {config,unit,daytime,resolve,anchor,clock}
@@ -286,45 +286,45 @@ Just type the date in any format you can think of, and UTMS will try to make sen
 ```bash
 $ utms resolve today
 
-2025-01-08 11:42:37.770131+00:00
+2025-01-08 11:48:01.486462+00:00
 NT: Now Time (2025-01-08)
   + 0.000 Y         
-  + 0.077 s         
-  + 0.077 s         
+  + 0.044 s         
+  + 0.044 s         
 DT: Day Time (2025-01-08 00:00:00)
-  + 4 dd             8 cd             685 s            770.131 ms      
-  + 11 h             42 m             37 s             770.131 ms      
-  + 42 KS            157 s            770.131 ms      
+  + 4 dd             9 cd             145 s            486.462 ms      
+  + 11 h             48 m             1 s              486.462 ms      
+  + 42 KS            481 s            486.462 ms      
 YT: Year Time (2025-01-01 00:00:00)
-  + 7 d              4 dd             8 cd             685 s            770.131 ms      
-  + 1 w              4 dd             8 cd             685 s            770.131 ms      
-  + 7 d              4 dd             8 cd             685 s            770.131 ms      
-  + 646 KS           957 s            770.131 ms      
+  + 7 d              4 dd             9 cd             145 s            486.462 ms      
+  + 1 w              4 dd             9 cd             145 s            486.462 ms      
+  + 7 d              4 dd             9 cd             145 s            486.462 ms      
+  + 647 KS           281 s            486.462 ms      
 MT: Month Time (2025-01-01 00:00:00)
-  + 7 d              4 dd             8 cd             685 s            770.131 ms      
-  + 1 w              4 dd             8 cd             685 s            770.131 ms      
-  + 646 KS           957 s            770.131 ms      
+  + 7 d              4 dd             9 cd             145 s            486.462 ms      
+  + 1 w              4 dd             9 cd             145 s            486.462 ms      
+  + 647 KS           281 s            486.462 ms      
 LT: Life Time (1992-27-06)
   + 32.536 Y        
-  + 32 Y             195 d            17 h             42 m             3.210 s         
-  + 1 GS             26 MS            733 KS           357.770 s       
+  + 32 Y             195 d            17 h             47 m             26.926 s        
+  + 1 GS             26 MS            733 KS           681.486 s       
 UT: Unix Time (1970-01-01)
-  + 1736336557.770 s
+  + 1736336881.486 s
   + 55.022 Y        
-  + 1 GS             736 MS           336 KS           557 s            770.131 ms      
-  + 55 Y             8 d              4 h              23.370 s        
+  + 1 GS             736 MS           336 KS           881 s            486.462 ms      
+  + 55 Y             8 d              4 h              5 m              47.086 s        
 mT: Millennium Time (2000-01-01)
   + 25.023 Y        
-  + 25 Y             8 d              10 h             23 m             25.770 s        
-  + 789 MS           651 KS           757.770 s       
+  + 25 Y             8 d              10 h             28 m             49.486 s        
+  + 789 MS           652 KS           81.486 s        
 CE: CE Time (1 CE)
   + 2025.023 Y      
-  + 2 Mn             25 Y             8 d              6 h              36 m             11.770 s        
-  + 63 GS            903 MS           490 KS           283.770 s       
+  + 2 Mn             25 Y             8 d              6 h              41 m             35.486 s        
+  + 63 GS            903 MS           490 KS           607.486 s       
 BB: Big Bang Time (13.8e9 years ago)
   + 13800000055.022 Y
   + 13 Ga            800.000 Ma      
-  + 435485 TS        581 GS           640 MS           336 KS           587 s            770.131 ms
+  + 435485 TS        581 GS           640 MS           336 KS           911 s            486.462 ms
 ```
 ```bash
 $ utms resolve beginning of world war 1
@@ -333,8 +333,8 @@ $ utms resolve beginning of world war 1
 
 NT: Now Time (2025-01-08)
   - 110.454 Y       
-  - 110 Y            165 d            20 h             18 m             9.751 s         
-  - 3 GS             485 MS           590 KS           958.551 s       
+  - 110 Y            165 d            20 h             23 m             33.517 s        
+  - 3 GS             485 MS           591 KS           282.317 s       
 DT: Day Time (2025-01-08 00:00:00)
   - 403420 dd        0E+3 ms         
   - 968208 h         0E+3 ms         
@@ -377,8 +377,8 @@ $ utms resolve extinction of dinosaurs
 
 NT: Now Time (2025-01-08)
   - 66002024.022 Y  
-  - 66 Ma            2 Mn             24 Y             8 d              4 h              28.969 s        
-  - 2 PS             82 TS            820 GS           993 MS           204 KS           15.033 s        
+  - 66 Ma            2 Mn             24 Y             8 d              4 h              5 m              53.334 s        
+  - 2 PS             82 TS            820 GS           993 MS           204 KS           339.398 s       
 DT: Day Time (2025-01-08 00:00:00)
   - 241067244578 dd  9 cd             155 s            664.184 ms      
   - 578561386989 h   24 m             11 s             664.184 ms      
@@ -421,8 +421,8 @@ $ utms resolve fall of roman empire
 
 NT: Now Time (2025-01-08)
   - 1548.347 Y      
-  - 1 Mn             548 Y            126 d            13 h             29 m             56.405 s        
-  - 48 GS            861 MS           56 KS            568.245 s       
+  - 1 Mn             548 Y            126 d            13 h             35 m             20.895 s        
+  - 48 GS            861 MS           56 KS            892.735 s       
 DT: Day Time (2025-01-08 00:00:00)
   - 5655210 dd       0E+3 ms         
   - 13572504 h       0E+3 ms         
