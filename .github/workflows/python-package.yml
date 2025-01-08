@@ -44,7 +44,7 @@ jobs:
         pip install dist/*.whl  # Install the built package locally
     - name: Set up Gemini API Key
       run: |
-        utms --config set gemini.api_key ${{ secrets.GEMINI_API_KEY }}
+        utms config set gemini.api_key ${{ secrets.GEMINI_API_KEY }}
 
     - name: Run tox
       run: tox
