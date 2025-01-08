@@ -25,6 +25,7 @@ jobs:
           poetry install  # Install project dependencies.
           poetry build
           pip install dist/*.whl
+          utms config set gemini.api_key ${{ secrets.GEMINI_API_KEY }}
 
       # Ensure versioning is updated via git tag
       - name: Update version from tag
