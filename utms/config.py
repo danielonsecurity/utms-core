@@ -24,6 +24,7 @@ import os
 import re
 import shutil
 import socket
+import sys
 from datetime import datetime, timezone
 from decimal import Decimal
 from time import time
@@ -60,7 +61,7 @@ def get_ntp_date() -> datetime:
         response = client.request("pool.ntp.org", version=3)
         ntp_timestamp = float(response.tx_time)
     except (ntplib.NTPException, socket.error, OSError) as e:  # pragma: no cover
-        print(f"Error fetching NTP time: {e}")
+        print(f"Error fetching NTP time: {e}", file=sys.stderr)
         ntp_timestamp = float(time())  # Fallback to system time
 
     # Convert the timestamp to a UTC datetime and format as 'YYYY-MM-DD'
@@ -95,6 +96,7 @@ class Config:
         self.anchors = AnchorManager(self.units)
         self.populate_units()
         self.populate_anchors()
+        self.load_anchors()
 
     def _parse_key(self, key: str) -> List[Union[str, int]]:
         """
@@ -132,7 +134,7 @@ class Config:
         """
         Copy resources to the user config directory if they do not already exist.
         """
-        resources = ["system_prompt.txt", "config.json"]
+        resources = ["system_prompt.txt", "config.json", "anchors.json"]
         for item in resources:
             source_file = importlib.resources.files("utms.resources") / item
             destination_file = os.path.join(self.utms_dir, item)
@@ -166,6 +168,38 @@ class Config:
 
         with open(config_file, "w", encoding="utf-8") as f:
             json.dump(self.data, f, indent=4)
+
+    def load_anchors(self) -> None:
+        """
+        Loads anchors from the 'anchors.json' file and populates the anchors dynamically.
+
+        This method reads the `anchors.json` file, parses its content, and uses the `AnchorManager`
+        to add each anchor to the configuration.
+        """
+        anchors_file = os.path.join(self.utms_dir, "anchors.json")
+
+        if os.path.exists(anchors_file):
+            with open(anchors_file, "r", encoding="utf-8") as f:
+                anchors_data = json.load(f)
+
+            # Iterate through the anchors data and add each anchor
+            for key, anchor in anchors_data.items():
+                name = anchor.get("name")
+                timestamp = anchor.get("timestamp")
+                precision = anchor.get("precision", Decimal(1e-6))
+                breakdowns = anchor.get("breakdowns")
+
+                # Add anchor using the details loaded from the JSON
+                self.anchors.add_anchor(
+                    name,
+                    key,
+                    Decimal(timestamp),
+                    precision=Decimal(precision) if precision else None,
+                    breakdowns=breakdowns,
+                )
+
+        else:
+            print(f"Error: '{anchors_file}' not found.")
 
     def get_value(self, key: str, pretty: bool = False) -> Union[Any, str]:
         """
@@ -238,7 +272,7 @@ class Config:
 
         self.save()
 
-    def print_values(self, filter_key: Optional[str] = None) -> None:
+    def print(self, filter_key: Optional[str] = None) -> None:
         """
         Prints the configuration in a formatted JSON style. Optionally filters the output
         to display the value of a specific key path.
@@ -470,24 +504,4 @@ class Config:
                 ["MS", "KS", "s", "ms"],
             ],
         )
-        self.anchors.add_anchor(
-            "Unix Time (1970-01-01)",
-            "UT",
-            constants.UNIX_DATE,
-            breakdowns=[
-                ["s"],
-                ["PS", "TS", "GS", "MS", "KS", "s"],
-                ["Ga", "Ma", "Mn", "Y", "d", "h", "m", "s"],
-                ["Y"],
-            ],
-        )
-        self.anchors.add_anchor("CE Time (1 CE)", "CE", constants.CE_DATE)
-        self.anchors.add_anchor("Millennium Time (2000-01-01)", "mT", constants.MILLENNIUM_DATE)
         self.anchors.add_anchor("Life Time (1992-27-06)", "LT", constants.LIFE_DATE)
-        self.anchors.add_anchor(
-            "Big Bang Time (13.8e9 years ago)",
-            "BB",
-            -constants.AGE_OF_UNIVERSE_SECONDS,
-            precision=Decimal(1e6),
-            breakdowns=[["Y"], ["Ga", "Ma"], ["TS", "GS", "MS", "KS", "s", "ms"]],
-        )

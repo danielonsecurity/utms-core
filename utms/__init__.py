@@ -11,9 +11,7 @@ Author: [Daniel Neagaru]
 """
 
 from .ai import AI
+from .config import Config
 from .constants import VERSION
 
-# from .utils import *  # Import utility functions
-
-
-__all__ = ["AI", "VERSION"]
+__all__ = ["AI", "Config", "VERSION"]

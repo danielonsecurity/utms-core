@@ -1,0 +1,29 @@
+{
+    "UT": {
+	"name": "Unix Time (1970-01-01)",
+	"timestamp": "0",
+	"breakdowns": [
+	    ["s"],
+            ["Y"],
+	    ["PS", "TS", "GS", "MS", "KS", "s", "ms"],
+            ["Ga", "Ma", "Mn", "Y", "d", "h", "m", "s"]
+	]
+    },
+    "mT": {
+	"name": "Millennium Time (2000-01-01)",
+	"timestamp": "946684800"
+    },
+    "CE": {
+	"name": "CE Time (1 CE)",
+	"timestamp": "-62167153726"
+    },
+    "BB": {
+	"name": "Big Bang Time (13.8e9 years ago)",
+	"timestamp": "-435485579904000030",
+	"breakdowns": [
+	    ["Y"],
+	    ["Ga", "Ma"],
+	    ["TS", "GS", "MS", "KS", "s", "ms"]
+	]
+    }
+}

@@ -1,11 +1,11 @@
 from datetime import datetime
 from decimal import Decimal
 
-from utms.ai import AI
+from utms import AI, Config
 
 local_timezone = datetime.now().astimezone().tzinfo
 
-ai = AI()
+ai = AI(Config())
 
 def test_ai_generate_date():
     expected = "2024-12-10T00:00:00+00:00"

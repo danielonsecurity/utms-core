@@ -349,3 +349,33 @@ class AnchorManager:
             if stored_anchor == anchor:
                 return label
         raise ValueError("Anchor not found in the manager.")
+
+    def print(self, label: Optional[str] = None) -> None:
+        """
+        Prints details of all anchors inside the AnchorManager.
+        """
+        if label:
+            # If a label is provided, print only the anchor with that label
+            anchor = self._anchors.get(label)
+            if anchor:
+                print(f"Label: {label}")
+                print(f"Full Name: {anchor.full_name}")
+                print(f"Value: {anchor.value:.3f}")
+                print(f"Precision: {anchor.precision:.3e}")
+                print("Breakdowns:")
+                for breakdown in anchor.breakdowns:
+                    print(f"  - {', '.join(breakdown)}")
+                print("-" * 50)
+            else:
+                print(f"Anchor with label '{label}' not found.")
+        else:
+            # If no label is provided, print all anchors
+            for key, value in self._anchors.items():
+                print(f"Label: {key}")
+                print(f"Full Name: {value.full_name}")
+                print(f"Value: {value.value:.3f}")
+                print(f"Precision: {value.precision:.3e}")
+                print("Breakdowns:")
+                for breakdown in value.breakdowns:
+                    print(f"  - {', '.join(breakdown)}")
+                print("-" * 50)  # Separator for better readability

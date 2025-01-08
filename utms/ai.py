@@ -51,15 +51,19 @@ The module is specifically designed to handle a wide range of date inputs, inclu
 
 import os
 from datetime import datetime
+from decimal import Decimal
+from typing import Union
 
 import google.generativeai as genai
 import requests
 from google.api_core.exceptions import ResourceExhausted
 
+from utms import constants
 from utms.config import Config
+from utms.utils import resolve_date_dateparser
 
 
-class AI:  # pylint: disable=too-few-public-methods
+class AI:
     """
     A class for interfacing with the Gemini Generative AI model.
 
@@ -76,7 +80,7 @@ class AI:  # pylint: disable=too-few-public-methods
             Generates a date based on the provided input text using the Gemini AI model.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, config: Config) -> None:
         """
         Initializes the AI class by setting up the Gemini API configuration and loading the model.
 
@@ -93,7 +97,7 @@ class AI:  # pylint: disable=too-few-public-methods
             FileNotFoundError: If the system prompt file does not exist.
             ValueError: If required configuration values are missing.
         """
-        config = Config()
+        self.config = config
         if config.has_value("gemini.api_key"):
             api_key = config.get_value("gemini.api_key")
         else:
@@ -101,7 +105,7 @@ class AI:  # pylint: disable=too-few-public-methods
             config.set_value("gemini.api_key", api_key)
 
         genai.configure(api_key=api_key)
-        self.config = genai.GenerationConfig(
+        self.ai_config = genai.GenerationConfig(
             max_output_tokens=int(config.get_value("gemini.max_output_tokens")),
             temperature=float(config.get_value("gemini.temperature")),
             top_p=float(config.get_value("gemini.top_p")),
@@ -179,23 +183,107 @@ class AI:  # pylint: disable=too-few-public-methods
         """
         try:
             # Call the Gemini model
-            response = self.model.generate_content(input_text, generation_config=self.config)
+            response = self.model.generate_content(input_text, generation_config=self.ai_config)
 
             if response and response.text:
                 # Clean the response text to ensure it's a valid ISO date format
                 print(response.text)
                 iso_date: str = response.text.strip()
                 return iso_date
-            raise ValueError("No valid response received from the API.")  # pragma: no cover
+            raise ValueError("No valid response received from the API.")
 
-        except requests.ConnectionError:  # pragma: no cover
+        except requests.ConnectionError:
             return "Connection error: Unable to reach the API."
 
-        except requests.Timeout:  # pragma: no cover
+        except requests.Timeout:
             return "Timeout error: The API request timed out."
 
-        except requests.RequestException as e:  # pragma: no cover
+        except requests.RequestException as e:
             return f"Request error: {e}"
 
-        except ResourceExhausted as e:  # pragma: no cover
+        except ResourceExhausted as e:
             return f"Resource exhausted: {e}"
+
+    # Function to resolve dates
+    def resolve_date(self, input_text: str) -> Union[datetime, Decimal, str, None]:
+        """
+        Resolves a date from a given string input. The function first
+        attempts to parse the date using `dateparser`, and if unsuccessful,
+        it uses an AI-based approach to generate a potential date.
+
+        The function supports:
+
+        - Parsing valid dates from input text (via `dateparser`).
+        - Handling historical dates expressed as negative years (e.g., '-44' for 44 BCE).
+        - Interpreting future events expressed with a '+' sign (e.g., '+10' for 10 years from now).
+        - Processing ISO 8601 formatted dates returned by the AI.
+
+        Args:
+            input_text (str): The input string representing the date to resolve.
+                The input can be in formats compatible with `dateparser` or in special
+                formats (e.g., BCE or future years).
+
+        Returns:
+            Union[datetime, Decimal, None]:
+                - `datetime` object if a valid date is resolved.
+                - `Decimal` representing seconds for future events or years before the common era.
+                - `None` if the date cannot be resolved.
+
+        Raises:
+            ValueError: If both `dateparser` and the AI approach fail to resolve a date.
+
+        Example:
+            >>> resolve_date("2024-12-11")
+            datetime.datetime(2024, 12, 11, 0, 0, tzinfo=datetime.timezone.utc)
+
+            >>> resolve_date("-44")  # 44 BCE
+            Decimal('-69422400000')
+
+            >>> resolve_date("+10")  # 10 years from now
+            Decimal('315569520')
+
+        Notes:
+            - The function first attempts to parse the date using the `resolve_date_dateparser`
+              function. If that fails, it invokes the AI-based date generator.
+            - The AI response is expected to be one of:
+                - A valid ISO 8601 date string.
+                - A negative number representing historical years (BCE).
+                - A positive number indicating future years (converted to seconds).
+            - Historical dates are converted into seconds using a year-based approximation
+              or ISO 8601 representation when available.
+            - Future dates are expressed in seconds from the current time.
+        """
+        # First, try to parse using dateparser
+        resolved_date = resolve_date_dateparser(input_text)
+        if resolved_date:
+            return resolved_date
+
+        # If parsing fails, fallback to AI
+        ai_result = self.generate_date(input_text)
+        if ai_result == "UNKNOWN":
+            raise ValueError(f"Unable to resolve date for input: {input_text}")
+
+        # Handle AI response for historical dates
+        if ai_result.startswith("-"):
+            if ai_result.count("-") == 3:  # -YYYY-MM-DD
+                epoch = constants.UNIX_DATE
+                bc_date = datetime.strptime(ai_result, "-%Y-%m-%d")
+                delta_years = epoch.year + abs(bc_date.year) - 1
+                delta_days = (epoch - epoch.replace(year=epoch.year, month=1, day=1)).days
+                return -Decimal(
+                    (delta_years * Decimal(365.25) + delta_days) * constants.SECONDS_IN_DAY
+                )
+            # -YYYYYYYY or -1.5e9
+            epoch = constants.UNIX_DATE
+            return -Decimal(
+                Decimal(epoch.year + abs(Decimal(ai_result)) - 1) * constants.SECONDS_IN_YEAR
+            )
+
+        # Handle AI response for future events
+        if ai_result.startswith("+"):
+            return Decimal(Decimal(ai_result) * constants.SECONDS_IN_YEAR)
+        try:
+            # If the AI produces a valid ISO 8601 timestamp
+            return datetime.fromisoformat(ai_result)
+        except ValueError:  # pragma: no cover
+            return ai_result

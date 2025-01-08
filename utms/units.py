@@ -198,14 +198,13 @@ class UnitManager:
         """
         return self._units
 
-    def print_units(self) -> None:
+    def print(self) -> None:
         """
         Prints all time units sorted by their value in seconds.
         """
         for key, unit in self._units.items():
             print(
-                f"{unit['full_name']} ({key}):".ljust(25)
-                + f"{format_value(self.get_value('value'))} s"
+                f"{unit['full_name']} ({key}):".ljust(25) + f"{format_value(self.get_value(key))}"
             )
 
     def print_conversion_table(
