@@ -131,7 +131,7 @@ Once the API key is configured, you can run UTMS to query the AI about dates. If
 To show current time with analog/digital clocks in both standard and decimal times use `utms clock` or run `.clock` command:
 
 
-![Analog Clock](utms/resources/clock.png)
+![Analog Clock](https://raw.githubusercontent.com/danielonsecurity/utms/main/utms/resources/clock.png)
 
 #### Convert units
 
