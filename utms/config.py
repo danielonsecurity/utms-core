@@ -94,8 +94,8 @@ class Config:
 
         self.units = UnitManager()
         self.anchors = AnchorManager(self.units)
-        self.populate_units()
-        self.populate_anchors()
+        self.load_units()
+        self.populate_dynamic_anchors()
         self.load_anchors()
 
     def _parse_key(self, key: str) -> List[Union[str, int]]:
@@ -134,7 +134,7 @@ class Config:
         """
         Copy resources to the user config directory if they do not already exist.
         """
-        resources = ["system_prompt.txt", "config.json", "anchors.json"]
+        resources = ["system_prompt.txt", "config.json", "anchors.json", "units.json"]
         for item in resources:
             source_file = importlib.resources.files("utms.resources") / item
             destination_file = os.path.join(self.utms_dir, item)
@@ -231,6 +231,57 @@ class Config:
             print(f"Anchors successfully saved to '{anchors_file}'")
         except (FileNotFoundError, PermissionError, OSError) as e:
             print(f"Error saving anchors: {e}")
+        except json.JSONDecodeError as e:
+            print(f"Error serializing data to JSON: {e}")
+
+    def load_units(self) -> None:
+        """
+        Loads time units from the 'units.json' file and populates the units dynamically.
+
+        This method reads the `units.json` file, parses its content, and uses the `UnitManager`
+        to add each unit to the configuration.
+        """
+        units_file = os.path.join(self.utms_dir, "units.json")
+
+        if os.path.exists(units_file):
+            with open(units_file, "r", encoding="utf-8") as f:
+                units_data = json.load(f)
+
+            # Iterate through the units data and add each unit
+            for key, unit in units_data.items():
+                name = unit.get("name")
+                value = unit.get("value")
+                # Add unit using the details loaded from the JSON
+                self.units.add_time_unit(name, key, Decimal(value))
+
+        else:
+            print(f"Error: '{units_file}' not found.")
+
+    def save_units(self) -> None:
+        """
+        Saves the current time units to the 'units.json' file.
+
+        This method serializes the time units stored in the `self.units` instance
+        and writes them to the `units.json` file.
+        """
+        units_file = os.path.join(self.utms_dir, "units.json")
+        units_data = {}
+
+        # Iterate through each unit and prepare data for saving
+        for unit_abbreviation in self.units:
+            unit = self.units[unit_abbreviation]
+            units_data[unit_abbreviation] = {
+                "name": unit["full_name"],
+                "symbol": unit_abbreviation,  # or another property if you have one
+                "value": str(unit["value"]),
+            }
+        # Write the serialized units data to the file
+        try:
+            with open(units_file, "w", encoding="utf-8") as f:
+                json.dump(units_data, f, ensure_ascii=False, indent=4)
+            print(f"Units successfully saved to '{units_file}'")
+        except (FileNotFoundError, PermissionError, OSError) as e:
+            print(f"Error saving units: {e}")
         except json.JSONDecodeError as e:
             print(f"Error serializing data to JSON: {e}")
 
@@ -422,66 +473,7 @@ class Config:
 
         self.set_value(target_key, source_list[index])
 
-    def populate_units(self) -> None:
-        """
-        Populates the `UnitManager` instance with predefined time units.
-
-        This method adds time units ranging from Planck Time to Milliseconds using the
-        `add_time_unit` method of the `UnitManager` instance. Each unit is added with its name,
-        symbol, and corresponding time in seconds.
-        """
-        # Add time units
-        self.units.add_time_unit("Planck Time", "pt", constants.PLANCK_TIME_SECONDS)
-
-        self.units.add_time_unit("Quectosecond", "qs", Decimal("1e-30"))
-        self.units.add_time_unit("Rontosecond", "rs", Decimal("1e-27"))
-        self.units.add_time_unit("Yoctosecond", "ys", Decimal("1e-24"))
-        self.units.add_time_unit("Zeptosecond", "zs", Decimal("1e-21"))
-        self.units.add_time_unit("Attosecond", "as", Decimal("1e-18"))
-        self.units.add_time_unit("Femtosecond", "fs", Decimal("1e-15"))
-        self.units.add_time_unit("Picosecond", "ps", Decimal("1e-12"))
-        self.units.add_time_unit("Nanosecond", "ns", Decimal("1e-9"))
-        self.units.add_time_unit("Microsecond", "us", Decimal("1e-6"))
-        self.units.add_time_unit("Millisecond", "ms", Decimal("1e-3"))
-
-        self.units.add_time_unit("Second", "s", Decimal(1))
-
-        self.units.add_time_unit("Kilosecond", "KS", Decimal("1e3"))
-        self.units.add_time_unit("Megasecond", "MS", Decimal("1e6"))
-        self.units.add_time_unit("Gigasecond", "GS", Decimal("1e9"))
-        self.units.add_time_unit("Terasecond", "TS", Decimal("1e12"))
-        self.units.add_time_unit("Petasecond", "PS", Decimal("1e15"))
-        self.units.add_time_unit("Exasecond", "ES", Decimal("1e18"))
-        self.units.add_time_unit("Zettasecond", "ZS", Decimal("1e21"))
-        self.units.add_time_unit("Yottasecond", "YS", Decimal("1e24"))
-        self.units.add_time_unit("Ronnasecond", "RS", Decimal("1e27"))
-        self.units.add_time_unit("Quettasecond", "QS", Decimal("1e30"))
-
-        self.units.add_time_unit("Minute", "m", constants.SECONDS_IN_MINUTE)
-        self.units.add_time_unit("Hour", "h", constants.SECONDS_IN_HOUR)
-        self.units.add_time_unit("Day", "d", constants.SECONDS_IN_DAY)
-        self.units.add_time_unit("Week", "w", constants.SECONDS_IN_WEEK)
-        self.units.add_time_unit("Month", "M", constants.SECONDS_IN_MONTH)
-        self.units.add_time_unit("Quarter", "Q", constants.SECONDS_IN_YEAR / 4)
-        self.units.add_time_unit("Year", "Y", constants.SECONDS_IN_YEAR)
-        self.units.add_time_unit("Decade", "D", constants.SECONDS_IN_YEAR * 10)
-        self.units.add_time_unit("Century", "C", constants.SECONDS_IN_YEAR * 100)
-        self.units.add_time_unit("Millennium", "Mn", constants.SECONDS_IN_YEAR * 1000)
-
-        self.units.add_time_unit("Deciday", "dd", constants.SECONDS_IN_DAY / 10)
-        self.units.add_time_unit("Centiday", "cd", constants.SECONDS_IN_DAY / 100)
-
-        self.units.add_time_unit("Lunar Cycle", "lc", constants.SECONDS_IN_LUNAR_CYCLE)
-
-        self.units.add_time_unit("Megaannum", "Ma", constants.SECONDS_IN_YEAR * Decimal(1e6))
-        self.units.add_time_unit("Gigaannum", "Ga", constants.SECONDS_IN_YEAR * Decimal(1e9))
-        self.units.add_time_unit("Teraannum", "Ta", constants.SECONDS_IN_YEAR * Decimal(1e12))
-
-        self.units.add_time_unit("Age of Universe", "au", constants.AGE_OF_UNIVERSE_SECONDS)
-        self.units.add_time_unit("Hubble Time", "ht", constants.HUBBLE_TIME_SECONDS)
-        self.units.add_time_unit("Galaxial Era", "GE", constants.GALAXIAL_ERA)
-
-    def populate_anchors(self) -> None:
+    def populate_dynamic_anchors(self) -> None:
         """
         Populates the `AnchorManager` instance with predefined datetime anchors.
 

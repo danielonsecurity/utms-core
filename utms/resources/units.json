@@ -1,0 +1,170 @@
+{
+    "pt": {
+        "name": "Planck Time",
+        "value": "5.3912464466619436120988365792329601114251212890458704606604191900696754478334996470771394295075989533354214968720319323125522714690305292606353759765625E-44"
+    },
+    "qs": {
+        "name": "Quectosecond",
+        "value": "1E-30"
+    },
+    "rs": {
+        "name": "Rontosecond",
+        "value": "1E-27"
+    },
+    "ys": {
+        "name": "Yoctosecond",
+        "value": "1E-24"
+    },
+    "zs": {
+        "name": "Zeptosecond",
+        "value": "1E-21"
+    },
+    "as": {
+        "name": "Attosecond",
+        "value": "1E-18"
+    },
+    "fs": {
+        "name": "Femtosecond",
+        "value": "1E-15"
+    },
+    "ps": {
+        "name": "Picosecond",
+        "value": "1E-12"
+    },
+    "ns": {
+        "name": "Nanosecond",
+        "value": "1E-9"
+    },
+    "us": {
+        "name": "Microsecond",
+        "value": "0.000001"
+    },
+    "ms": {
+        "name": "Millisecond",
+        "value": "0.001"
+    },
+    "s": {
+        "name": "Second",
+        "value": "1"
+    },
+    "m": {
+        "name": "Minute",
+        "value": "60"
+    },
+    "cd": {
+        "name": "Centiday",
+        "value": "864"
+    },
+    "KS": {
+        "name": "Kilosecond",
+        "value": "1E+3"
+    },
+    "h": {
+        "name": "Hour",
+        "value": "3600"
+    },
+    "dd": {
+        "name": "Deciday",
+        "value": "8640"
+    },
+    "d": {
+        "name": "Day",
+        "value": "86400"
+    },
+    "w": {
+        "name": "Week",
+        "value": "604800"
+    },
+    "MS": {
+        "name": "Megasecond",
+        "value": "1E+6"
+    },
+    "lc": {
+        "name": "Lunar Cycle",
+        "value": "2551442.79999999999999982236431605997495353221893310546875"
+    },
+    "M": {
+        "name": "Month",
+        "value": "2592000"
+    },
+    "Q": {
+        "name": "Quarter",
+        "value": "7889231.5200000005461333785206079483032226562500000"
+    },
+    "Y": {
+        "name": "Year",
+        "value": "31556926.0800000021845335140824317932128906250000000"
+    },
+    "D": {
+        "name": "Decade",
+        "value": "315569260.8000000218453351408243179321289062500000000"
+    },
+    "GS": {
+        "name": "Gigasecond",
+        "value": "1E+9"
+    },
+    "hl": {
+        "name": "Human Lifespan",
+        "value": "2.209E+9"
+    },
+    "C": {
+        "name": "Century",
+        "value": "3155692608.0000002184533514082431793212890625000000000"
+    },
+    "Mn": {
+        "name": "Millennium",
+        "value": "31556926080.0000021845335140824317932128906250000000000"
+    },
+    "TS": {
+        "name": "Terasecond",
+        "value": "1E+12"
+    },
+    "Ma": {
+        "name": "Megaannum",
+        "value": "31556926080000.0021845335140824317932128906250000000000000"
+    },
+    "PS": {
+        "name": "Petasecond",
+        "value": "1E+15"
+    },
+    "Ga": {
+        "name": "Gigaannum",
+        "value": "31556926080000002.1845335140824317932128906250000000000000000"
+    },
+    "au": {
+        "name": "Age of Universe",
+        "value": "435485579904000030.14656249433755874633789062500000000"
+    },
+    "ht": {
+        "name": "Hubble Time",
+        "value": "454419735552000031.45728260278701782226562500000000000"
+    },
+    "ES": {
+        "name": "Exasecond",
+        "value": "1E+18"
+    },
+    "Ta": {
+        "name": "Teraannum",
+        "value": "31556926080000002184.5335140824317932128906250000000000000000000"
+    },
+    "ZS": {
+        "name": "Zettasecond",
+        "value": "1E+21"
+    },
+    "YS": {
+        "name": "Yottasecond",
+        "value": "1E+24"
+    },
+    "RS": {
+        "name": "Ronnasecond",
+        "value": "1E+27"
+    },
+    "QS": {
+        "name": "Quettasecond",
+        "value": "1E+30"
+    },
+    "GE": {
+        "name": "Galaxial Era",
+        "value": "3.15569260800000021845335140824317932128906250000000E+127"
+    }
+}

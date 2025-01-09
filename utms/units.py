@@ -45,7 +45,7 @@ manager.print_conversion_table("s", num_columns=2, num_rows=5)
 """
 
 from decimal import Decimal
-from typing import Dict, Optional, Union
+from typing import Dict, Iterator, Optional, Union
 
 from colorama import Fore, Style
 
@@ -197,6 +197,47 @@ class UnitManager:
             dict: A dictionary with abbreviations as keys and unit information as values.
         """
         return self._units
+
+    def __iter__(self) -> Iterator[str]:
+        """
+        Returns an iterator over the abbreviations of all time units.
+
+        :return: An iterator of unit abbreviations.
+        """
+        return iter(self._units)
+
+    def __getitem__(self, index: Union[int, str]) -> Dict[str, Union[Decimal, str]]:
+        """
+        Makes the class subscriptable by allowing access via abbreviation or index.
+
+        Args:
+            index (int or str): The abbreviation or index of the unit.
+
+        Returns:
+            dict: A dictionary containing 'full_name' and 'value' of the time unit.
+
+        Raises:
+            KeyError: If the abbreviation does not exist.
+            IndexError: If the index is out of range.
+        """
+        if isinstance(index, int):  # Index-based access
+            try:
+                return list(self._units.items())[index][1]
+            except IndexError as exc:
+                raise IndexError(f"Index {index} is out of range.") from exc
+        elif isinstance(index, str):  # Abbreviation-based access
+            if index in self._units:
+                return self._units[index]
+            raise KeyError(f"Unit with abbreviation '{index}' not found.")
+        return {}
+
+    def __len__(self) -> int:
+        """
+        Returns the number of time units in the manager.
+
+        :return: The number of units.
+        """
+        return len(self._units)
 
     def print(self) -> None:
         """
