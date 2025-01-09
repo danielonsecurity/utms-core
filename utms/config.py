@@ -203,6 +203,37 @@ class Config:
         else:
             print(f"Error: '{anchors_file}' not found.")
 
+    def save_anchors(self) -> None:
+        """
+        Saves the current anchors to the 'anchors.json' file.
+
+        This method serializes the anchors stored in the `self.anchors` set
+        and writes them to the `anchors.json` file.
+        """
+        anchors_file = os.path.join(self.utms_dir, "anchors.json")
+        anchors_data = {}
+
+        # Iterate through each anchor and prepare data for saving
+        for anchor in self.anchors:
+            anchor_info = {
+                "name": anchor.name,
+                "timestamp": float(anchor.value),
+                "groups": anchor.groups,
+                "precision": float(anchor.precision) if anchor.precision else None,
+                "breakdowns": anchor.breakdowns,
+            }
+            anchors_data[anchor.label] = anchor_info
+
+        # Write the serialized anchors data to the file
+        try:
+            with open(anchors_file, "w", encoding="utf-8") as f:
+                json.dump(anchors_data, f, ensure_ascii=False, indent=4)
+            print(f"Anchors successfully saved to '{anchors_file}'")
+        except (FileNotFoundError, PermissionError, OSError) as e:
+            print(f"Error saving anchors: {e}")
+        except json.JSONDecodeError as e:
+            print(f"Error serializing data to JSON: {e}")
+
     def get_value(self, key: str, pretty: bool = False) -> Union[Any, str]:
         """
         Get the value from the configuration by key.

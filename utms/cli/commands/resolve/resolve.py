@@ -49,8 +49,9 @@ def handle_resolve_command(args: argparse.Namespace, config: Config) -> None:
     ai = AI(config)
     input_string = " ".join(args.input)
     parsed_timestamp = ai.resolve_date(input_string)
+
     if isinstance(parsed_timestamp, (datetime, Decimal)):
-        print_time(parsed_timestamp, config, args.anchors)
+        print_time(parsed_timestamp, config, args.anchors, args.units)
 
 
 def register_resolve_command(command_manager: CommandManager) -> None:
@@ -82,8 +83,17 @@ def register_resolve_command(command_manager: CommandManager) -> None:
         "-a",
         "--anchors",
         type=str,
-        nargs="?",
         help="Anchor/Anchor groups to display",
+    )
+
+    command.add_argument(
+        "-u",
+        "--units",
+        type=str,
+        help="""List of lists of units to break down the time measurements relative to
+this anchor i.e. Y;Ga,Ma;TS,GS,MS,KS,s,ms. Note: the actual anchor
+breakdowns don't change.
+        """,
     )
 
     command.add_argument(

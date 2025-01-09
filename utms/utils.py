@@ -118,7 +118,10 @@ def resolve_date_dateparser(input_text: str) -> Optional[datetime]:
 
 
 def print_time(
-    timestamp: "Union[datetime, Decimal]", config: "Config", anchors: Optional[str] = None
+    timestamp: "Union[datetime, Decimal]",
+    config: "Config",
+    anchors: Optional[str] = None,
+    breakdowns: Optional[str] = None,
 ) -> None:
     """
     Prints the time-related calculations for a given timestamp or total seconds value
@@ -153,6 +156,10 @@ def print_time(
     else:
         anchor_list = config.anchors.get_anchors_from_str(anchors)
     anchor_list = list(set(anchor_list))
+
+    if breakdowns:
+        for anchor in anchor_list:
+            anchor.breakdowns = [segment.split(",") for segment in breakdowns.split(";")]
 
     # Iterate over the anchors and print results
     for anchor in anchor_list:

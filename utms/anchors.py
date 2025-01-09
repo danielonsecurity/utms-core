@@ -197,7 +197,7 @@ class Anchor:
             return f"{Style.BRIGHT}{Fore.GREEN}{value}{Style.RESET_ALL}"
 
         print(f"{apply_green_color('Label')}: {self.label}")
-        print(f"{apply_green_color('Full Name')}: {self.name}")
+        print(f"{apply_green_color('Name')}: {self.name}")
         print(f"{apply_green_color('Value')}: {self.value:.3f}")
         print(f"{apply_green_color('Groups')}: {', '.join(self.groups)}")
         print(f"{apply_green_color('Precision')}: {self.precision:.3e}")
@@ -265,6 +265,20 @@ class AnchorManager:
 
         # Add the anchor to the dictionary
         self._anchors[anchor_config.label] = Anchor(decimal_anchor)
+
+    def delete_anchor(self, label: str) -> None:
+        """
+        Deletes an anchor by its label.
+
+        Args:
+            label (str): The label of the anchor to delete.
+
+        Raises:
+            KeyError: If the label does not exist in the manager.
+        """
+        if label not in self._anchors:
+            raise KeyError(f"Anchor with label '{label}' does not exist.")
+        del self._anchors[label]
 
     def __iter__(self) -> Iterator[Anchor]:
         """

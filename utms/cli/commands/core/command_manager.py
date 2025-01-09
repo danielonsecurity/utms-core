@@ -199,8 +199,6 @@ class CommandManager:
             return True
         if args.command:
             print(f"Unknown subcommand: {args.subcommand} for command: {args.command}")
-        else:
-            print("Unknown command.")
         return False
 
     def handle(self, input_text: str) -> bool:

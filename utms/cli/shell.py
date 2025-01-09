@@ -46,24 +46,8 @@ from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.styles import Style
 
 from utms import AI, VERSION, Config
-from utms.cli.commands.anchor import register_anchor_get_command, register_anchor_list_command
-from utms.cli.commands.clock import register_clock_command
-from utms.cli.commands.config import (
-    register_config_get_command,
-    register_config_list_command,
-    register_config_set_command,
-)
 from utms.cli.commands.core import CommandManager
-from utms.cli.commands.daytime import (
-    register_daytime_convert_command,
-    register_daytime_timetable_command,
-)
-from utms.cli.commands.resolve import register_resolve_command
-from utms.cli.commands.unit import (
-    register_unit_convert_command,
-    register_unit_list_command,
-    register_unit_table_command,
-)
+from utms.cli.commands.register import register_all_commands
 from utms.utils import print_time
 
 config = Config()
@@ -217,29 +201,7 @@ def main() -> None:
     # parser, subparser_map = create_parser()
     command_manager = CommandManager(config)
 
-    # Register config commands
-    register_config_list_command(command_manager)
-    register_config_get_command(command_manager)
-    register_config_set_command(command_manager)
-
-    # Register unit commands
-    register_unit_table_command(command_manager)
-    register_unit_convert_command(command_manager)
-    register_unit_list_command(command_manager)
-
-    # Register daytime commands
-    register_daytime_timetable_command(command_manager)
-    register_daytime_convert_command(command_manager)
-
-    # Register resolve
-    register_resolve_command(command_manager)
-
-    # Register anchor
-    register_anchor_list_command(command_manager)
-    register_anchor_get_command(command_manager)
-
-    # Register clock
-    register_clock_command(command_manager)
+    register_all_commands(command_manager)
 
     # Configure the parsers for all commands
     command_manager.configure_parsers()
