@@ -1,8 +1,7 @@
-"""
-This module implements a Command Line Interface (CLI) for the
-Universal Time Measurement System (UTMS).  It allows users to
-interactively input commands for time and date-related conversions,
-resolving and displaying formatted timestamps based on their input.
+"""This module implements a Command Line Interface (CLI) for the Universal Time
+Measurement System (UTMS).  It allows users to interactively input commands for
+time and date-related conversions, resolving and displaying formatted
+timestamps based on their input.
 
 **Key Features**:
 1. **Interactive Shell**: Provides a command-line interface with input
@@ -57,8 +56,7 @@ style = Style.from_dict({"prompt": "#ff6600 bold", "input": "#008800", "output":
 
 
 def add_global_arguments(command_manager: CommandManager) -> None:
-    """
-    Adds global arguments to the main parser managed by CommandManager.
+    """Adds global arguments to the main parser managed by CommandManager.
 
     Args:
         manager: The CommandManager instance.
@@ -68,9 +66,7 @@ def add_global_arguments(command_manager: CommandManager) -> None:
 
 
 def print_prompt_help(parser: argparse.ArgumentParser) -> None:
-    """
-    Custom print_help to modify the 'usage' line for the prompt help.
-    """
+    """Custom print_help to modify the 'usage' line for the prompt help."""
     help_message = StringIO()
     parser.print_help(file=help_message)
 
@@ -85,8 +81,7 @@ def print_prompt_help(parser: argparse.ArgumentParser) -> None:
 
 
 def handle_help(input_text: str, command_manager: CommandManager) -> None:
-    """
-    Handles the help command in the interactive shell.
+    """Handles the help command in the interactive shell.
 
     Args:
         input_text (str): The input help command (e.g., '.help unit table').
@@ -109,9 +104,11 @@ def handle_help(input_text: str, command_manager: CommandManager) -> None:
 
 
 def get_word_completer(command_manager: CommandManager) -> WordCompleter:
-    """
-    Create a WordCompleter object for both top-level arguments and subcommands.
-    This function uses the subparser_map from the CommandManager to gather the subcommands.
+    """Create a WordCompleter object for both top-level arguments and
+    subcommands.
+
+    This function uses the subparser_map from the CommandManager to
+    gather the subcommands.
     """
 
     commands: List[str] = []
@@ -133,8 +130,7 @@ def get_word_completer(command_manager: CommandManager) -> WordCompleter:
 
 
 def interactive_shell(command_manager: CommandManager) -> None:
-    """
-    Starts an interactive command-line shell for the UTMS CLI.
+    """Starts an interactive command-line shell for the UTMS CLI.
 
     This function enters a loop where it prompts the user for input, processes the input to invoke
     the corresponding command, and displays the output. The user can exit the shell by typing
@@ -184,8 +180,7 @@ command.\n"""
 
 
 def main() -> None:
-    """
-    Main entry point of the UTMS CLI application.
+    """Main entry point of the UTMS CLI application.
 
     This function parses command-line arguments and starts the interactive shell if no immediate
     action (like argument processing) is required.

@@ -1,5 +1,4 @@
-"""
-Module for managing and processing commands in the UTMS CLI.
+"""Module for managing and processing commands in the UTMS CLI.
 
 This module defines the `CommandManager` class, which is responsible for registering,
 configuring, and processing commands in the UTMS CLI. It allows the definition of commands
@@ -31,8 +30,8 @@ from utms.cli.commands.core.hierarchy import CommandHierarchy
 
 
 class CommandManager:
-    """
-    A class responsible for managing and processing commands in the UTMS CLI.
+    """A class responsible for managing and processing commands in the UTMS
+    CLI.
 
     The `CommandManager` class handles registering commands, configuring their parsers,
     and processing command-line arguments. It supports both root commands and subcommands,
@@ -71,8 +70,7 @@ class CommandManager:
         self,
         cmd: Command,
     ) -> None:
-        """
-        Registers a command and its associated handler.
+        """Registers a command and its associated handler.
 
         This method registers a command with the `CommandManager` instance, along with
         its associated handler, subcommand (if any), and adds it to the command hierarchy.
@@ -91,8 +89,8 @@ class CommandManager:
     def add_subparser(
         self, command: str, subcommands: Optional[bool] = True
     ) -> argparse.ArgumentParser:
-        """
-        Adds a subparser for the command to the main parser or a parent command.
+        """Adds a subparser for the command to the main parser or a parent
+        command.
 
         This method configures a subparser for the specified command. It also optionally
         supports subcommands, adding them to the command parser if specified.
@@ -122,15 +120,14 @@ class CommandManager:
         return command_parser
 
     def configure_parsers(self) -> None:
-        """
-        Configures the parsers for each command and adds their arguments.
+        """Configures the parsers for each command and adds their arguments.
 
-        This method is called after all commands are registered to set up argument parsing
-        for each command and subcommand. It ensures that each command has a parser with
-        the appropriate arguments.
+        This method is called after all commands are registered to set
+        up argument parsing for each command and subcommand. It ensures
+        that each command has a parser with the appropriate arguments.
 
-        This is essential to ensure that arguments are correctly parsed and mapped
-        to their respective handlers.
+        This is essential to ensure that arguments are correctly parsed
+        and mapped to their respective handlers.
         """
         for command_group in self.commands.values():
             for cmd in command_group.values():
@@ -168,8 +165,7 @@ class CommandManager:
                             self.hierarchy.set_default_subcommand(cmd.command, cmd.subcommand)
 
     def process_args(self, input_text: Optional[list[str]] = None) -> bool:
-        """
-        Processes non-interactive execution based on command-line arguments.
+        """Processes non-interactive execution based on command-line arguments.
 
         This method parses the provided input text (if any) and resolves the correct command
         and subcommand. It then invokes the handler associated with the resolved command.
@@ -202,8 +198,7 @@ class CommandManager:
         return False
 
     def handle(self, input_text: str) -> bool:
-        """
-        Handles the input and processes the associated command.
+        """Handles the input and processes the associated command.
 
         This method processes a command string by splitting it into arguments and then
         handling the execution based on parsed arguments.

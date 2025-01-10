@@ -1,5 +1,4 @@
-"""
-Module for registering configuration-related commands.
+"""Module for registering configuration-related commands.
 
 This module provides functions to register commands for handling configurations,
 including fetching, listing, and setting configuration options. These commands

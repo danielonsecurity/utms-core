@@ -1,17 +1,16 @@
-"""
-Argument utilities for resolve-related CLI subcommands.
+"""Argument utilities for resolve-related CLI subcommands.
 
-This module provides helper functions to add commonly used arguments
-to resolve-related subcommands in the UTMS CLI. These functions streamline
-the process of configuring command-line argument parsers by encapsulating
-reusable argument definitions.
+This module provides helper functions to add commonly used arguments to
+resolve-related subcommands in the UTMS CLI. These functions streamline
+the process of configuring command-line argument parsers by
+encapsulating reusable argument definitions.
 """
 
 from utms.cli.commands.core.command import Command
 
 
 def add_anchor_list_argument(command: Command) -> None:
-    """Add anchor_list argument to resolve subcommand"""
+    """Add anchor_list argument to resolve subcommand."""
     command.add_argument(
         "-a",
         "--anchor_list",
@@ -21,7 +20,7 @@ def add_anchor_list_argument(command: Command) -> None:
 
 
 def add_units_argument(command: Command) -> None:
-    """Add units argument to resolve subcommand"""
+    """Add units argument to resolve subcommand."""
     command.add_argument(
         "-u",
         "--units",
@@ -34,7 +33,7 @@ breakdowns don't change.
 
 
 def add_plt_argument(command: Command) -> None:
-    """Add plt argument to resolve subcommand"""
+    """Add plt argument to resolve subcommand."""
     command.add_argument(
         "-p",
         "--plt",
@@ -45,7 +44,7 @@ def add_plt_argument(command: Command) -> None:
 
 
 def add_input_argument(command: Command) -> None:
-    """Add input argument to resolve subcommand"""
+    """Add input argument to resolve subcommand."""
     command.add_argument(
         "input",
         type=str,

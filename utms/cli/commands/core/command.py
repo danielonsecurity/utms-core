@@ -1,5 +1,4 @@
-"""
-Module for defining the Command class used for CLI command management.
+"""Module for defining the Command class used for CLI command management.
 
 This module contains the `Command` class, which is used to represent a command in the
 UTMS CLI system. The class encapsulates the command name, subcommand (if any), handler
@@ -24,8 +23,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 class Command:
-    """
-    Represents a command in the UTMS CLI system.
+    """Represents a command in the UTMS CLI system.
 
     The `Command` class is used to define a command in the CLI, including its name,
     optional subcommand, handler function, arguments, and related metadata (help text,
@@ -64,8 +62,7 @@ class Command:
         handler: Callable[[argparse.Namespace], None],
         is_default: bool = False,
     ) -> None:
-        """
-        Initializes a new command with the given properties.
+        """Initializes a new command with the given properties.
 
         Args:
             command (str): The name of the command (e.g., 'config', 'anchor').
@@ -84,8 +81,7 @@ class Command:
         self.is_default = is_default
 
     def set_help(self, help_text: str) -> None:
-        """
-        Sets the help text for the command.
+        """Sets the help text for the command.
 
         This text is displayed when the user requests help for the command in the CLI.
 
@@ -95,8 +91,7 @@ class Command:
         self.help = help_text
 
     def set_description(self, description: str) -> None:
-        """
-        Sets the description text for the command.
+        """Sets the description text for the command.
 
         This description provides further information about the command's purpose
         and behavior, typically shown in the CLI help output.
@@ -107,8 +102,7 @@ class Command:
         self.description = description
 
     def add_argument(self, *args: str, **kwargs: Any) -> None:
-        """
-        Adds an argument to the command.
+        """Adds an argument to the command.
 
         This method allows defining the command-line arguments for the command,
         such as required flags or values.
@@ -121,8 +115,8 @@ class Command:
         self.arguments.append((args, kwargs))
 
     def configure_parser(self, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
-        """
-        Configures the argument parser with the command's arguments and metadata.
+        """Configures the argument parser with the command's arguments and
+        metadata.
 
         This method iterates over the command's arguments and adds them to the provided
         argument parser. It also sets the help and description text for the command.

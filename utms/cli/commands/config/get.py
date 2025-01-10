@@ -1,5 +1,4 @@
-"""
-Module for registering the "config get" command.
+"""Module for registering the "config get" command.
 
 This module provides functionality to register the "config get" command, which allows
 users to retrieve a configuration value by its key. The command is registered using the
@@ -25,8 +24,7 @@ from utms.cli.commands.core import Command, CommandManager
 
 
 def register_config_get_command(command_manager: CommandManager) -> None:
-    """
-    Registers the "config get" command.
+    """Registers the "config get" command.
 
     This function sets up and registers the "config get" command with the provided
     command manager. The command allows users to retrieve and print the value of a

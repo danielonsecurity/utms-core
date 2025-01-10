@@ -1,6 +1,6 @@
-"""
-This module integrates the Gemini model from the Google Generative AI API to generate precise date
-and time strings in ISO 8601 format based on input descriptions of events or concepts.
+"""This module integrates the Gemini model from the Google Generative AI API to
+generate precise date and time strings in ISO 8601 format based on input
+descriptions of events or concepts.
 
 The module is specifically designed to handle a wide range of date inputs, including:
 - **Common Era (CE)** events, formatted in full ISO 8601 format.
@@ -65,8 +65,7 @@ from utms.utils import resolve_date_dateparser
 
 
 class AI:
-    """
-    A class for interfacing with the Gemini Generative AI model.
+    """A class for interfacing with the Gemini Generative AI model.
 
     This class manages the configuration, initialization, and interaction with the Gemini AI API.
     It includes functionality for generating date-related outputs in ISO format.
@@ -82,8 +81,8 @@ class AI:
     """
 
     def __init__(self, config: Config) -> None:
-        """
-        Initializes the AI class by setting up the Gemini API configuration and loading the model.
+        """Initializes the AI class by setting up the Gemini API configuration
+        and loading the model.
 
         Configuration values are loaded from a `Config` object, which retrieves settings from a
         persistent configuration store. If an API key is not present, the user is prompted to
@@ -122,8 +121,8 @@ class AI:
             )
 
     def generate_date(self, input_text: str) -> str:
-        """
-        Generate a date string in ISO 8601 format from an input text using the Gemini model.
+        """Generate a date string in ISO 8601 format from an input text using
+        the Gemini model.
 
         This function generates a precise date in ISO 8601 format based on
         the input text using the Gemini model.  The model is configured to
@@ -207,10 +206,9 @@ class AI:
 
     # Function to resolve dates
     def resolve_date(self, input_text: str) -> Union[datetime, Decimal, str, None]:
-        """
-        Resolves a date from a given string input. The function first
-        attempts to parse the date using `dateparser`, and if unsuccessful,
-        it uses an AI-based approach to generate a potential date.
+        """Resolves a date from a given string input. The function first
+        attempts to parse the date using `dateparser`, and if unsuccessful, it
+        uses an AI-based approach to generate a potential date.
 
         The function supports:
 

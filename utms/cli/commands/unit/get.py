@@ -1,5 +1,4 @@
-"""
-Unit retrieval command for the UTMS CLI.
+"""Unit retrieval command for the UTMS CLI.
 
 This module provides functionality to retrieve and display information about
 a specific unit in the UTMS configuration. It defines the CLI command and its
@@ -16,8 +15,7 @@ from utms.cli.commands.unit.helper import add_abbreviation_argument
 
 
 def register_unit_get_command(command_manager: CommandManager) -> None:
-    """
-    Register the 'unit get' command with the CommandManager.
+    """Register the 'unit get' command with the CommandManager.
 
     This function defines a CLI command for retrieving details about a specific
     unit by its abbreviation. The command is registered with the provided

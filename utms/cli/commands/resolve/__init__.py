@@ -1,5 +1,4 @@
-"""
-Module for registering resolve-related commands.
+"""Module for registering resolve-related commands.
 
 This module provides functionality to register commands for resolving various entities
 or conflicts. The `register_resolve_command` function is the main feature of this module

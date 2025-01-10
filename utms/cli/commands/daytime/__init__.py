@@ -1,5 +1,4 @@
-"""
-Module for registering daytime-related commands.
+"""Module for registering daytime-related commands.
 
 This module provides functions to register commands for handling daytime operations,
 such as timetable management and conversions. These commands are imported from their

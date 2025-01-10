@@ -1,5 +1,5 @@
-"""
-Module for registering the daytime conversion command in the UTMS CLI system.
+"""Module for registering the daytime conversion command in the UTMS CLI
+system.
 
 This module defines the function `register_daytime_convert_command`, which registers
 the `daytime convert` command to the UTMS CLI. The command allows users to convert
@@ -19,8 +19,7 @@ from utms.utils import convert_time
 
 
 def register_daytime_convert_command(command_manager: CommandManager) -> None:
-    """
-    Registers the 'daytime convert' command with the given command manager.
+    """Registers the 'daytime convert' command with the given command manager.
 
     This function creates a new `Command` for converting between
     decimal and duodecimal daytime units.

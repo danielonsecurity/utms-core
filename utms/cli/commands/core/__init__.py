@@ -1,5 +1,4 @@
-"""
-Module for command-related classes and management.
+"""Module for command-related classes and management.
 
 This module provides the core classes for defining, managing, and organizing commands.
 It includes abstractions for individual commands, command managers, and command hierarchies.

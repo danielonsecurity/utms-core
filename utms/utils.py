@@ -1,5 +1,4 @@
-"""
-Module for Time Calculations, Conversion, and Formatting
+"""Module for Time Calculations, Conversion, and Formatting.
 
 This module provides various functions related to time calculations, including resolving
 dates, calculating Universal Planck Count (UPC), converting time into different units,
@@ -71,9 +70,8 @@ if TYPE_CHECKING:
 
 
 def resolve_date_dateparser(input_text: str) -> Optional[datetime]:
-    """
-    Parses a string representing a date and returns the corresponding
-    UTC datetime object.
+    """Parses a string representing a date and returns the corresponding UTC
+    datetime object.
 
     This function uses the `dateparser` library to parse the input
     date string into a datetime object.  If the parsed date is
@@ -179,8 +177,8 @@ def print_time(
 
 
 def print_header(header: str) -> None:
-    """
-    Prints the given header in cyan color with bright styling.
+    """Prints the given header in cyan color with bright styling.
+
     Args:
         header (str): The header text to be printed.
     Returns:
@@ -193,8 +191,8 @@ def print_header(header: str) -> None:
 
 
 def old_unit(unit: str) -> str:
-    """
-    Applies magenta color styling to the given unit string.
+    """Applies magenta color styling to the given unit string.
+
     Args:
         unit (str): The unit name to be styled.
     Returns:
@@ -207,8 +205,8 @@ def old_unit(unit: str) -> str:
 
 
 def new_unit(unit: str) -> str:
-    """
-    Applies green color styling to the given unit string.
+    """Applies green color styling to the given unit string.
+
     Args:
         unit (str): The unit name to be styled.
     Returns:
@@ -221,7 +219,8 @@ def new_unit(unit: str) -> str:
 
 
 def calculate_decimal_time(seconds: int) -> tuple[int, int, int, float]:
-    """Calculate deciday, centiday, decimal seconds, and decidays as a float."""
+    """Calculate deciday, centiday, decimal seconds, and decidays as a
+    float."""
     deciday = seconds // 8640
     centiday = (seconds % 8640) // 864
     decimal_seconds = int(seconds - centiday * 864 - deciday * 8640)
@@ -245,7 +244,8 @@ def format_with_color(value: str, condition: bool, color_code: str = "\033[31m")
 
 
 def generate_time_table() -> str:
-    """Generate a time table mapping seconds to decidays, centidays, standard time, and kiloseconds.
+    """Generate a time table mapping seconds to decidays, centidays, standard
+    time, and kiloseconds.
 
     Returns:
         str: Formatted table as a string.
@@ -294,9 +294,8 @@ def generate_time_table() -> str:
 
 
 def convert_time(input_time: str) -> str:
-    """
-    Converts time between 24-hour format (HH:MM:SS or HH:MM) and decimal format (DD.CD.SSS or
-    DD.CD).
+    """Converts time between 24-hour format (HH:MM:SS or HH:MM) and decimal
+    format (DD.CD.SSS or DD.CD).
 
     Args:
         input_time (str): The input time in either 24-hour format or decimal format.
@@ -316,8 +315,8 @@ def convert_time(input_time: str) -> str:
 
 
 def convert_to_decimal(time_24hr: str) -> str:
-    """
-    Converts 24-hour format (HH:MM:SS or HH:MM) to decimal format (DD.CD.SSS or DD.CD).
+    """Converts 24-hour format (HH:MM:SS or HH:MM) to decimal format (DD.CD.SSS
+    or DD.CD).
 
     Args:
         time_24hr (str): The time in 24-hour format (HH:MM:SS or HH:MM).
@@ -347,8 +346,8 @@ def convert_to_decimal(time_24hr: str) -> str:
 
 
 def convert_to_24hr(decimal_time: str) -> str:
-    """
-    Converts decimal format (DD.CD.SSS or DD.CD) to 24-hour format (HH:MM:SS or HH:MM).
+    """Converts decimal format (DD.CD.SSS or DD.CD) to 24-hour format (HH:MM:SS
+    or HH:MM).
 
     Args:
         decimal_time (str): The time in decimal format (DD.CD.SSS or DD.CD).
@@ -375,9 +374,7 @@ def convert_to_24hr(decimal_time: str) -> str:
 
 
 def get_seconds_since_midnight() -> int:
-    """
-    Get the number of seconds that have passed since midnight today.
-    """
+    """Get the number of seconds that have passed since midnight today."""
     now = datetime.now(datetime.now().astimezone().tzinfo)  # Get the current local time
     midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
     seconds_since_midnight = (now - midnight).seconds
@@ -385,8 +382,7 @@ def get_seconds_since_midnight() -> int:
 
 
 def value_to_decimal(value: Union[Decimal, datetime]) -> Decimal:
-    """
-    Converts a value to a `Decimal` representation.
+    """Converts a value to a `Decimal` representation.
 
     This function accepts either a `Decimal` value or a `datetime` object. If the input
     is a `datetime`, it converts it into a `Decimal` representation of its timestamp.

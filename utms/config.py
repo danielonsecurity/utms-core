@@ -1,6 +1,5 @@
-"""
-This module defines the `Config` class, which manages the configuration of time units and datetime
-anchors.
+"""This module defines the `Config` class, which manages the configuration of
+time units and datetime anchors.
 
 The `Config` class is responsible for populating predefined time units and datetime anchors.  It
 uses the `UnitManager` class to manage time units such as Planck Time, Picoseconds, and
@@ -39,8 +38,8 @@ from utms.units import UnitManager
 
 
 def get_ntp_date() -> datetime:
-    """
-    Retrieves the current date in datetime format using an NTP (Network Time Protocol) server.
+    """Retrieves the current date in datetime format using an NTP (Network Time
+    Protocol) server.
 
     This function queries an NTP server (default is "pool.ntp.org") to
     get the accurate current time. The NTP timestamp is converted to a
@@ -70,8 +69,8 @@ def get_ntp_date() -> datetime:
 
 
 class Config:
-    """
-    Configuration class that manages units and anchors for time and datetime references.
+    """Configuration class that manages units and anchors for time and datetime
+    references.
 
     This class is responsible for populating time units and datetime anchors based on predefined
     constants.  It uses the `AnchorManager` and `UnitManager` classes to add relevant time units and
@@ -79,12 +78,12 @@ class Config:
     """
 
     def __init__(self) -> None:
-        """
-        Initializes the configuration by creating instances of `AnchorManager` and `UnitManager`,
-        then populating them with units and anchors.
+        """Initializes the configuration by creating instances of
+        `AnchorManager` and `UnitManager`, then populating them with units and
+        anchors.
 
-        This method calls `populate_units()` to add time units and `populate_anchors()` to add
-        datetime anchors.
+        This method calls `populate_units()` to add time units and
+        `populate_anchors()` to add datetime anchors.
         """
         self.utms_dir = appdirs.user_config_dir(constants.APP_NAME, constants.COMPANY_NAME)
         # Ensure the config directory exists
@@ -99,20 +98,20 @@ class Config:
         self.load_anchors()
 
     def _parse_key(self, key: str) -> List[Union[str, int]]:
-        """
-        Parse a dot-separated key with support for array indices.
+        """Parse a dot-separated key with support for array indices.
 
-        :param key: The key to parse (e.g., 'gemini.available_models[1]').
+        :param key: The key to parse (e.g.,
+            'gemini.available_models[1]').
         :return: A list of keys and indices to traverse.
         """
         pattern = re.compile(r"(\w+)|\[(\d+)\]")
         return [int(match[1]) if match[1] else match[0] for match in pattern.findall(key)]
 
     def _traverse(self, key: str) -> Tuple[Any, Union[str, int]]:
-        """
-        Traverse the configuration using a parsed key.
+        """Traverse the configuration using a parsed key.
 
-        :param key: The dot-separated key (e.g., 'gemini.available_models[1]').
+        :param key: The dot-separated key (e.g.,
+            'gemini.available_models[1]').
         :return: The parent object and the last key/index.
         """
         keys = self._parse_key(key)
@@ -131,9 +130,8 @@ class Config:
         return current, keys[-1]
 
     def init_resources(self) -> None:
-        """
-        Copy resources to the user config directory if they do not already exist.
-        """
+        """Copy resources to the user config directory if they do not already
+        exist."""
         resources = ["system_prompt.txt", "config.json", "anchors.json", "units.json"]
         for item in resources:
             source_file = importlib.resources.files("utms.resources") / item
@@ -170,8 +168,8 @@ class Config:
             json.dump(self.data, f, indent=4)
 
     def load_anchors(self) -> None:
-        """
-        Loads anchors from the 'anchors.json' file and populates the anchors dynamically.
+        """Loads anchors from the 'anchors.json' file and populates the anchors
+        dynamically.
 
         This method reads the `anchors.json` file, parses its content, and uses the `AnchorManager`
         to add each anchor to the configuration.
@@ -204,8 +202,7 @@ class Config:
             print(f"Error: '{anchors_file}' not found.")
 
     def save_anchors(self) -> None:
-        """
-        Saves the current anchors to the 'anchors.json' file.
+        """Saves the current anchors to the 'anchors.json' file.
 
         This method serializes the anchors stored in the `self.anchors` set
         and writes them to the `anchors.json` file.
@@ -235,8 +232,8 @@ class Config:
             print(f"Error serializing data to JSON: {e}")
 
     def load_units(self) -> None:
-        """
-        Loads time units from the 'units.json' file and populates the units dynamically.
+        """Loads time units from the 'units.json' file and populates the units
+        dynamically.
 
         This method reads the `units.json` file, parses its content, and uses the `UnitManager`
         to add each unit to the configuration.
@@ -258,8 +255,7 @@ class Config:
             print(f"Error: '{units_file}' not found.")
 
     def save_units(self) -> None:
-        """
-        Saves the current time units to the 'units.json' file.
+        """Saves the current time units to the 'units.json' file.
 
         This method serializes the time units stored in the `self.units` instance
         and writes them to the `units.json` file.
@@ -286,11 +282,12 @@ class Config:
             print(f"Error serializing data to JSON: {e}")
 
     def get_value(self, key: str, pretty: bool = False) -> Union[Any, str]:
-        """
-        Get the value from the configuration by key.
+        """Get the value from the configuration by key.
 
-        :param key: The dot-separated key (e.g., 'gemini.available_models[1]').
-        :param pretty: If True, return the value formatted as pretty JSON.
+        :param key: The dot-separated key (e.g.,
+            'gemini.available_models[1]').
+        :param pretty: If True, return the value formatted as pretty
+            JSON.
         :return: The value at the specified key.
         """
         current, last_key = self._traverse(key)
@@ -308,11 +305,12 @@ class Config:
         return result
 
     def has_value(self, key: str) -> bool:
-        """
-        Checks whether a nested key exists in the configuration and its value is not None.
+        """Checks whether a nested key exists in the configuration and its
+        value is not None.
 
         :param key: The dot-separated key path (e.g., 'gemini.api_key').
-        :return: True if the key exists and its value is not None, False otherwise.
+        :return: True if the key exists and its value is not None, False
+            otherwise.
         """
         try:
             current, last_key = self._traverse(key)
@@ -329,10 +327,10 @@ class Config:
             return False
 
     def set_value(self, key: str, value: Any) -> None:
-        """
-        Set a value in the configuration by key.
+        """Set a value in the configuration by key.
 
-        :param key: The dot-separated key (e.g., 'gemini.available_models[1]').
+        :param key: The dot-separated key (e.g.,
+            'gemini.available_models[1]').
         :param value: The value to set.
         """
         current, last_key = self._traverse(key)
@@ -358,18 +356,26 @@ class Config:
 
     def print(self, filter_key: Optional[str] = None) -> None:
         """
-        Prints the configuration in a formatted JSON style. Optionally filters the output
-        to display the value of a specific key path.
+        Print the configuration in a formatted JSON style.
 
-        :param filter_key: A dot-separated key path to filter the
-        config output (e.g., 'gemini.api_key').
+        Optionally filters the output to display the value of a specific key path.
 
-                           If provided, only the value of the specified key will be printed.
-                           If the key points to a nested dictionary or list, its content is
-                           displayed in a formatted manner.
-        :return: None
-        :raises KeyError: If the provided key path is invalid or does
-        not exist in the configuration.
+        Parameters
+        ----------
+        filter_key : str, optional
+            A dot-separated key path to filter the config output (e.g., 'gemini.api_key').
+            If provided, only the value of the specified key will be printed. If the key
+            points to a nested dictionary or list, its content is displayed in a
+            formatted manner.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        KeyError
+            If the provided key path is invalid or does not exist in the configuration.
         """
         if filter_key:
             try:
@@ -382,10 +388,28 @@ class Config:
 
     def select_from_choices(self, key: str) -> Any:
         """
-        Check if the configuration parameter has a _choices field and allow interactive selection.
+        Allow interactive selection for configuration parameters with a '_choices' field.
 
-        :param key: The dot-separated key to check (e.g., 'gemini.model').
-        :return: The selected value from the available choices.
+        If the specified configuration key has an associated '_choices' field, this method
+        displays the available options and prompts the user to select one. The selected
+        value is then set as the new value for the key. If no '_choices' field is found,
+        the current value of the key is returned.
+
+        Parameters
+        ----------
+        key : str
+            The dot-separated key to check (e.g., 'gemini.model').
+
+        Returns
+        -------
+        Any
+            The selected value from the available choices, or the current value if no
+            choices are available. Returns `None` if the user does not make a choice.
+
+        Raises
+        ------
+        ValueError
+            If the '_choices' field is not a list.
         """
         # Get the base config value and choices (if any)
         current, last_key = self._traverse(key)
@@ -423,15 +447,27 @@ class Config:
 
     def select_from_list(self, source_key: str, target_key: str, index: int) -> None:
         """
-        Selects an element from a JSON array and assigns it to another key in the configuration.
+        Assign an element from a JSON array to a target key in the configuration.
 
-        :param source_key: The dot-separated key path of the source
-        list (e.g., 'gemini.available_models').
-        :param target_key: The dot-separated key path of the destination (e.g., 'gemini.model').
-        :param index: Optional index of the element to select.
-        :raises KeyError: If the source or target key paths are invalid.
-        :raises ValueError: If neither `index` nor `value` is
-        provided, or if the specified element is not found.
+        This method retrieves an element from a list at the specified source key
+        and assigns it to the target key in the configuration. The element is
+        identified by its index in the list.
+
+        Parameters
+        ----------
+        source_key : str
+            The dot-separated key path of the source list (e.g., 'gemini.available_models').
+        target_key : str
+            The dot-separated key path of the destination (e.g., 'gemini.model').
+        index : int
+            The index of the element to select from the list.
+
+        Raises
+        ------
+        KeyError
+            If the source or target key paths are invalid.
+        ValueError
+            If the source key does not refer to a list or the index is out of range.
         """
         # Get the source list
         source_list = self.get_value(source_key)
@@ -448,11 +484,25 @@ class Config:
 
     def select_from_list_interactive(self, source_key: str, target_key: str) -> None:
         """
-        Prompts the user to select an element from a JSON array interactively.
+        Prompt the user to select an element from a JSON array interactively.
 
-        :param source_key: The dot-separated key path of the source list.
-        :param target_key: The dot-separated key path of the destination.
-        :raises KeyError: If the source or target key paths are invalid.
+        This method retrieves a list from the specified source key, displays the
+        available elements to the user, and prompts them to select one by index.
+        The selected element is then assigned to the target key in the configuration.
+
+        Parameters
+        ----------
+        source_key : str
+            The dot-separated key path of the source list (e.g., 'gemini.available_models').
+        target_key : str
+            The dot-separated key path of the destination (e.g., 'gemini.model').
+
+        Raises
+        ------
+        KeyError
+            If the source or target key paths are invalid.
+        ValueError
+            If the source key does not refer to a list.
         """
         source_list = self.get_value(source_key)
         if not isinstance(source_list, list):
@@ -474,8 +524,8 @@ class Config:
         self.set_value(target_key, source_list[index])
 
     def populate_dynamic_anchors(self) -> None:
-        """
-        Populates the `AnchorManager` instance with predefined datetime anchors.
+        """Populates the `AnchorManager` instance with predefined datetime
+        anchors.
 
         This method adds various datetime anchors such as Unix Time, CE Time, and Big Bang Time,
         using the `add_datetime_anchor` and `add_decimal_anchor` methods of the `AnchorManager`

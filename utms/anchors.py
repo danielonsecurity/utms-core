@@ -77,8 +77,7 @@ from utms.utils import value_to_decimal
 
 
 class AnchorConfig(NamedTuple):
-    """
-    Configuration for defining a time anchor.
+    """Configuration for defining a time anchor.
 
     This class encapsulates the essential attributes needed to configure a time anchor,
     including its full name, value, precision, and breakdown structure.
@@ -105,9 +104,8 @@ class AnchorConfig(NamedTuple):
 
 
 class Anchor:
-    """
-    Represents a single time anchor with a full name, value, precision, and associated breakdown
-    formats.
+    """Represents a single time anchor with a full name, value, precision, and
+    associated breakdown formats.
 
     This class provides functionality to break down a total duration in seconds into a
     human-readable format using a configurable set of units. It allows the conversion of a given
@@ -140,9 +138,7 @@ class Anchor:
     """
 
     def __init__(self, anchor_config: AnchorConfig) -> None:
-        """
-        Create the Anchor object with its parameters inside.
-        """
+        """Create the Anchor object with its parameters inside."""
         self.label = anchor_config.label
         self.name = anchor_config.name
         self.value = value_to_decimal(anchor_config.value)
@@ -189,7 +185,7 @@ class Anchor:
         return breakdown
 
     def print(self) -> None:
-        """Print details of a single anchor by label"""
+        """Print details of a single anchor by label."""
 
         def apply_green_color(value: str) -> str:
             """Applies the specified color style to the given value."""
@@ -206,8 +202,7 @@ class Anchor:
         print("-" * 50)
 
     def breakdown(self, total_seconds: Decimal, units: "UnitManager") -> str:
-        """
-        Breaks down a duration in seconds into multiple unit formats.
+        """Breaks down a duration in seconds into multiple unit formats.
 
         Args:
             total_seconds (Decimal): Total duration in seconds.
@@ -240,21 +235,16 @@ class Anchor:
 
 
 class AnchorManager:
-    """
-    A class to manage time anchors, allowing adding new anchors, sorting
-    by value, and accessing them by abbreviation.
-    """
+    """A class to manage time anchors, allowing adding new anchors, sorting by
+    value, and accessing them by abbreviation."""
 
     def __init__(self, units: UnitManager) -> None:
-        """
-        Create the AnchorManager object with Anchor objects inside.
-        """
+        """Create the AnchorManager object with Anchor objects inside."""
         self._anchors: Dict[str, Anchor] = {}
         self.units = units
 
     def add_anchor(self, anchor_config: AnchorConfig) -> None:
-        """
-        Adds a new anchor using the given configuration object.
+        """Adds a new anchor using the given configuration object.
 
         Args:
             anchor_config: AnchorConfig object containing the configuration for the new anchor.
@@ -265,8 +255,7 @@ class AnchorManager:
         self._anchors[anchor_config.label] = Anchor(decimal_anchor)
 
     def delete_anchor(self, label: str) -> None:
-        """
-        Deletes an anchor by its label.
+        """Deletes an anchor by its label.
 
         Args:
             label (str): The label of the anchor to delete.
@@ -279,15 +268,14 @@ class AnchorManager:
         del self._anchors[label]
 
     def __iter__(self) -> Iterator[Anchor]:
-        """
-        Returns an iterator over the anchors.
+        """Returns an iterator over the anchors.
+
         :return: An iterator of Anchor objects.
         """
         return iter(self._anchors.values())
 
     def __getitem__(self, index: Union[int, str]) -> Anchor:
-        """
-        Makes the class subscriptable by allowing access via index or label.
+        """Makes the class subscriptable by allowing access via index or label.
 
         :param index: The index or label of the item to retrieve.
         :return: An Anchor object.
@@ -306,15 +294,14 @@ class AnchorManager:
             raise KeyError(f"Label '{index}' not found.")
 
     def __len__(self) -> int:
-        """
-        Returns the number of anchors in the manager.
+        """Returns the number of anchors in the manager.
+
         :return: The number of anchors.
         """
         return len(self._anchors)
 
     def get(self, label: str) -> Optional[Anchor]:
-        """
-        Retrieves the anchor with the specified label.
+        """Retrieves the anchor with the specified label.
 
         Args:
             label (str): The label of the anchor to retrieve.
@@ -325,8 +312,7 @@ class AnchorManager:
         return self._anchors.get(label, None)
 
     def get_label(self, anchor: Anchor) -> str:
-        """
-        Returns the label associated with a given anchor.
+        """Returns the label associated with a given anchor.
 
         :param anchor: The Anchor instance.
         :return: The label corresponding to the anchor.
@@ -338,8 +324,7 @@ class AnchorManager:
         raise ValueError("Anchor not found in the manager.")
 
     def get_anchors_by_group(self, group_name: str) -> List[Anchor]:
-        """
-        Retrieves a list of anchors that belong to the specified group.
+        """Retrieves a list of anchors that belong to the specified group.
 
         Args:
             group_name (str): The name of the group to filter anchors.
@@ -350,8 +335,8 @@ class AnchorManager:
         return [anchor for anchor in self._anchors.values() if group_name in (anchor.groups or [])]
 
     def get_anchors_from_str(self, input_text: str) -> List[Anchor]:
-        """
-        Parses a comma-separated string and returns a sorted list of `Anchor` objects.
+        """Parses a comma-separated string and returns a sorted list of
+        `Anchor` objects.
 
         This method splits the input string by commas, retrieves `Anchor` objects associated
         with each item, and adds them to a list. It also includes additional anchors based on
@@ -384,9 +369,7 @@ class AnchorManager:
         return anchor_list
 
     def print(self, label: Optional[str] = None) -> None:
-        """
-        Prints details of all anchors inside the AnchorManager.
-        """
+        """Prints details of all anchors inside the AnchorManager."""
         if label:
             # If a label is provided, print only the anchor with that label
             anchor = self._anchors.get(label)

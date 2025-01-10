@@ -1,5 +1,5 @@
-"""
-Module for registering and handling the 'unit list' command in the UTMS CLI system.
+"""Module for registering and handling the 'unit list' command in the UTMS CLI
+system.
 
 This module defines the function `register_unit_list_command` to
 register the 'unit list' command.  It lists all available time units
@@ -17,8 +17,7 @@ from utms.cli.commands.unit.helper import add_plt_argument
 
 
 def register_unit_list_command(command_manager: CommandManager) -> None:
-    """
-    Registers the 'unit list' command with the given command manager.
+    """Registers the 'unit list' command with the given command manager.
 
     This function creates and registers a command to list all
     available time units in the system.  The command is marked as the

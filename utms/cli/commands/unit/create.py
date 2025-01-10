@@ -1,5 +1,4 @@
-"""
-Unit creation commands for the UTMS CLI.
+"""Unit creation commands for the UTMS CLI.
 
 This module defines functionality for adding a new unit to the UTMS configuration.
 It includes the core logic for creating units and registering the associated CLI
@@ -27,8 +26,7 @@ from utms.cli.commands.unit.helper import (
 
 
 def create_unit(args: argparse.Namespace, config: Config) -> None:
-    """
-    Create a new unit and add it to the UTMS configuration.
+    """Create a new unit and add it to the UTMS configuration.
 
     This function checks if a unit with the given abbreviation already exists.
     If not, it adds the unit with the provided name, abbreviation, and value
@@ -48,8 +46,7 @@ def create_unit(args: argparse.Namespace, config: Config) -> None:
 
 
 def register_unit_create_command(command_manager: CommandManager) -> None:
-    """
-    Register the 'unit create' command with the CommandManager.
+    """Register the 'unit create' command with the CommandManager.
 
     This function defines a new CLI command for creating units and associates it
     with the `CommandManager`. It configures the command's arguments and their

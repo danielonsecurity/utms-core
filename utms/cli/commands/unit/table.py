@@ -1,5 +1,5 @@
-"""
-Module for registering and handling the 'unit table' command in the UTMS CLI system.
+"""Module for registering and handling the 'unit table' command in the UTMS CLI
+system.
 
 This module defines the function `register_unit_table_command` to
 register the 'unit table' command.  It displays a conversion table for
@@ -18,8 +18,7 @@ from utms.cli.commands.unit.helper import add_columns_argument, add_rows_argumen
 
 
 def register_unit_table_command(command_manager: CommandManager) -> None:
-    """
-    Registers the 'unit table' command with the given command manager.
+    """Registers the 'unit table' command with the given command manager.
 
     This function creates and registers a command to display a unit
     conversion table for a specific unit.  It allows the user to

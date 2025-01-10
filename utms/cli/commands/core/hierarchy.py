@@ -1,5 +1,4 @@
-"""
-Module for managing command hierarchy and handling in the UTMS CLI system.
+"""Module for managing command hierarchy and handling in the UTMS CLI system.
 
 This module defines the `CommandHierarchy` class, which is responsible for organizing
 commands and subcommands, managing their argument parsers, handling associated functions,
@@ -24,8 +23,8 @@ from typing import Any, Callable, Dict, Optional
 
 
 class CommandHierarchy:
-    """
-    Manages the hierarchy of commands and subcommands for the UTMS CLI system.
+    """Manages the hierarchy of commands and subcommands for the UTMS CLI
+    system.
 
     The `CommandHierarchy` class is responsible for organizing commands and their subcommands,
     associating them with argument parsers, and mapping them to their respective handler functions.
@@ -73,9 +72,9 @@ class CommandHierarchy:
     """
 
     def __init__(self) -> None:
-        """
-        Initializes the command hierarchy, setting up containers for parent parsers,
-        child parsers, subparser actions, default subcommands, and handler functions.
+        """Initializes the command hierarchy, setting up containers for parent
+        parsers, child parsers, subparser actions, default subcommands, and
+        handler functions.
 
         This constructor sets up empty dictionaries for organizing and storing
         command-related data that will be populated through various methods.
@@ -90,8 +89,8 @@ class CommandHierarchy:
         self.handlers: Dict[str, Dict[Optional[str], Callable[[argparse.Namespace], None]]] = {}
 
     def add_parent_parser(self, command: str, parser: argparse.ArgumentParser) -> None:
-        """
-        Adds a top-level command and its corresponding parser to the hierarchy.
+        """Adds a top-level command and its corresponding parser to the
+        hierarchy.
 
         This method stores the parser for a top-level command (parent command)
         in the `parent_parsers` dictionary for later use.
@@ -105,8 +104,7 @@ class CommandHierarchy:
     def add_subcommand(
         self, command: str, subcommand: str, parser: argparse.ArgumentParser
     ) -> None:
-        """
-        Adds a subcommand and its associated parser to the hierarchy.
+        """Adds a subcommand and its associated parser to the hierarchy.
 
         This method stores the parser for a subcommand under the relevant command
         in the `child_parsers` dictionary for later use.
@@ -126,8 +124,7 @@ class CommandHierarchy:
         command: str,
         subcommand: Optional[str] = None,
     ) -> None:
-        """
-        Adds a handler function for a command or subcommand.
+        """Adds a handler function for a command or subcommand.
 
         This method stores the handler function for a given command and, if applicable,
         its subcommand, in the `handlers` dictionary.
@@ -146,8 +143,7 @@ class CommandHierarchy:
     def add_subparsers_actions(
         self, command: str, actions: "argparse._SubParsersAction[Any]"
     ) -> None:
-        """
-        Adds subparser actions for a command.
+        """Adds subparser actions for a command.
 
         This method associates a command with its subparser actions, enabling the command
         to have subcommands that can be handled properly.
@@ -160,8 +156,7 @@ class CommandHierarchy:
         self.subparsers_actions[command] = actions
 
     def set_default_subcommand(self, command: str, subcommand: str) -> None:
-        """
-        Sets the default subcommand for a given command.
+        """Sets the default subcommand for a given command.
 
         This method allows for specifying a default subcommand that should be invoked
         if no subcommand is provided when invoking a command.
@@ -175,8 +170,7 @@ class CommandHierarchy:
     def get_handler(
         self, command: Optional[str], subcommand: Optional[str] = None
     ) -> Optional[Callable[[argparse.Namespace], None]]:
-        """
-        Retrieves the handler function for a command or subcommand.
+        """Retrieves the handler function for a command or subcommand.
 
         This method looks up the appropriate handler function based on the provided
         command and, if applicable, subcommand.
@@ -198,8 +192,7 @@ class CommandHierarchy:
     def get_parser(
         self, command: str, subcommand: Optional[str] = None
     ) -> Optional[argparse.ArgumentParser]:
-        """
-        Retrieves the parser for a given command and subcommand.
+        """Retrieves the parser for a given command and subcommand.
 
         This method looks up the parser for the specified command and subcommand. If
         no subcommand is given, the method returns the parser for the command itself.
@@ -223,8 +216,7 @@ class CommandHierarchy:
         return None
 
     def get_action(self, command: str) -> "argparse._SubParsersAction[Any]":
-        """
-        Retrieves the subparser action for a command.
+        """Retrieves the subparser action for a command.
 
         This method returns the subparser action object that manages the subcommands for
         the specified command.
@@ -239,8 +231,7 @@ class CommandHierarchy:
 
     @property
     def root_actions(self) -> "argparse._SubParsersAction[Any]":
-        """
-        Retrieves the root subparser actions for the CLI.
+        """Retrieves the root subparser actions for the CLI.
 
         This property returns the subparser action for the root command, which is used
         to manage top-level commands and subcommands.

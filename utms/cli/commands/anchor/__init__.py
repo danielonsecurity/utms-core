@@ -1,5 +1,4 @@
-"""
-Module for registering anchor-related commands.
+"""Module for registering anchor-related commands.
 
 This module provides functions for registering anchor-related commands,
 such as fetching anchor data and listing anchors. The commands are
@@ -20,7 +19,6 @@ Usage:
     Import this module to gain access to the registered commands:
         from module_name import register_anchor_get_command,
         register_anchor_get_command, register_anchor_list_command
-
 """
 
 from .create import register_anchor_create_command

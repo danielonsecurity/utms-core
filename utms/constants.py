@@ -1,5 +1,4 @@
-"""
-Time Unit Management and Physical Constants Module
+"""Time Unit Management and Physical Constants Module.
 
 This module provides utilities for handling time units, converting between them, and
 managing high-precision physical constants related to time and the universe. It uses

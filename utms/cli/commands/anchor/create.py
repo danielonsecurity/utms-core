@@ -1,5 +1,5 @@
-"""
-Module for handling anchor creation commands within the `utms` command-line interface.
+"""Module for handling anchor creation commands within the `utms` command-line
+interface.
 
 This module provides the functionality to create new anchors, including parsing input,
 resolving values, and saving anchor configurations.
@@ -32,9 +32,8 @@ from utms.cli.commands.core import Command, CommandManager
 
 
 def set_anchor(args: argparse.Namespace, config: Config) -> None:
-    """
-    Creates a new anchor based on the provided command-line arguments
-    and saves it in the configuration.
+    """Creates a new anchor based on the provided command-line arguments and
+    saves it in the configuration.
 
     This function checks if an anchor with the given label already
     exists. If it does, it notifies the user.  If the label is new, it
@@ -81,9 +80,7 @@ def set_anchor(args: argparse.Namespace, config: Config) -> None:
 
 
 def register_anchor_create_command(command_manager: CommandManager) -> None:
-    """
-    Registers the "anchor create" command with the provided command
-    manager.
+    """Registers the "anchor create" command with the provided command manager.
 
     This function defines the arguments for the "anchor create"
     command, including the anchor's label, name, value, groups,

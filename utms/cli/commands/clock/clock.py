@@ -1,5 +1,4 @@
-"""
-Module for registering the "clock" command.
+"""Module for registering the "clock" command.
 
 This module provides functionality to register the "clock" command, which runs a clock
 displaying time both in decimal and duodecimal units. The command is registered using
@@ -26,8 +25,7 @@ from utms.clock import run_clock
 
 
 def register_clock_command(command_manager: CommandManager) -> None:
-    """
-    Registers the "clock" command.
+    """Registers the "clock" command.
 
     This function sets up and registers the "clock" command with the provided
     command manager. The command runs a clock that displays time in both decimal

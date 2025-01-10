@@ -56,8 +56,8 @@ from utms.utils import seconds_to_hplt, seconds_to_pplt
 def format_value(
     value: Decimal, threshold: Decimal = Decimal("1e7"), small_threshold: Decimal = Decimal("0.001")
 ) -> str:
-    """
-    Format a numeric value based on specified thresholds, using conditional formatting.
+    """Format a numeric value based on specified thresholds, using conditional
+    formatting.
 
     The function formats the value based on its magnitude, and applies different styles
     depending on whether the value is above or below specific thresholds.
@@ -136,9 +136,8 @@ def format_value(
 
 
 class Unit:
-    """
-    Represents a time unit with a full name, abbreviation, and value in seconds.
-    Provides methods for comparisons, conversions, and formatting.
+    """Represents a time unit with a full name, abbreviation, and value in
+    seconds. Provides methods for comparisons, conversions, and formatting.
 
     Attributes:
         name (str): The full name of the time unit.
@@ -147,8 +146,7 @@ class Unit:
     """
 
     def __init__(self, name: str, abbreviation: str, value: Decimal) -> None:
-        """
-        Initializes a Unit instance.
+        """Initializes a Unit instance.
 
         Args:
             name (str): The full name of the time unit.
@@ -160,8 +158,7 @@ class Unit:
         self.value = value
 
     def __repr__(self) -> str:
-        """
-        Provides a string representation of the Unit instance.
+        """Provides a string representation of the Unit instance.
 
         Returns:
             str: A string representation of the unit.
@@ -169,8 +166,7 @@ class Unit:
         return f"Unit(name={self.name}, abbreviation={self.abbreviation}, value={self.value})"
 
     def __eq__(self, other: object) -> bool:
-        """
-        Compares two Unit instances for equality based on value.
+        """Compares two Unit instances for equality based on value.
 
         Args:
             other (object): The other object to compare to.
@@ -183,8 +179,7 @@ class Unit:
         return False
 
     def __lt__(self, other: object) -> bool:
-        """
-        Compares two Unit instances for less-than based on value.
+        """Compares two Unit instances for less-than based on value.
 
         Args:
             other (object): The other object to compare to.
@@ -197,8 +192,7 @@ class Unit:
         return False
 
     def convert_to(self, other: "Unit", value: Decimal) -> Decimal:
-        """
-        Converts a value from this unit to another unit.
+        """Converts a value from this unit to another unit.
 
         Args:
             other (Unit): The unit to convert to.
@@ -211,8 +205,7 @@ class Unit:
         return value * (self.value / other.value)
 
     def __str__(self) -> str:
-        """
-        Provides a human-readable string for the unit.
+        """Provides a human-readable string for the unit.
 
         Returns:
             str: A string representation of the unit.
@@ -221,17 +214,15 @@ class Unit:
 
 
 class UnitManager:
-    """
-    A class to manage time units, allowing adding new units, sorting
-    by value, and accessing them by abbreviation.
-    """
+    """A class to manage time units, allowing adding new units, sorting by
+    value, and accessing them by abbreviation."""
 
     def __init__(self) -> None:
         self._units: Dict[str, Unit] = {}
 
     def add_unit(self, name: str, abbreviation: str, value: Decimal) -> None:
-        """
-        Adds a new time unit to the manager and ensures the units are sorted by value.
+        """Adds a new time unit to the manager and ensures the units are sorted
+        by value.
 
         Args:
             name (str): The full name of the time unit.
@@ -243,14 +234,11 @@ class UnitManager:
         self._sort_units()
 
     def _sort_units(self) -> None:
-        """
-        Sort the units by their value (in seconds).
-        """
+        """Sort the units by their value (in seconds)."""
         self._units = dict(sorted(self._units.items(), key=lambda item: item[1].value))
 
     def get_value(self, abbreviation: str) -> Decimal:
-        """
-        Get a unit value by its abbreviation.
+        """Get a unit value by its abbreviation.
 
         Args:
             abbreviation (str): The abbreviation of the time unit.
@@ -264,8 +252,7 @@ class UnitManager:
         raise ValueError(f"No unit with abbreviation {unit} defined")
 
     def get_unit(self, abbreviation: str) -> Optional[Unit]:
-        """
-        Get a time unit by its abbreviation.
+        """Get a time unit by its abbreviation.
 
         Args:
             abbreviation (str): The abbreviation of the time unit.
@@ -276,8 +263,7 @@ class UnitManager:
         return self._units.get(abbreviation)
 
     def get_all_units(self) -> Dict[str, Unit]:
-        """
-        Get all the time units stored in the manager.
+        """Get all the time units stored in the manager.
 
         Returns:
             dict: A dictionary with abbreviations as keys and unit information as values.
@@ -285,16 +271,15 @@ class UnitManager:
         return self._units
 
     def __iter__(self) -> Iterator[str]:
-        """
-        Returns an iterator over the abbreviations of all time units.
+        """Returns an iterator over the abbreviations of all time units.
 
         :return: An iterator of unit abbreviations.
         """
         return iter(self._units)
 
     def __getitem__(self, index: Union[int, str]) -> Unit:
-        """
-        Makes the class subscriptable by allowing access via abbreviation or index.
+        """Makes the class subscriptable by allowing access via abbreviation or
+        index.
 
         Args:
             index (int or str): The abbreviation or index of the unit.
@@ -317,17 +302,14 @@ class UnitManager:
             raise KeyError(f"Unit with abbreviation '{index}' not found.")
 
     def __len__(self) -> int:
-        """
-        Returns the number of time units in the manager.
+        """Returns the number of time units in the manager.
 
         :return: The number of units.
         """
         return len(self._units)
 
     def print(self, args: argparse.Namespace) -> None:
-        """
-        Prints all time units sorted by their value in seconds.
-        """
+        """Prints all time units sorted by their value in seconds."""
         plt = bool(getattr(args, "plt", False))
         if plt:
             print(
@@ -354,8 +336,8 @@ class UnitManager:
     def print_conversion_table(
         self, center_unit: str, num_columns: int = 5, num_rows: int = 100
     ) -> None:
-        """
-        Prints a table of time unit conversions centered around a specific unit.
+        """Prints a table of time unit conversions centered around a specific
+        unit.
 
         Args:
             center_unit (str): The abbreviation of the unit around
@@ -410,8 +392,8 @@ class UnitManager:
             )
 
     def convert_units(self, args: argparse.Namespace) -> None:
-        """
-        Convert a given value from one unit to all other units and print the results.
+        """Convert a given value from one unit to all other units and print the
+        results.
 
         Args:
             value (Decimal): The value to be converted.

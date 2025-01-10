@@ -1,5 +1,4 @@
-"""
-Module for registering unit-related commands in the UTMS CLI system.
+"""Module for registering unit-related commands in the UTMS CLI system.
 
 This module imports and aggregates the functions for the following unit-related commands:
 - `register_unit_convert_command`: Registers the command to convert between units.

@@ -1,5 +1,5 @@
-"""
-Module for registering and handling the 'unit convert' command in the UTMS CLI system.
+"""Module for registering and handling the 'unit convert' command in the UTMS
+CLI system.
 
 This module defines the function `register_unit_convert_command` to
 register the 'unit convert' command.  It allows converting a numerical
@@ -27,8 +27,7 @@ from utms.cli.commands.unit.helper import (
 
 
 def register_unit_convert_command(command_manager: CommandManager) -> None:
-    """
-    Registers the 'unit convert' command with the given command manager.
+    """Registers the 'unit convert' command with the given command manager.
 
     This function creates and registers a command to convert a given value between units.
     The target unit is optional: if omitted, the system will perform

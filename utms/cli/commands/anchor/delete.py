@@ -1,5 +1,5 @@
-"""
-Module for handling anchor deletion commands within the `utms` command-line interface.
+"""Module for handling anchor deletion commands within the `utms` command-line
+interface.
 
 This module provides the functionality to delete anchors by label,
 ensuring that dynamic anchors (which change on each run) cannot be
@@ -23,8 +23,8 @@ from utms.cli.commands.core import Command, CommandManager
 
 
 def delete_anchor(args: argparse.Namespace, config: Config) -> None:
-    """
-    Deletes an anchor based on the provided label and saves the updated configuration.
+    """Deletes an anchor based on the provided label and saves the updated
+    configuration.
 
     This function removes an anchor from the configuration by its label. Dynamic anchors,
     which change on each run, cannot be deleted.
@@ -42,8 +42,7 @@ def delete_anchor(args: argparse.Namespace, config: Config) -> None:
 
 
 def register_anchor_delete_command(command_manager: CommandManager) -> None:
-    """
-    Registers the "anchor delete" command with the provided command manager.
+    """Registers the "anchor delete" command with the provided command manager.
 
     This function defines the arguments for the "anchor delete" command, which allows the user
     to delete an anchor by its label. It associates the command with the `delete_anchor` function

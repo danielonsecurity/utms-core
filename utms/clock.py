@@ -1,7 +1,7 @@
-"""
-This module provides functionality for creating and updating both analog and decimal clocks
-using the Tkinter GUI framework. It supports the display of time in traditional 24-hour format
-as well as in decimal time (divided into decidays, centidays, and seconds).
+"""This module provides functionality for creating and updating both analog and
+decimal clocks using the Tkinter GUI framework. It supports the display of time
+in traditional 24-hour format as well as in decimal time (divided into
+decidays, centidays, and seconds).
 
 The clocks are drawn on a canvas with customizable styles for various components such as hands,
 ticks, and backgrounds. The module uses a global `styles` dictionary to control colors, fonts,
@@ -49,8 +49,7 @@ from utms.utils import get_seconds_since_midnight
 
 
 class CanvasConfig(NamedTuple):
-    """
-    Configuration for the canvas used to draw the clock.
+    """Configuration for the canvas used to draw the clock.
 
     Attributes:
         canvas (tk.Canvas): The tkinter canvas object where the clock is drawn.
@@ -66,8 +65,7 @@ class CanvasConfig(NamedTuple):
 
 
 class HandConfig(NamedTuple):
-    """
-    Configuration for a clock hand.
+    """Configuration for a clock hand.
 
     Attributes:
         length (float): The length of the clock hand in pixels.
@@ -85,8 +83,7 @@ class HandConfig(NamedTuple):
 
 
 class Styles(TypedDict):
-    """
-    Configuration for the visual styles of the clock.
+    """Configuration for the visual styles of the clock.
 
     Attributes:
         background_color (str): The background color of the clock as a hexadecimal or color name.
@@ -161,9 +158,8 @@ styles: Styles = {
 def calculate_angles(
     seconds_since_midnight: int, is_decimal: bool
 ) -> Tuple[float, float, float, Union[float, None], Union[float, None]]:
-    """
-    Calculates the angles of the clock hands based on whether it's decimal time or not.
-    """
+    """Calculates the angles of the clock hands based on whether it's decimal
+    time or not."""
     if not is_decimal:
         # Analog time (24-hour format)
         hour = (seconds_since_midnight // 3600) % 24  # 24-hour format, not 12-hour
@@ -196,9 +192,9 @@ def prepare_hands_and_angles(
     angles: Tuple[float, float, float, Optional[float], Optional[float]],
     is_decimal: bool,
 ) -> List[Tuple[str, float, float]]:
-    """
-    Prepare the hands to draw based on the mode (decimal vs. analog).
-    Returns a list of hands and associated angles to draw.
+    """Prepare the hands to draw based on the mode (decimal vs.
+
+    analog). Returns a list of hands and associated angles to draw.
     """
     hands_to_draw = []
     angles_to_draw = []
@@ -225,9 +221,7 @@ def prepare_hands_and_angles(
 def draw_clock_hands(
     canvas_config: CanvasConfig, hands_and_angles: List[Tuple[str, float, float]], tag_prefix: str
 ) -> None:
-    """
-    Draw the clock hands based on the calculated hands and angles.
-    """
+    """Draw the clock hands based on the calculated hands and angles."""
     center = canvas_config.center
     canvas_config.canvas.delete(f"{tag_prefix}_hands")
 
@@ -266,9 +260,7 @@ def update_digital_time(
     is_decimal: bool,
     seconds_since_midnight: int,
 ) -> None:
-    """
-    Updates and displays the digital time (either analog or decimal).
-    """
+    """Updates and displays the digital time (either analog or decimal)."""
     canvas = canvas_config.canvas
     center = canvas_config.center
     canvas.delete(f"{tag_prefix}_digital")
@@ -300,8 +292,8 @@ def update_digital_time(
 def update_clock(
     canvas_config: CanvasConfig, hands: Dict[str, float], tag_prefix: str, is_decimal: bool = False
 ) -> None:
-    """
-    Updates the positions of the clock hands and the digital time display.
+    """Updates the positions of the clock hands and the digital time display.
+
     Uses the styles dictionary for colors and font.
     """
     seconds_since_midnight = get_seconds_since_midnight()
@@ -330,8 +322,7 @@ def update_clock(
 def calculate_hand_geometry(
     center: Tuple[int, int], length: float, angle: float, base_width: float
 ) -> Dict[str, Tuple[float, float]]:
-    """
-    Calculates the geometry of the clock hand.
+    """Calculates the geometry of the clock hand.
 
     Args:
         center (tuple): Center of the clock (x, y).
@@ -369,9 +360,8 @@ def calculate_hand_geometry(
 
 
 def draw_hand(canvas_config: CanvasConfig, hand_config: HandConfig) -> None:
-    """
-    Draws a clock hand with an arrow-like shape, where the tip is a single point,
-    and the hand widens to its base near the center.
+    """Draws a clock hand with an arrow-like shape, where the tip is a single
+    point, and the hand widens to its base near the center.
 
     Args:
         canvas (tk.Canvas): Canvas to draw on.
@@ -410,8 +400,7 @@ def draw_hand(canvas_config: CanvasConfig, hand_config: HandConfig) -> None:
 def calculate_tick_coordinates(
     center: Tuple[int, int], radius: float, angle: float, tick_length: float
 ) -> Tuple[float, float, float, float]:
-    """
-    Calculates the coordinates for the ends of a tick line.
+    """Calculates the coordinates for the ends of a tick line.
 
     Args:
         center (tuple): Center of the circle (x, y).
@@ -432,8 +421,7 @@ def calculate_tick_coordinates(
 def calculate_digit_coordinates(
     center: Tuple[int, int], tick_length: float, angle: float, offset: int = 5
 ) -> Tuple[float, float]:
-    """
-    Calculates the coordinates for positioning a digit near a tick.
+    """Calculates the coordinates for positioning a digit near a tick.
 
     Args:
         center (tuple): Center of the circle (x, y).
@@ -452,8 +440,8 @@ def calculate_digit_coordinates(
 def draw_inner_scale(
     canvas_config: CanvasConfig, radius: float, num_ticks: int, scale_tag: str
 ) -> None:
-    """
-    Draws an inner circular scale with ticks, using the styles dictionary for tick colors and font.
+    """Draws an inner circular scale with ticks, using the styles dictionary
+    for tick colors and font.
 
     Args:
         canvas_config (CanvasConfig): Canvas and center configuration.
@@ -495,8 +483,7 @@ def draw_inner_scale(
 
 
 def draw_outer_frame(canvas_config: CanvasConfig, radius: float, tag: str) -> None:
-    """
-    Draws the metallic outer frame of the clock.
+    """Draws the metallic outer frame of the clock.
 
     Args:
         canvas (tk.Canvas): Canvas to draw on.
@@ -517,8 +504,7 @@ def draw_outer_frame(canvas_config: CanvasConfig, radius: float, tag: str) -> No
 
 
 def draw_inner_circle(canvas_config: CanvasConfig, radius: float, tag: str) -> None:
-    """
-    Draws the inner circle of the clock (background).
+    """Draws the inner circle of the clock (background).
 
     Args:
         canvas (tk.Canvas): Canvas to draw on.
@@ -541,8 +527,7 @@ def draw_inner_circle(canvas_config: CanvasConfig, radius: float, tag: str) -> N
 def draw_tick(
     canvas_config: CanvasConfig, radius: float, angle: float, is_major: bool, tag: str
 ) -> None:
-    """
-    Draws a single tick on the clock face.
+    """Draws a single tick on the clock face.
 
     Args:
         canvas (tk.Canvas): Canvas to draw on.
@@ -573,8 +558,7 @@ def draw_tick(
 def draw_tick_label(
     canvas_config: CanvasConfig, radius: float, angle: float, label: str, tag: str
 ) -> None:
-    """
-    Draws a label (number) next to a major tick.
+    """Draws a label (number) next to a major tick.
 
     Args:
         canvas (tk.Canvas): Canvas to draw on.
@@ -598,8 +582,7 @@ def draw_tick_label(
 
 
 def draw_clock_face(canvas_config: CanvasConfig, radius: float, is_decimal: bool = False) -> None:
-    """
-    Draws the clock face with tick marks, labels, and a chrome-style frame.
+    """Draws the clock face with tick marks, labels, and a chrome-style frame.
 
     Args:
         canvas_config (CanvasConfig): Canvas and center configuration.
@@ -632,8 +615,8 @@ def draw_clock_face(canvas_config: CanvasConfig, radius: float, is_decimal: bool
 def update_clock_with_inner_scale(
     canvas_config: CanvasConfig, hands: Dict[str, float], tag_prefix: str, is_decimal: bool = False
 ) -> None:
-    """
-    Updates the clock with an inner scale for tracking seconds within centiday with neon effects.
+    """Updates the clock with an inner scale for tracking seconds within
+    centiday with neon effects.
 
     Args:
         canvas (tk.Canvas): The canvas to draw on.
@@ -654,8 +637,8 @@ def update_clock_with_inner_scale(
 
 
 def update_kiloseconds(canvas_config: CanvasConfig, scale_tag: str, clock_time: int) -> None:
-    """
-    Update and display the kiloseconds at the bottom of the right clock, below the current time.
+    """Update and display the kiloseconds at the bottom of the right clock,
+    below the current time.
 
     Args:
         canvas (tk.Canvas): The canvas to draw on.
@@ -691,8 +674,7 @@ def update_kiloseconds(canvas_config: CanvasConfig, scale_tag: str, clock_time: 
 
 
 def update_decidays(canvas_config: CanvasConfig, scale_tag: str, clock_time: int) -> None:
-    """
-    Update the display of decidays on a canvas.
+    """Update the display of decidays on a canvas.
 
     This function calculates the decidays (1 deciday = 8640 seconds) based on the current
     `clock_time`, and updates the specified canvas with the calculated value. The deciday
@@ -722,7 +704,6 @@ def update_decidays(canvas_config: CanvasConfig, scale_tag: str, clock_time: int
 
         >>> update_decidays(canvas_config, "time_display", 43200)
         # Displays "5.00000 dd" on the canvas centered at (100, 100 + 0.25 * radius).
-
     """
     # Calculate the decidays (1 deciday = 8640 seconds)
     canvas = canvas_config.canvas
@@ -752,9 +733,7 @@ def update_decidays(canvas_config: CanvasConfig, scale_tag: str, clock_time: int
 
 
 def run_clock() -> None:
-    """
-    Main function to set up the clock window and start the clocks.
-    """
+    """Main function to set up the clock window and start the clocks."""
     # Window dimensions
     width, height = 800, 500  # Increased height to accommodate digital time
     clock_radius = 150  # Radius for each clock

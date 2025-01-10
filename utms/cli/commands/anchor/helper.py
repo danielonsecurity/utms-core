@@ -1,17 +1,16 @@
-"""
-Argument utilities for anchor-related CLI subcommands.
+"""Argument utilities for anchor-related CLI subcommands.
 
-This module provides helper functions to add commonly used arguments
-to anchor-related subcommands in the UTMS CLI. These functions streamline
-the process of configuring command-line argument parsers by encapsulating
-reusable argument definitions.
+This module provides helper functions to add commonly used arguments to
+anchor-related subcommands in the UTMS CLI. These functions streamline
+the process of configuring command-line argument parsers by
+encapsulating reusable argument definitions.
 """
 
 from utms.cli.commands.core.command import Command
 
 
 def add_anchor_list_argument(command: Command) -> None:
-    """Add anchor_list argument to a anchor subcommand"""
+    """Add anchor_list argument to a anchor subcommand."""
     command.add_argument(
         "anchor_list",
         type=str,
@@ -20,12 +19,12 @@ def add_anchor_list_argument(command: Command) -> None:
 
 
 def add_label_argument(command: Command) -> None:
-    """Add label argument to a anchor subcommand"""
+    """Add label argument to a anchor subcommand."""
     command.add_argument("label", type=str, help="Label of the anchor")
 
 
 def add_name_argument(command: Command, required: bool = True) -> None:
-    """Add name argument to a anchor subcommand"""
+    """Add name argument to a anchor subcommand."""
     command.add_argument(
         "-n",
         "--name",
@@ -36,7 +35,7 @@ def add_name_argument(command: Command, required: bool = True) -> None:
 
 
 def add_value_argument(command: Command, required: bool = True) -> None:
-    """Add value argument to a anchor subcommand"""
+    """Add value argument to a anchor subcommand."""
     command.add_argument(
         "-v",
         "--value",
@@ -48,7 +47,7 @@ using dateparser/AI""",
 
 
 def add_groups_argument(command: Command) -> None:
-    """Add groups argument to a anchor subcommand"""
+    """Add groups argument to a anchor subcommand."""
     command.add_argument(
         "-g",
         "--groups",
@@ -58,7 +57,7 @@ def add_groups_argument(command: Command) -> None:
 
 
 def add_precision_argument(command: Command) -> None:
-    """Add precision argument to a anchor subcommand"""
+    """Add precision argument to a anchor subcommand."""
     command.add_argument(
         "-p",
         "--precision",
@@ -68,7 +67,7 @@ def add_precision_argument(command: Command) -> None:
 
 
 def add_breakdowns_argument(command: Command) -> None:
-    """Add breakdowns argument to a anchor subcommand"""
+    """Add breakdowns argument to a anchor subcommand."""
     command.add_argument(
         "-b",
         "--breakdowns",

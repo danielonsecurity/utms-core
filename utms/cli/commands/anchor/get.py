@@ -1,5 +1,4 @@
-"""
-Module for registering the "anchor get" command.
+"""Module for registering the "anchor get" command.
 
 This module provides functionality to register the "anchor get" command, which allows users
 to retrieve and print the properties of a specific anchor identified by its label. The command
@@ -28,8 +27,8 @@ from utms.cli.commands.core import Command, CommandManager
 
 
 def get_anchors(args: argparse.Namespace, config: Config) -> None:
-    """
-    Parses a comma-separated string and returns a sorted list of `Anchor` objects.
+    """Parses a comma-separated string and returns a sorted list of `Anchor`
+    objects.
 
     This method splits the input string by commas, retrieves `Anchor` objects associated
     with each item, and adds them to a list. It also includes additional anchors based on
@@ -58,8 +57,7 @@ def get_anchors(args: argparse.Namespace, config: Config) -> None:
 
 
 def register_anchor_get_command(command_manager: CommandManager) -> None:
-    """
-    Registers the "anchor get" command.
+    """Registers the "anchor get" command.
 
     This function sets up and registers the "anchor get" command with the provided
     command manager. The command allows users to retrieve and print the properties

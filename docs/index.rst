@@ -3,38 +3,31 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-utms documentation
-=================
 
+
+UTMS documentation
+=====================
+
+Contents:
 
 .. toctree::
    :maxdepth: 2
-   :caption: Contents:
+   :caption: Table of Contents
 
+   tutorials
+   how_to_guides
+   reference
+   explanation
+   glossary
+   troubleshooting
 
 
 API Reference
 =============
-.. automodule:: utms.ai
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. toctree::
+   :maxdepth: 2
 
-.. automodule:: utms.cli
-   :members:
-   :undoc-members:
-   :show-inheritance:
-	     
-.. automodule:: utms.constants
-   :members:
-   :undoc-members:
-   :show-inheritance:
-	     
-.. automodule:: utms.utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
+   api_reference
 
 
 Indices and tables

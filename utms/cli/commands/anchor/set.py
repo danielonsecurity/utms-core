@@ -1,6 +1,5 @@
-"""
-Module for handling anchor setting commands within the `utms`
-command-line interface.
+"""Module for handling anchor setting commands within the `utms` command-line
+interface.
 
 This module provides the functionality to modify an existing anchor's
 parameters based on the given label.  The parameters that can be
@@ -34,8 +33,7 @@ from utms.cli.commands.core import Command, CommandManager
 
 
 def set_anchor(args: argparse.Namespace, config: Config) -> None:
-    """
-    Updates the parameters of an existing anchor based on the provided
+    """Updates the parameters of an existing anchor based on the provided
     arguments.
 
     This function allows the user to modify various properties of an
@@ -83,8 +81,7 @@ def set_anchor(args: argparse.Namespace, config: Config) -> None:
 
 
 def register_anchor_set_command(command_manager: CommandManager) -> None:
-    """
-    Registers the "anchor set" command with the provided command manager.
+    """Registers the "anchor set" command with the provided command manager.
 
     This function defines the arguments for the "anchor set" command,
     which allows the user to modify the parameters of an existing

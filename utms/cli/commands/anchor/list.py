@@ -1,5 +1,4 @@
-"""
-Module for registering the "anchor list" command.
+"""Module for registering the "anchor list" command.
 
 This module provides functionality to register the "anchor list" command, which allows
 users to list and print all configured anchors. The command is registered through the
@@ -24,8 +23,7 @@ from utms.cli.commands.core import Command, CommandManager
 
 
 def register_anchor_list_command(command_manager: CommandManager) -> None:
-    """
-    Registers the "anchor list" command.
+    """Registers the "anchor list" command.
 
     This function sets up and registers the "anchor list" command with the provided
     command manager. The command allows users to list all configured anchors and print

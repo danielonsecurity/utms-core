@@ -1,5 +1,4 @@
-"""
-Module for registering the "config set" command.
+"""Module for registering the "config set" command.
 
 This module provides functionality to register the "config set" command, which allows
 users to set a configuration value for a specific key. The command is registered using
@@ -24,8 +23,7 @@ from utms.cli.commands.core import Command, CommandManager
 
 
 def register_config_set_command(command_manager: CommandManager) -> None:
-    """
-    Registers the "config set" command.
+    """Registers the "config set" command.
 
     This function sets up and registers the "config set" command with the provided
     command manager. The command allows users to set the value of a specific configuration

@@ -1,5 +1,4 @@
-"""
-Module for registering the daytime timetable command in the UTMS CLI system.
+"""Module for registering the daytime timetable command in the UTMS CLI system.
 
 This module defines the function `register_daytime_timetable_command`, which registers
 the `daytime timetable` command to the UTMS CLI. The command outputs a formatted table
@@ -18,8 +17,8 @@ from utms.utils import generate_time_table
 
 
 def register_daytime_timetable_command(command_manager: CommandManager) -> None:
-    """
-    Registers the 'daytime timetable' command with the given command manager.
+    """Registers the 'daytime timetable' command with the given command
+    manager.
 
     This function creates a new `Command` for generating and printing a formatted table
     that maps decimal time units to duodecimal time units. The command is registered as

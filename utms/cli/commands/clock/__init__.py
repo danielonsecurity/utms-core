@@ -1,5 +1,4 @@
-"""
-Module for registering clock-related commands.
+"""Module for registering clock-related commands.
 
 This module provides functionality to register commands related to clock operations.
 The primary function, `register_clock_command`, is imported and exposed through the

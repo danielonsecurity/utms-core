@@ -9,24 +9,31 @@
 import os
 import sys
 
-sys.path.insert(0, os.path.abspath("../utms"))
+sys.path.insert(0, os.path.abspath("../"))
 
 import utms
 
-project = "utms (Universal Time Measurement System)"
-copyright = "2024, Daniel Neagaru"
+project = "UTMS (Universal Time Measurement System)"
+copyright = "2024-2025, Daniel Neagaru"
 author = "Daniel Neagaru"
+version = utms.VERSION
+release = utms.VERSION
+
+
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
-    "sphinx.ext.napoleon",
-    "sphinx.ext.autodoc",
-    "sphinx.ext.coverage",
-    "sphinx.ext.viewcode",
-    "sphinx_autodoc_typehints",
-]
+              "sphinx.ext.autodoc",
+              "sphinx.ext.autosummary",
+              "sphinx.ext.coverage",
+              "sphinx.ext.graphviz",
+              "sphinx.ext.inheritance_diagram",
+              "sphinx.ext.napoleon",
+              "sphinx.ext.viewcode",
+              "sphinx_autodoc_typehints",
+              ]
 
 # Napoleon settings
 napoleon_google_docstring = True
@@ -52,5 +59,5 @@ autodoc_member_order = (
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "alabaster"
+html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]

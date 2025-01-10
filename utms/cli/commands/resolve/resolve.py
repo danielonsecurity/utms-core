@@ -1,5 +1,5 @@
-"""
-Module for registering and handling the 'resolve' command in the UTMS CLI system.
+"""Module for registering and handling the 'resolve' command in the UTMS CLI
+system.
 
 This module defines the function `register_resolve_command` to
 register the 'resolve' command, and `handle_resolve_command` to
@@ -35,8 +35,7 @@ from utms.utils import print_time
 
 
 def handle_resolve_command(args: argparse.Namespace, config: Config) -> None:
-    """
-    Handles the 'resolve' command by resolving an input string into a
+    """Handles the 'resolve' command by resolving an input string into a
     datetime or decimal value.
 
     This function uses the `AI` object to resolve a string input into
@@ -61,8 +60,7 @@ def handle_resolve_command(args: argparse.Namespace, config: Config) -> None:
 
 
 def register_resolve_command(command_manager: CommandManager) -> None:
-    """
-    Registers the 'resolve' command with the given command manager.
+    """Registers the 'resolve' command with the given command manager.
 
     This function creates and registers a command for resolving
     arbitrary strings into datetime values using either the

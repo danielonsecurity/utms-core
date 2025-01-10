@@ -1,6 +1,5 @@
-"""
-Module for automatically discovering and registering all commands from
-the `utms.cli.commands` package.
+"""Module for automatically discovering and registering all commands from the
+`utms.cli.commands` package.
 
 This module provides functionality to automatically discover command
 categories and the respective command registration functions within
@@ -20,9 +19,8 @@ from utms.cli.commands.core import CommandManager
 
 
 def register_all_commands(command_manager: CommandManager) -> None:
-    """
-    Automatically discovers and registers all commands from the
-    available command categories in the `utms.cli.commands` package.
+    """Automatically discovers and registers all commands from the available
+    command categories in the `utms.cli.commands` package.
 
     This function dynamically loads all command categories
     (subdirectories) in the `utms.cli.commands` package and then

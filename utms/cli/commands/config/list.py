@@ -1,5 +1,4 @@
-"""
-Module for registering the "config list" command.
+"""Module for registering the "config list" command.
 
 This module provides functionality to register the "config list" command, which allows
 users to list all available configuration options. The command is registered using the
@@ -24,8 +23,7 @@ from utms.cli.commands.core import Command, CommandManager
 
 
 def register_config_list_command(command_manager: CommandManager) -> None:
-    """
-    Registers the "config list" command.
+    """Registers the "config list" command.
 
     This function sets up and registers the "config list" command with the provided
     command manager. The command allows users to print and list all available configuration

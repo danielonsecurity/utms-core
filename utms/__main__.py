@@ -1,5 +1,5 @@
-"""
-This module serves as the entry point for running the UTM's Command Line Interface (CLI).
+"""This module serves as the entry point for running the UTM's Command Line
+Interface (CLI).
 
 It imports the `main` function from the `utms.cli` module and invokes it when the module is
 executed as a standalone script.
