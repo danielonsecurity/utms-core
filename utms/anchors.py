@@ -175,8 +175,7 @@ class Anchor:
                 continue
 
             unit_count: Union[int, Decimal]
-
-            unit_value = Decimal(unit["value"])
+            unit_value = Decimal(unit.value)
 
             if i < len(breakdown_units) - 1:
                 unit_count = int(remaining_seconds // unit_value)
@@ -229,8 +228,7 @@ class Anchor:
         for breakdown_units in self.breakdowns:
             if not any(
                 (unit := units.get_unit(unit_abbreviation)) is not None  # Check if unit is not None
-                and "value" in unit  # Check if the "value" key exists in the unit
-                and Decimal(unit["value"]) >= self.precision
+                and Decimal(unit.value) >= self.precision
                 for unit_abbreviation in breakdown_units
             ):
                 continue

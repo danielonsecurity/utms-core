@@ -188,7 +188,7 @@ class AI:
 
             if response and response.text:
                 # Clean the response text to ensure it's a valid ISO date format
-                print(Fore.RED + Style.BRIGHT + response.text + Style.RESET_ALL)
+                print(Fore.RED + Style.BRIGHT + "AI: " + response.text + Style.RESET_ALL)
                 iso_date: str = response.text.strip()
                 return iso_date
             raise ValueError("No valid response received from the API.")

@@ -54,6 +54,7 @@ Notes:
 
 from datetime import datetime, timezone
 from decimal import Decimal
+from math import log10
 from typing import TYPE_CHECKING, Optional, Union
 
 import dateparser
@@ -110,7 +111,7 @@ def resolve_date_dateparser(input_text: str) -> Optional[datetime]:
     parsed_date = dateparser.parse(input_text, settings={"RETURN_AS_TIMEZONE_AWARE": True})
 
     if parsed_date:
-        print(parsed_date)
+        print(Fore.RED + Style.BRIGHT + "dateparser: " + str(parsed_date) + Style.RESET_ALL)
         utc_date = parsed_date.astimezone(timezone.utc)
         return utc_date
 
@@ -122,6 +123,7 @@ def print_time(
     config: "Config",
     anchors: Optional[str] = None,
     breakdowns: Optional[str] = None,
+    plt: bool = False,
 ) -> None:
     """
     Prints the time-related calculations for a given timestamp or total seconds value
@@ -165,6 +167,15 @@ def print_time(
     for anchor in anchor_list:
         print_header(f"{config.anchors.get_label(anchor)}: {anchor.name}")
         print(anchor.breakdown(total_seconds - anchor.value, config.units))
+        if plt:
+            print(
+                f"    {Fore.GREEN}{Style.BRIGHT}pPLT:{Style.RESET_ALL} "
+                + f"{seconds_to_pplt(total_seconds - anchor.value):.5f}"
+            )
+            print(
+                f"    {Fore.GREEN}{Style.BRIGHT}hPLT:{Style.RESET_ALL} "
+                + f"{seconds_to_hplt(total_seconds - anchor.value):.5f}"
+            )
 
 
 def print_header(header: str) -> None:
@@ -405,3 +416,14 @@ def value_to_decimal(value: Union[Decimal, datetime]) -> Decimal:
     else:
         value_as_decimal = Decimal(value.timestamp()) - Decimal(constants.SECONDS_IN_YEAR)
     return value_as_decimal
+
+
+def seconds_to_pplt(seconds: Decimal) -> Decimal:
+    """Converts seconds to Planck-Centric Planck Log Time (pPLT)."""
+    return Decimal(log10(abs(seconds) / constants.PLANCK_TIME_SECONDS))
+
+
+def seconds_to_hplt(seconds: Decimal) -> Decimal:
+    """Converts seconds to Human-Centric Planck Log Time (hPLT)."""
+    offset = Decimal(log10(constants.PLANCK_TIME_SECONDS)) + 1
+    return Decimal(log10(abs(seconds) / constants.PLANCK_TIME_SECONDS)) + offset

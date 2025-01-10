@@ -20,6 +20,7 @@ Usage:
         register_config_get_command(command_manager)
 """
 
+from utms.cli.commands.config.helper import add_key_argument
 from utms.cli.commands.core import Command, CommandManager
 
 
@@ -57,10 +58,5 @@ def register_config_get_command(command_manager: CommandManager) -> None:
     command.set_help("Get a configuration value")
     command.set_description("Get the config option from its key")
     # Add the arguments for this command
-    command.add_argument(
-        "key",
-        type=str,
-        help="Config key to get",
-    )
-
+    add_key_argument(command)
     command_manager.register_command(command)

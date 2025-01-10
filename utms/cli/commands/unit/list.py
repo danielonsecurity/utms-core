@@ -13,6 +13,7 @@ Exports:
 """
 
 from utms.cli.commands.core import Command, CommandManager
+from utms.cli.commands.unit.helper import add_plt_argument
 
 
 def register_unit_list_command(command_manager: CommandManager) -> None:
@@ -31,7 +32,9 @@ def register_unit_list_command(command_manager: CommandManager) -> None:
         None
     """
     units_manager = command_manager.config.units
-    command = Command("unit", "list", lambda _: units_manager.print(), is_default=True)
+    command = Command("unit", "list", units_manager.print, is_default=True)
     command.set_help("List all time units")
     command.set_description("List all time units")
+    add_plt_argument(command)
+
     command_manager.register_command(command)

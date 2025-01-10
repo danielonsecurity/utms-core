@@ -14,9 +14,16 @@ Exports:
     - `register_unit_convert_command`: Function to register the unit conversion command.
 """
 
-from decimal import Decimal
-
 from utms.cli.commands.core import Command, CommandManager
+from utms.cli.commands.unit.helper import (
+    add_full_argument,
+    add_plt_argument,
+    add_precision_argument,
+    add_raw_argument,
+    add_source_unit_argument,
+    add_target_unit_argument,
+    add_value_argument,
+)
 
 
 def register_unit_convert_command(command_manager: CommandManager) -> None:
@@ -38,9 +45,7 @@ def register_unit_convert_command(command_manager: CommandManager) -> None:
     command = Command(
         "unit",
         "convert",
-        lambda args: units_manager.convert_units(
-            Decimal(args.value), args.source_unit, args.target_unit
-        ),
+        units_manager.convert_units,
     )
     command.set_help("Convert value between units")
     command.set_description(
@@ -55,19 +60,11 @@ Examples:
     )
 
     # Add the arguments for this command
-    command.add_argument(
-        "value",
-        type=float,
-        help="The numerical value to be converted",
-    )
-    command.add_argument(
-        "source_unit",
-        help="The unit of the value to be converted",
-    )
-    command.add_argument(
-        "target_unit",
-        nargs="?",
-        help="The desired unit to convert to. If omitted, all units are used (optional)",
-    )
-
+    add_value_argument(command)
+    add_source_unit_argument(command)
+    add_target_unit_argument(command)
+    add_full_argument(command)
+    add_precision_argument(command)
+    add_raw_argument(command)
+    add_plt_argument(command)
     command_manager.register_command(command)

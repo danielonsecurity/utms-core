@@ -14,6 +14,7 @@ Exports:
 """
 
 from utms.cli.commands.core import Command, CommandManager
+from utms.cli.commands.unit.helper import add_columns_argument, add_rows_argument, add_unit_argument
 
 
 def register_unit_table_command(command_manager: CommandManager) -> None:
@@ -50,27 +51,9 @@ def register_unit_table_command(command_manager: CommandManager) -> None:
     """
     )
 
+    add_unit_argument(command)
+    add_rows_argument(command)
+    add_columns_argument(command)
     # Add the arguments for this command
-    command.add_argument(
-        "unit",
-        type=str,
-        nargs="?",
-        default="s",
-        help='The base unit for the conversion table ("s", "m", etc). Defaults to "s" if omitted.',
-    )
-    command.add_argument(
-        "columns",
-        type=int,
-        nargs="?",
-        default=5,
-        help="Number of columns before/after the base unit (default=5)",
-    )
-    command.add_argument(
-        "rows",
-        type=int,
-        nargs="?",
-        default=100,
-        help="Number of rows before/after the base unit (default=100)",
-    )
 
     command_manager.register_command(command)

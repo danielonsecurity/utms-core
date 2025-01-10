@@ -14,6 +14,7 @@ Exports:
 """
 
 from utms.cli.commands.core import Command, CommandManager
+from utms.cli.commands.daytime.helper import add_value_argument
 from utms.utils import convert_time
 
 
@@ -39,10 +40,5 @@ def register_daytime_convert_command(command_manager: CommandManager) -> None:
         "Use this command to convert between decimal and duodecimal daytime units"
     )
 
-    # Add the arguments for this command
-    command.add_argument(
-        "value",
-        type=str,
-        help="Value to be converted",
-    )
+    add_value_argument(command)
     command_manager.register_command(command)

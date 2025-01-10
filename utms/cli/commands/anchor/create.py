@@ -20,6 +20,14 @@ from typing import List, Optional
 
 from utms import AI, Config
 from utms.anchors import AnchorConfig
+from utms.cli.commands.anchor.helper import (
+    add_breakdowns_argument,
+    add_groups_argument,
+    add_label_argument,
+    add_name_argument,
+    add_precision_argument,
+    add_value_argument,
+)
 from utms.cli.commands.core import Command, CommandManager
 
 
@@ -94,45 +102,10 @@ def register_anchor_create_command(command_manager: CommandManager) -> None:
     command.set_help("Create a new anchor")
     command.set_description("Create a new anchor and set its parameters.")
     # Add the arguments for this command
-    command.add_argument(
-        "label",
-        type=str,
-        help="Label of the anchor to create",
-    )
-
-    command.add_argument(
-        "-n",
-        "--name",
-        type=str,
-        required=True,
-        help="Full name of the anchor",
-    )
-    command.add_argument(
-        "-v",
-        "--value",
-        type=str,
-        required=True,
-        help="""Set the value of the anchor. If it cannot be casted to Decimal, resolve it
-using dateparser/AI""",
-    )
-    command.add_argument(
-        "-g",
-        "--groups",
-        type=str,
-        help="Comma separated list of groups for the anchor i.e. `default,fixed`",
-    )
-    command.add_argument(
-        "-p",
-        "--precision",
-        type=str,
-        help="Precision of the anchor",
-    )
-    command.add_argument(
-        "-b",
-        "--breakdowns",
-        type=str,
-        help="""List of lists of units to break down the time measurements relative to this
-anchor i.e. Y;Ga,Ma;TS,GS,MS,KS,s,ms""",
-    )
-
+    add_label_argument(command)
+    add_name_argument(command)
+    add_value_argument(command)
+    add_groups_argument(command)
+    add_precision_argument(command)
+    add_breakdowns_argument(command)
     command_manager.register_command(command)

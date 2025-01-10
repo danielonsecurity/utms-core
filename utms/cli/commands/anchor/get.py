@@ -23,6 +23,7 @@ Usage:
 import argparse
 
 from utms import Config
+from utms.cli.commands.anchor.helper import add_anchor_list_argument
 from utms.cli.commands.core import Command, CommandManager
 
 
@@ -88,10 +89,5 @@ def register_anchor_get_command(command_manager: CommandManager) -> None:
     command.set_help("Get an anchor by label")
     command.set_description("Print one anchor properties given its label")
     # Add the arguments for this command
-    command.add_argument(
-        "anchor_list",
-        type=str,
-        help="Anchor list to print by labels and groups, separated by commas (NT,UT,default)",
-    )
-
+    add_anchor_list_argument(command)
     command_manager.register_command(command)

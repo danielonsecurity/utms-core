@@ -18,6 +18,7 @@ Functions:
 import argparse
 
 from utms import Config
+from utms.cli.commands.anchor.helper import add_label_argument
 from utms.cli.commands.core import Command, CommandManager
 
 
@@ -36,7 +37,7 @@ def delete_anchor(args: argparse.Namespace, config: Config) -> None:
     Returns:
         None
     """
-    config.anchors.delete_anchor(args.label)
+    config.anchors.delete_anchor(args.anchor_list)
     config.save_anchors()
 
 
@@ -62,10 +63,5 @@ Delete one of the anchors. Dynamic ones cannot be deleted since they change on e
 """
     )
     # Add the arguments for this command
-    command.add_argument(
-        "label",
-        type=str,
-        help="Delete an anchor",
-    )
-
+    add_label_argument(command)
     command_manager.register_command(command)

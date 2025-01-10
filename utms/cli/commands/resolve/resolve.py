@@ -25,6 +25,12 @@ from decimal import Decimal
 
 from utms import AI, Config
 from utms.cli.commands.core import Command, CommandManager
+from utms.cli.commands.resolve.helper import (
+    add_anchor_list_argument,
+    add_input_argument,
+    add_plt_argument,
+    add_units_argument,
+)
 from utms.utils import print_time
 
 
@@ -51,7 +57,7 @@ def handle_resolve_command(args: argparse.Namespace, config: Config) -> None:
     parsed_timestamp = ai.resolve_date(input_string)
 
     if isinstance(parsed_timestamp, (datetime, Decimal)):
-        print_time(parsed_timestamp, config, args.anchors, args.units)
+        print_time(parsed_timestamp, config, args.anchor_list, args.units, args.plt)
 
 
 def register_resolve_command(command_manager: CommandManager) -> None:
@@ -78,29 +84,9 @@ def register_resolve_command(command_manager: CommandManager) -> None:
     )
     command.set_help("Resolve arbitrary string into date with dateparser or with the AI")
     command.set_description("Resolve arbitrary string into date with dateparser or with the AI")
-
-    command.add_argument(
-        "-a",
-        "--anchors",
-        type=str,
-        help="Anchor/Anchor groups to display",
-    )
-
-    command.add_argument(
-        "-u",
-        "--units",
-        type=str,
-        help="""List of lists of units to break down the time measurements relative to
-this anchor i.e. Y;Ga,Ma;TS,GS,MS,KS,s,ms. Note: the actual anchor
-breakdowns don't change.
-        """,
-    )
-
-    command.add_argument(
-        "input",
-        type=str,
-        nargs="+",
-        help="String to be resolved into time",
-    )
+    add_anchor_list_argument(command)
+    add_units_argument(command)
+    add_plt_argument(command)
+    add_input_argument(command)
 
     command_manager.register_command(command)

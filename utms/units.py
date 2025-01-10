@@ -33,9 +33,9 @@ from time_unit_manager import UnitManager
 manager = UnitManager()
 
 # Add time units
-manager.add_time_unit("Second", "s", Decimal("1"))
-manager.add_time_unit("Minute", "m", Decimal("60"))
-manager.add_time_unit("Hour", "h", Decimal("3600"))
+manager.add_unit("Second", "s", Decimal("1"))
+manager.add_unit("Minute", "m", Decimal("60"))
+manager.add_unit("Hour", "h", Decimal("3600"))
 
 # Print all units
 manager.print_units()
@@ -44,10 +44,13 @@ manager.print_units()
 manager.print_conversion_table("s", num_columns=2, num_rows=5)
 """
 
+import argparse
 from decimal import Decimal
 from typing import Dict, Iterator, Optional, Union
 
 from colorama import Fore, Style
+
+from utms.utils import seconds_to_hplt, seconds_to_pplt
 
 
 def format_value(
@@ -132,6 +135,91 @@ def format_value(
     return formatted_value.ljust(33)
 
 
+class Unit:
+    """
+    Represents a time unit with a full name, abbreviation, and value in seconds.
+    Provides methods for comparisons, conversions, and formatting.
+
+    Attributes:
+        name (str): The full name of the time unit.
+        abbreviation (str): The abbreviation of the time unit.
+        value (Decimal): The value of the time unit in seconds.
+    """
+
+    def __init__(self, name: str, abbreviation: str, value: Decimal) -> None:
+        """
+        Initializes a Unit instance.
+
+        Args:
+            name (str): The full name of the time unit.
+            abbreviation (str): The abbreviation of the time unit.
+            value (Decimal): The value of the time unit in seconds.
+        """
+        self.name = name
+        self.abbreviation = abbreviation
+        self.value = value
+
+    def __repr__(self) -> str:
+        """
+        Provides a string representation of the Unit instance.
+
+        Returns:
+            str: A string representation of the unit.
+        """
+        return f"Unit(name={self.name}, abbreviation={self.abbreviation}, value={self.value})"
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Compares two Unit instances for equality based on value.
+
+        Args:
+            other (object): The other object to compare to.
+
+        Returns:
+            bool: True if both units are equal, False otherwise.
+        """
+        if isinstance(other, Unit):
+            return self.value == other.value
+        return False
+
+    def __lt__(self, other: object) -> bool:
+        """
+        Compares two Unit instances for less-than based on value.
+
+        Args:
+            other (object): The other object to compare to.
+
+        Returns:
+            bool: True if this unit is less than the other unit, False otherwise.
+        """
+        if isinstance(other, Unit):
+            return self.value < other.value
+        return False
+
+    def convert_to(self, other: "Unit", value: Decimal) -> Decimal:
+        """
+        Converts a value from this unit to another unit.
+
+        Args:
+            other (Unit): The unit to convert to.
+            value (Decimal): The value to convert.
+
+        Returns:
+            Decimal: The converted value in the new unit.
+        """
+        # Conversion formula: value_in_new_unit = value_in_current_unit * (self.value / other.value)
+        return value * (self.value / other.value)
+
+    def __str__(self) -> str:
+        """
+        Provides a human-readable string for the unit.
+
+        Returns:
+            str: A string representation of the unit.
+        """
+        return f"{self.name} ({self.abbreviation}): {self.value} seconds"
+
+
 class UnitManager:
     """
     A class to manage time units, allowing adding new units, sorting
@@ -139,28 +227,26 @@ class UnitManager:
     """
 
     def __init__(self) -> None:
-        self._units: Dict[str, Dict[str, Union[Decimal, str]]] = {}
+        self._units: Dict[str, Unit] = {}
 
-    def add_time_unit(self, full_name: str, abbreviation: str, value: Decimal) -> None:
+    def add_unit(self, name: str, abbreviation: str, value: Decimal) -> None:
         """
         Adds a new time unit to the manager and ensures the units are sorted by value.
 
         Args:
-            full_name (str): The full name of the time unit.
+            name (str): The full name of the time unit.
             abbreviation (str): The abbreviation of the time unit.
             value (Decimal): The value of the unit in seconds.
         """
-        self._units[abbreviation] = {
-            "full_name": full_name,
-            "value": value,
-        }
+        new_unit = Unit(name, abbreviation, value)
+        self._units[abbreviation] = new_unit
         self._sort_units()
 
     def _sort_units(self) -> None:
         """
         Sort the units by their value (in seconds).
         """
-        self._units = dict(sorted(self._units.items(), key=lambda item: item[1]["value"]))
+        self._units = dict(sorted(self._units.items(), key=lambda item: item[1].value))
 
     def get_value(self, abbreviation: str) -> Decimal:
         """
@@ -174,10 +260,10 @@ class UnitManager:
         """
         unit = self.get_unit(abbreviation)
         if unit:
-            return Decimal(unit["value"])
+            return unit.value
         raise ValueError(f"No unit with abbreviation {unit} defined")
 
-    def get_unit(self, abbreviation: str) -> Union[Dict[str, Union[Decimal, str]], None]:
+    def get_unit(self, abbreviation: str) -> Optional[Unit]:
         """
         Get a time unit by its abbreviation.
 
@@ -185,11 +271,11 @@ class UnitManager:
             abbreviation (str): The abbreviation of the time unit.
 
         Returns:
-            dict: A dictionary containing 'full_name' and 'value' of the time unit.
+            dict: A dictionary containing 'name' and 'value' of the time unit.
         """
-        return self._units.get(abbreviation, None)
+        return self._units.get(abbreviation)
 
-    def get_all_units(self) -> Dict[str, Dict[str, Union[Decimal, str]]]:
+    def get_all_units(self) -> Dict[str, Unit]:
         """
         Get all the time units stored in the manager.
 
@@ -206,7 +292,7 @@ class UnitManager:
         """
         return iter(self._units)
 
-    def __getitem__(self, index: Union[int, str]) -> Dict[str, Union[Decimal, str]]:
+    def __getitem__(self, index: Union[int, str]) -> Unit:
         """
         Makes the class subscriptable by allowing access via abbreviation or index.
 
@@ -214,7 +300,7 @@ class UnitManager:
             index (int or str): The abbreviation or index of the unit.
 
         Returns:
-            dict: A dictionary containing 'full_name' and 'value' of the time unit.
+            dict: A dictionary containing 'name' and 'value' of the time unit.
 
         Raises:
             KeyError: If the abbreviation does not exist.
@@ -222,14 +308,13 @@ class UnitManager:
         """
         if isinstance(index, int):  # Index-based access
             try:
-                return list(self._units.items())[index][1]
+                return list(self._units.values())[index]
             except IndexError as exc:
                 raise IndexError(f"Index {index} is out of range.") from exc
-        elif isinstance(index, str):  # Abbreviation-based access
+        else:
             if index in self._units:
                 return self._units[index]
             raise KeyError(f"Unit with abbreviation '{index}' not found.")
-        return {}
 
     def __len__(self) -> int:
         """
@@ -239,14 +324,32 @@ class UnitManager:
         """
         return len(self._units)
 
-    def print(self) -> None:
+    def print(self, args: argparse.Namespace) -> None:
         """
         Prints all time units sorted by their value in seconds.
         """
-        for key, unit in self._units.items():
+        plt = bool(getattr(args, "plt", False))
+        if plt:
             print(
-                f"{unit['full_name']} ({key}):".ljust(25) + f"{format_value(self.get_value(key))}"
+                "Unit name (abbr):".ljust(25)
+                + "Value".ljust(20)
+                + "hPLT".ljust(20)
+                + "pPLT".ljust(20)
             )
+        else:
+            print("Unit name (abbr):".ljust(25) + "Value".ljust(20))
+        for unit in self._units.values():
+            if plt:
+                print(
+                    f"{unit.name} ({unit.abbreviation}):".ljust(25)
+                    + f"{format_value(unit.value)}"
+                    + f"{seconds_to_hplt(unit.value):.5f}".ljust(20)
+                    + f"{seconds_to_pplt(unit.value):.5f}".ljust(20)
+                )
+            else:
+                print(
+                    f"{unit.name} ({unit.abbreviation}):".ljust(25) + f"{format_value(unit.value)}"
+                )
 
     def print_conversion_table(
         self, center_unit: str, num_columns: int = 5, num_rows: int = 100
@@ -286,30 +389,27 @@ class UnitManager:
         # Print header
         print(
             "Time Unit".ljust(25)
-            + "".join(
-                f"{self._units[key]['full_name']} ({key})".ljust(20) for key in displayed_columns
-            )
+            + "".join(f"{self._units[key].name} ({key})".ljust(20) for key in displayed_columns)
         )
         print("-" * (25 + len(displayed_columns) * 20))
 
         # Print conversion table
         for row_abbrev in displayed_rows:
             conversions = {
-                col_abbrev: self.get_value(row_abbrev) / self.get_value(col_abbrev)
+                col_abbrev: self._units[row_abbrev].convert_to(
+                    self._units[col_abbrev], Decimal("1")
+                )
                 for col_abbrev in displayed_columns
-                if self.get_value(row_abbrev) and self.get_value(col_abbrev)
             }
 
             print(
-                f"{self._units[row_abbrev]['full_name']} ({row_abbrev})".ljust(25)
+                f"{self._units[row_abbrev].name} ({row_abbrev})".ljust(25)
                 + "".join(
                     f"{format_value(conversions[col_abbrev])}" for col_abbrev in displayed_columns
                 )
             )
 
-    def convert_units(
-        self, value: Decimal, input_unit: str, output_unit: Optional[str] = None
-    ) -> None:
+    def convert_units(self, args: argparse.Namespace) -> None:
         """
         Convert a given value from one unit to all other units and print the results.
 
@@ -320,25 +420,36 @@ class UnitManager:
         Raises:
             ValueError: If the input unit is not found in the manager.
         """
-        decimal_value = Decimal(value)
-        if input_unit not in self._units:
-            raise ValueError(f"Input unit '{input_unit}' not found in time units.")
+        decimal_value = Decimal(args.value)
+        if args.source_unit not in self._units:
+            raise ValueError(f"Input unit '{args.source_unit}' not found in time units.")
 
-        input_unit_value = self.get_value(input_unit)
+        input_unit_instance = self._units[args.source_unit]
 
-        print(f"Converting {value} {input_unit}:")
-        print("-" * 50)
+        if not args.raw:
+            print(f"Converting {args.value} {args.source_unit}:")
+            print("-" * 50)
 
-        if not output_unit:
-            for abbrev, unit_info in self._units.items():
-                converted_value = decimal_value * (input_unit_value / self.get_value(abbrev))
+        precision = args.precision if args.precision is not None else 5
+
+        if not args.target_unit:
+            for abbrev, unit_instance in self._units.items():
+                converted_value = input_unit_instance.convert_to(unit_instance, decimal_value)
+                if args.raw:
+                    print(f"{converted_value:.{precision}f}")
+                else:
+                    print(
+                        f"{unit_instance.name} ({abbrev}):".ljust(25)
+                        + f"{format_value(converted_value)}"
+                    )
+        else:
+            converted_value = input_unit_instance.convert_to(
+                self._units[args.target_unit], decimal_value
+            )
+            if args.raw:
+                print(f"{converted_value:.{precision}f}")
+            else:
                 print(
-                    f"{unit_info['full_name']} ({abbrev}):".ljust(25)
+                    f"{self._units[args.target_unit].name} ({args.target_unit}):".ljust(25)
                     + f"{format_value(converted_value)}"
                 )
-        else:
-            converted_value = decimal_value * (input_unit_value / self.get_value(output_unit))
-            print(
-                f"{self._units[output_unit]['full_name']} ({output_unit}):".ljust(25)
-                + f"{format_value(converted_value)}"
-            )

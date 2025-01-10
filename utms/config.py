@@ -252,7 +252,7 @@ class Config:
                 name = unit.get("name")
                 value = unit.get("value")
                 # Add unit using the details loaded from the JSON
-                self.units.add_time_unit(name, key, Decimal(value))
+                self.units.add_unit(name, key, Decimal(value))
 
         else:
             print(f"Error: '{units_file}' not found.")
@@ -271,9 +271,9 @@ class Config:
         for unit_abbreviation in self.units:
             unit = self.units[unit_abbreviation]
             units_data[unit_abbreviation] = {
-                "name": unit["full_name"],
+                "name": unit.name,
                 "symbol": unit_abbreviation,  # or another property if you have one
-                "value": str(unit["value"]),
+                "value": str(unit.value),
             }
         # Write the serialized units data to the file
         try:
