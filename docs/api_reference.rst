@@ -231,7 +231,7 @@ utms.cli.commands.clock.clock
 utms.cli.commands.config
 +++++++
 
-.. automodule:: utms.cli.config
+.. automodule:: utms.cli.commands.config
     :undoc-members:
 
 utms.cli.commands.config.get
