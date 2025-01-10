@@ -554,8 +554,9 @@ regex==2024.11.6 ; python_version >= "3.10" \
 requests==2.32.3 ; python_version >= "3.10" \
     --hash=sha256:55365417734eb18255590a9ff9eb97e9e1da868d4ccd6402399eaf68af20a760 \
     --hash=sha256:70761cfe03c773ceb22aa2f671b4757976145175cdfca038c02654d061d6dcc6
-rsa==4.2 ; python_version >= "3.10" \
-    --hash=sha256:aaefa4b84752e3e99bd8333a2e1e3e7a7da64614042bd66f775573424370108a
+rsa==4.7 ; python_version >= "3.10" \
+    --hash=sha256:69805d6b69f56eb05b62daea3a7dbd7aa44324ad1306445e05da8060232d00f4 \
+    --hash=sha256:a8774e55b59fd9fc893b0d05e9bfc6f47081f46ff5b46f39ccf24631b7be356b
 six==1.17.0 ; python_version >= "3.10" \
     --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
     --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
