@@ -1,7 +1,10 @@
 Tutorials
 =========
 
-Welcome to the Tutorials section! These hands-on guides are designed to help you get started with UTMS and achieve specific goals. Each tutorial assumes no prior knowledge of the system, making it ideal for beginners.
+Welcome to the Tutorials section! These hands-on guides are designed
+to help you get started with UTMS and achieve specific goals. Each
+tutorial assumes no prior knowledge of the system, making it ideal for
+beginners.
 
 Contents:
 

@@ -10,14 +10,14 @@ Universal Time Measurement System (UTMS)
 🚀 **Redefining How Time is Measured**
 ------------------------------------------
 The **Universal Time Measurement System (UTMS)** is a groundbreaking
-approach to timekeeping, built upon the fundamental `Planck Time`_
+approach to timekeeping, built upon the fundamental :term:`Planck Time`
 units. Unlike traditional systems, UTMS provides a universal
 framework for measuring time, independent of location, velocity, or
 any other observer-specific factors. This system offers a consistent,
 scalable, and flexible way of understanding time across all frames of
 reference.
 
-By utilizing a decimalized structure and starting from the `Big Bang`_,
+By utilizing a decimalized structure and starting from the :term:`Big Bang`,
 UTMS reimagines time for applications ranging from cosmic
 scales to everyday use, addressing the complexities and limitations of
 current Earth-centric time systems.
@@ -35,7 +35,7 @@ phenomena. These systems:
 - Rely on non-decimal units, adding unnecessary complexity.
 - Are geographically limited, irrelevant outside of Earth's context.
 
-**UTMS**, on the other hand, overcomes these issues by using `Planck time`_
+**UTMS**, on the other hand, overcomes these issues by using :term:`Planck Time`
 as the universal unit of time. This provides a consistent
 metric across all observers, ensuring universality and accuracy
 regardless of the context.
@@ -46,8 +46,8 @@ regardless of the context.
 ----------------------------
 
 1. **Universal Time Measurement**
-   Time is measured as the total number of `Planck time`_ units since the
-   `Big Bang`_. This universal reference is constant for all observers,
+   Time is measured as the total number of :term:`Planck Time` units since the
+   :term:`Big Bang`. This universal reference is constant for all observers,
    allowing for seamless communication across vastly different frames
    of reference.
    
@@ -145,6 +145,3 @@ Indices and tables
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
-
-.. include:: links.rst
