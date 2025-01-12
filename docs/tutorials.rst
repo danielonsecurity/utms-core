@@ -12,5 +12,8 @@ Contents:
    :maxdepth: 1
 
    tutorials/setup_and_basic_usage
+   tutorials/use_clock
    tutorials/managing_time_anchors
    tutorials/generating_timestamps_with_ai
+
+   
