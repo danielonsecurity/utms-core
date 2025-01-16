@@ -55,9 +55,7 @@
   (start
    (let [
      timezone (datetime.timezone (datetime.timedelta :seconds self.timezone))
-     reference-timestamp (* self.offset day.length)
-     total-days-elapsed (// (- TIMESTAMP reference-timestamp) day.length)
-     day-offset (int (% total-days-elapsed (// self.length day.length)))
+     day-offset (get_day_of_week TIMESTAMP self day)
      current-date (datetime.datetime.fromtimestamp TIMESTAMP)
      midnight-today (datetime.datetime current-date.year
 				       current-date.month
@@ -66,32 +64,31 @@
 				       :tzinfo timezone)
      midnight-timestamp (.timestamp midnight-today)
      week-start-timestamp (- midnight-timestamp (* day-offset day.length))
-     test (print TIMESTAMP total-days-elapsed day-offset current-date midnight-today)
+     test (print TIMESTAMP day-offset current-date midnight-today)
      ]
      week-start-timestamp))
   (names ["Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday"]))
 
 
-;; (defunit "week10"
-;;   (length (* 10 day.length))
-;;   (timezone 0)
-;;   (offset 3)
-;;   (start
-;;    (let [
-;; 	reference-timestamp (* self.offset day.length)
-;; 	total-days-elapsed (// (- TIMESTAMP reference-timestamp) day.length)
-;; 	day-offset (int (% total-days-elapsed (// self.length day.length)))
-;; 	current-date (datetime.datetime.fromtimestamp TIMESTAMP)
-;; 	midnight-today (datetime.datetime current-date.year
-;; 					  current-date.month
-;; 					  current-date.day
-;; 					  0 0 0)
-;; 	midnight-timestamp (.timestamp midnight-today)
-;; 	week-start-timestamp (- midnight-timestamp (* day-offset day.length))
-;; 	;; test (print TIMESTAMP total-days-elapsed day-offset current-date midnight-today)
-;; 	]
-;; 	week-start-timestamp))
-;;   (names ["Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday" "Sunday" "Eigthday" "Nineday" "Tenday"]))
+(defunit "week10"
+  (length (* 10 day.length))
+  (timezone 0)
+  (offset 9)
+  (start
+   (let [
+	reference-timestamp (* self.offset day.length)
+	day-offset (get_day_of_week TIMESTAMP self day)
+	current-date (datetime.datetime.fromtimestamp TIMESTAMP)
+	midnight-today (datetime.datetime current-date.year
+					  current-date.month
+					  current-date.day
+					  0 0 0)
+	midnight-timestamp (.timestamp midnight-today)
+	week-start-timestamp (- midnight-timestamp (* day-offset day.length))
+	;; test (print TIMESTAMP total-days-elapsed day-offset current-date midnight-today)
+	]
+	week-start-timestamp))
+  (names ["Firstday" "Secondday" "Thirdday" "Fourthday" "Fifthtday" "Sixthday" "Sevenday" "Eigthday" "Nineday" "Tenday"]))
 
 
 

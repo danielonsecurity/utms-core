@@ -1,14 +1,15 @@
 import logging
-from lark import Lark, Transformer, Token, Tree, logger, v_args
-from decimal import Decimal
 from datetime import datetime
+from decimal import Decimal
+
+from lark import Lark, Token, Transformer, Tree, logger, v_args
 
 logger.setLevel(logging.DEBUG)
 
 
 class DSLTransformer(Transformer):
     variables = {}
-        
+
     def start(self, expression):
         return {"start": expression}
 
@@ -19,7 +20,7 @@ class DSLTransformer(Transformer):
         fields_dict = {}
         for field in data[1:]:
             fields_dict.update(field[0])
-        return {data[0].value[1:-1] : fields_dict }
+        return {data[0].value[1:-1]: fields_dict}
 
     def field(self, field):
         return field
@@ -79,7 +80,7 @@ class DSLTransformer(Transformer):
         if tree[0].data.value == "input_keyword":
             return Decimal(1736847493)
             # return Decimal(input("input="))
-        
+
         if tree[0].data.value == "length_keyword":
             return self.variables["length"]
         if tree[0].data.value == "timezone_keyword":
@@ -100,15 +101,17 @@ class DSLTransformer(Transformer):
             return self.variables[name]
         return data[0]
 
+
 def debug_tokens(parser, dsl_content):
     for token in parser.lex(dsl_content):
         print(f"Token: {token.type} {token.value}")
+
 
 # Load the grammar
 dsl_grammar = open("resources/unit_grammar.lark").read()
 
 # Creating the parser with the updated grammar
-parser = Lark(dsl_grammar, parser="lalr", transformer=DSLTransformer(), debug=True, start='units')
+parser = Lark(dsl_grammar, parser="lalr", transformer=DSLTransformer(), debug=True, start="units")
 
 # Parse the DSL file
 with open("resources/units.utms", "r") as file:

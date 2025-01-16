@@ -1,11 +1,12 @@
-import time
 import datetime
+import time
 from dataclasses import dataclass
-import hy
-from hy.models import Expression, Symbol, String, Integer, List, Lazy
-from hy.compiler import hy_eval
 from decimal import Decimal
 from typing import Optional
+
+import hy
+from hy.compiler import hy_eval
+from hy.models import Expression, Integer, Lazy, List, String, Symbol
 
 
 @dataclass
@@ -17,6 +18,7 @@ class Unit:
     timezone: Decimal = Decimal(0)
     offset: int = 0
     index: int = 0
+
 
 def get_day_of_week(timestamp: float, week_unit: Unit, day_unit: Unit) -> int:
     timezone = datetime.timezone(datetime.timedelta(seconds=float(week_unit.timezone)))
@@ -130,7 +132,7 @@ def process_units(units_data, timestamp):
     return units
 
 
-def print_calendar(month_unit, week_unit, day_unit):
+def print_month_calendar(month_unit, week_unit, day_unit):
     """Prints the calendar, highlighting the current week and day with colors."""
 
     month_start = datetime.datetime.fromtimestamp(month_unit.start, tz=datetime.timezone.utc)
@@ -175,6 +177,7 @@ def print_calendar(month_unit, week_unit, day_unit):
 
 def get_month_data(year_start, current_month, months_across, week_unit, day_unit):
     """Calculates and returns month-related data for a row of months."""
+    timezone = datetime.timezone(datetime.timedelta(seconds=float(week_unit.timezone)))
     days = [1] * months_across
     month_starts = []
     month_ends = []
@@ -184,7 +187,7 @@ def get_month_data(year_start, current_month, months_across, week_unit, day_unit
     for i in range(months_across):
         m = current_month + i
         if 1 <= m <= 12:
-            month_start = datetime.datetime(year_start.year, m, 1)
+            month_start = datetime.datetime(year_start.year, m, 1, tzinfo=timezone)
             month_end = month_start.replace(month=m % 12 + 1, day=1) - datetime.timedelta(days=1)
             month_ends.append(month_end)
             month_starts.append(month_start)
@@ -195,16 +198,22 @@ def get_month_data(year_start, current_month, months_across, week_unit, day_unit
     return days, month_starts, month_ends, first_day_weekdays
 
 
-def print_month_headers(year_start, current_month, months_across):
-    """Prints the month headers for a row of months."""
+def print_month_headers(year_start, current_month, months_across, week_length):
+    """Prints month headers, aligned with day grids."""
     month_names_row = []
     for _ in range(months_across):
         if current_month <= 12:
             month_start = datetime.datetime(year_start.year, current_month, 1)
-            month_names_row.append(month_start.strftime("%B").center(20))
+            month_name = month_start.strftime("%B")
+            # Calculate centering based on week_length
+            padding = (week_length * 3 - len(month_name)) // 2  # changed: fixed calculation error
+            centered_month_name = " " * padding + month_name + " " * padding  # Center the month name
+            month_names_row.append(centered_month_name)
             current_month += 1
         else:
-            month_names_row.append("".center(20))
+            # Padding for empty cells in the last row
+            month_names_row.append(" " * (week_length * 3))  #changed
+
     print("   ".join(month_names_row))
 
 
@@ -214,8 +223,12 @@ def print_weekday_headers(week_unit, months_across):
     print(f"{week_header:20s}" * months_across)
 
 
-def print_week_row(days, month_starts, month_ends, first_day_weekdays, week_length):
+def print_week_row(days, month_starts, month_ends, first_day_weekdays, week_length, month_unit, week_unit, day_unit):
     week_row = []
+    current_week_start = week_unit.start 
+    current_week_end = week_unit.start + week_unit.length
+    current_month_start = month_unit.start 
+    current_month_end = month_unit.start + month_unit.length
     for i in range(len(month_starts)):  # Use correct index range
 
         month_week_days = []
@@ -225,20 +238,29 @@ def print_week_row(days, month_starts, month_ends, first_day_weekdays, week_leng
             for w in range(week_length):
                 if days[i] <= month_ends[i].day:  # changed
                     if w >= first_day_weekdays[i]:
+                        current_date = month_starts[i].replace(day=days[i])
                         day_str = f"{days[i]:2}"
+                        if current_month_start <= current_date.timestamp() < current_month_end:
+                            if current_week_start <= current_date.timestamp() < current_week_end:
+                                if current_date.timestamp() == day_unit.start + day_unit.timezone:
+                                    day_str = f"\033[41m{day_str}\033[0m"
+                                else:
+                                    day_str = f"\033[96m{day_str}\033[0m"
+                            else:
+                                day_str = f"\033[33m{day_str}\033[0m"
                         month_week_days.append(day_str)
                         days[i] += 1
-                    elif w < first_day_weekdays[i] and days[i] == 1:  # Pad only the first week
-                        month_week_days.append("  ")  # Correct padding string
+                    elif w < first_day_weekdays[i] and days[i] == 1:
+                        month_week_days.append("  ")
                     else:  # changed
                         month_week_days.append("  ")
-                elif days[i] > month_ends[i].day:  # Apply padding for remaining days of the month
+                elif days[i] > month_ends[i].day:
                     month_week_days.append("  ")
             week_row.append(" ".join(month_week_days))
     print("   ".join(week_row))
 
 
-def print_year_calendar(year_unit, week_unit, day_unit):
+def print_year_calendar(year_unit, month_unit, week_unit, day_unit):
     """Prints the yearly calendar."""
     year_start = datetime.datetime.fromtimestamp(year_unit.start)
     week_length = week_unit.length // day_unit.length
@@ -249,13 +271,13 @@ def print_year_calendar(year_unit, week_unit, day_unit):
     current_month = 1
 
     while current_month <= 12:
-        print_month_headers(year_start, current_month, months_across)
+        print_month_headers(year_start, current_month, months_across, week_length)
         print_weekday_headers(week_unit, months_across)
 
         days, month_starts, month_ends, first_day_weekdays = get_month_data(
             year_start, current_month, months_across, week_unit, day_unit
         )
-        print(days, month_starts, month_ends, first_day_weekdays)
+        # print(days, month_starts, month_ends, first_day_weekdays)
 
         max_weeks = 0
         for i in range(len(month_starts)):
@@ -263,7 +285,7 @@ def print_year_calendar(year_unit, week_unit, day_unit):
             max_weeks = max(max_weeks, weeks_in_month)
 
         for _ in range(max_weeks):
-            print_week_row(days, month_starts, month_ends, first_day_weekdays, week_length)
+            print_week_row(days, month_starts, month_ends, first_day_weekdays, week_length, month_unit, week_unit, day_unit)
             for i in range(len(first_day_weekdays)):
                 if days[i] > 1 and (
                     days[i] > month_ends[i].day + 1
@@ -283,7 +305,7 @@ def main():
     timestamp = time.time()
     # timestamp = datetime.datetime(2025,1,15,23,59,59,tzinfo=datetime.timezone.utc).timestamp()
     # timestamp = datetime.datetime(2025,1,16,0,0,0,tzinfo=datetime.timezone.utc).timestamp()
-    timestamp = datetime.datetime(2025,1,16,0,0,1,tzinfo=datetime.timezone.utc).timestamp()
+    # timestamp = datetime.datetime(2025, 1, 16, 0, 0, 1, tzinfo=datetime.timezone.utc).timestamp()
     units = process_units(units_data, timestamp)
 
     for unit in units.values():
@@ -301,10 +323,9 @@ def main():
             print(f"  name: {unit.names[unit.index]}")
         # Access other properties similarly: unit.timezone, unit.start, etc.
 
-
-    print_calendar(units["month"], units["week7"], units["day"])
+    # print_month_calendar(units["month"], units["week10"], units["day"])
     # print_calendar(units["month"], units["week10"], units["day"])
-    # print_year_calendar(units["year"], units["week7"], units["day"])
+    print_year_calendar(units["year"], units["month"], units["week10"], units["day"])
 
 
 if __name__ == "__main__":
