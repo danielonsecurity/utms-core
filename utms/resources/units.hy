@@ -56,7 +56,7 @@
    (let [
      timezone (datetime.timezone (datetime.timedelta :seconds self.timezone))
      day-offset (get_day_of_week TIMESTAMP self day)
-     current-date (datetime.datetime.fromtimestamp TIMESTAMP)
+     current-date (datetime.datetime.fromtimestamp TIMESTAMP :tz timezone)
      midnight-today (datetime.datetime current-date.year
 				       current-date.month
 				       current-date.day
@@ -75,19 +75,21 @@
   (timezone 0)
   (offset 9)
   (start
-   (let [
-	reference-timestamp (* self.offset day.length)
-	day-offset (get_day_of_week TIMESTAMP self day)
-	current-date (datetime.datetime.fromtimestamp TIMESTAMP)
-	midnight-today (datetime.datetime current-date.year
-					  current-date.month
-					  current-date.day
-					  0 0 0)
-	midnight-timestamp (.timestamp midnight-today)
-	week-start-timestamp (- midnight-timestamp (* day-offset day.length))
-	;; test (print TIMESTAMP total-days-elapsed day-offset current-date midnight-today)
-	]
-	week-start-timestamp))
+    (let [
+          timezone (datetime.timezone (datetime.timedelta :seconds self.timezone))
+	  reference-timestamp (* self.offset day.length)
+	  day-offset (get_day_of_week TIMESTAMP self day)
+	  current-date (datetime.datetime.fromtimestamp TIMESTAMP :tz timezone)
+	  midnight-today (datetime.datetime current-date.year
+					    current-date.month
+					    current-date.day
+					    0 0 0
+                                            :tzinfo timezone)
+	  midnight-timestamp (.timestamp midnight-today)
+	  week-start-timestamp (- midnight-timestamp (* day-offset day.length))
+	  ;; test (print TIMESTAMP total-days-elapsed day-offset current-date midnight-today)
+	  ]
+      week-start-timestamp))
   (names ["Firstday" "Secondday" "Thirdday" "Fourthday" "Fifthtday" "Sixthday" "Sevenday" "Eigthday" "Nineday" "Tenday"]))
 
 
