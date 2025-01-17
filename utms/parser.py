@@ -9,15 +9,49 @@ from hy.compiler import hy_eval
 from hy.models import Expression, Integer, Lazy, List, String, Symbol
 
 
-@dataclass
 class Unit:
-    name: str
-    length: Decimal = Decimal(0)
-    start: Decimal = Decimal(0)
-    names: Optional[List[str]] = None
-    timezone: Decimal = Decimal(0)
-    offset: int = 0
-    index: int = 0
+    def __init__(self, name, **kwargs):
+        self.name: str = name
+        self.length: Decimal = kwargs.get("length", Decimal(0))
+        self.start: Decimal = kwargs.get("start", Decimal(0))
+        self.names: Optional[List[str]] = kwargs.get("names", None)
+        self.timezone: Decimal = kwargs.get("timezone", Decimal(0))
+        self.offset: int = kwargs.get("offset", 0)
+        self.index: int = kwargs.get("index", 0)
+
+    def __iter__(self):
+        for value in self.__dict__.values():  # Iterate through attributes
+            yield value
+
+    def get_length(self, timestamp):
+        if callable(self.length):
+            return self.length(timestamp)
+        return self.length
+
+    def get_start(self, timestamp):
+        if callable(self.start):
+            return self.start(timestamp)
+        return self.start
+
+    def get_names(self, timestamp):
+        if callable(self.names):
+            return self.names(timestamp)
+        return self.names
+
+    def get_timezone(self, timestamp):
+        if callable(self.timezone):
+            return self.timezone(timestamp)
+        return self.timezone
+
+    def get_offset(self, timestamp):
+        if callable(self.offset):
+            return self.offset(timestamp)
+        return self.offset
+
+    def get_index(self, timestamp):
+        if callable(self.index):
+            return self.index(timestamp)
+        return self.index
 
 
 def get_day_of_week(timestamp: float, week_unit: Unit, day_unit: Unit) -> int:
@@ -39,59 +73,166 @@ def evaluate_hy_file(hy_file_path):
     return hy.read_many(hy_code)
 
 
+def _resolve_symbol(expr, units, current_unit, timestamp):
+    """Resolves a Symbol, handling inter-unit references."""
+    sym_str = str(expr)
+
+    if "." in sym_str:  # Inter-unit references
+        unit_name, prop_name = sym_str.split(".", 1)
+        if unit_name in units and hasattr(units[unit_name], prop_name):
+            return getattr(units[unit_name], prop_name)
+        elif unit_name in units:  # Circular/multi-step dependencies
+            return resolve_unit_property(expr, units, current_unit, timestamp)
+        else:  # Unit not yet defined, create placeholder
+            dependent_unit = Unit(name=unit_name)
+            units[unit_name] = dependent_unit
+            return resolve_unit_property(expr, units, current_unit, timestamp)
+
+    elif current_unit and hasattr(current_unit, sym_str):  # changed: incorrect check
+        return getattr(current_unit, sym_str)
+    elif sym_str in units:  # Referencing a unit by name
+        return units[sym_str]
+    try:  # Try converting to int
+        return int(sym_str)
+    except ValueError:
+        return sym_str  # Return as string
+
+
+def _resolve_list(expr, units, current_unit, timestamp):
+    return [resolve_unit_property(item, units, current_unit, timestamp) for item in expr]
+
+
+def _resolve_expression(expr, units, current_unit, timestamp):
+    resolved_subexprs = []
+    for subexpr in expr:
+        if isinstance(subexpr, Expression):
+            resolved = resolve_unit_property(subexpr, units, current_unit, timestamp)
+            if callable(resolved):
+                resolved_subexprs.append(subexpr)
+            else:
+                resolved_subexprs.append(resolved)
+        # elif isinstance(subexpr, List):
+        #     print(subexpr)
+        #     breakpoint()
+        #     resolved = resolve_unit_property(subexpr, units, current_unit, timestamp)
+        else:
+            print(subexpr)
+            resolved_subexprs.append(subexpr)
+
+    locals_dict = dict(
+        __builtins__=globals()["__builtins__"],
+        time=time,
+        datetime=datetime,
+        get_day_of_week=get_day_of_week,
+        timestamp=timestamp,
+        **units,
+    )
+
+    if current_unit:
+        locals_dict["self"] = current_unit
+    try:
+        print(f"0: {resolved_subexprs}")
+
+        value = hy_eval(Expression(resolved_subexprs), locals_dict)
+    except NameError:
+        value = Expression(resolved_subexprs)
+
+    except Exception as e:  # added more specific exception handling
+        if "object is not callable" in str(e):
+
+            return Expression(resolved_subexprs)
+
+        else:
+            raise e  # re-raise exceptions
+    return value
+
+
 def resolve_unit_property(expr, units, current_unit=None, timestamp=None):
-    """Recursively resolves unit properties, handling inter-unit references."""
+    """Recursively resolves unit properties."""
+
     if isinstance(expr, Integer):
         return int(expr)
     elif isinstance(expr, String):
         return str(expr)
     elif isinstance(expr, Symbol):
-        sym_str = str(expr)
-
-        if "." in sym_str:  # Handle inter-unit references
-            unit_name, prop_name = sym_str.split(".", 1)
-            if unit_name in units and hasattr(units[unit_name], prop_name):
-                return getattr(units[unit_name], prop_name)
-            elif unit_name in units:  # Handle circular or multi-step dependencies
-                return resolve_unit_property(
-                    expr, units, current_unit=current_unit, timestamp=timestamp
-                )  # Pass the current_unit
-            else:
-                dependent_unit = Unit(name=unit_name)
-                units[unit_name] = dependent_unit
-                return resolve_unit_property(
-                    expr, units, current_unit=current_unit, timestamp=timestamp
-                )  # Pass the current_unit
-
-        # Check if symbol matches a unit property of the current unit
-        elif current_unit and hasattr(current_unit, sym_str):
-            return getattr(current_unit, sym_str)
-        elif sym_str in units:  # Handle referencing a unit by name
-            return units[sym_str]
-        try:  # Attempt conversion for potential numeric symbols
-            return int(sym_str)
-        except ValueError:
-            return sym_str  # otherwise return as string
+        print(f"symbol:{expr}")
+        return _resolve_symbol(expr, units, current_unit, timestamp)
     elif isinstance(expr, List):
-        return [
-            resolve_unit_property(item, units, current_unit, timestamp=timestamp) for item in expr
-        ]
+        print(f"list:{expr}")
+        return _resolve_list(expr, units, current_unit, timestamp)
     elif isinstance(expr, Expression):
-        locals_dict = dict(
-            __builtins__=globals()["__builtins__"],
-            time=time,
-            datetime=datetime,
-            TIMESTAMP=timestamp,
-            get_day_of_week=get_day_of_week,
-            **units,
-        )
-
-        if current_unit:
-            locals_dict["self"] = current_unit
-
-        return hy_eval(expr, locals=locals_dict)
+        print(f"expression:{expr}")
+        return _resolve_expression(expr, units, current_unit, timestamp)
     else:
+        print(f"expr:{expr}")
         return expr
+
+
+# def resolve_unit_property(expr, units, current_unit=None, timestamp=None):
+#     """Recursively resolves unit properties, handling inter-unit references."""
+#     if isinstance(expr, Integer):
+#         return int(expr)
+#     elif isinstance(expr, String):
+#         return str(expr)
+#     elif isinstance(expr, Symbol):
+#         sym_str = str(expr)
+
+#         if "." in sym_str:  # Handle inter-unit references
+#             unit_name, prop_name = sym_str.split(".", 1)
+#             if unit_name in units and hasattr(units[unit_name], prop_name):
+#                 return getattr(units[unit_name], prop_name)
+#             elif unit_name in units:  # Handle circular or multi-step dependencies
+#                 return resolve_unit_property(
+#                     expr, units, current_unit=current_unit, timestamp=timestamp
+#                 )  # Pass the current_unit
+#             else:
+#                 dependent_unit = Unit(name=unit_name)
+#                 units[unit_name] = dependent_unit
+#                 return resolve_unit_property(
+#                     expr, units, current_unit=current_unit, timestamp=timestamp
+#                 )  # Pass the current_unit
+
+#         # Check if symbol matches a unit property of the current unit
+#         elif current_unit and hasattr(current_unit, sym_str):
+#             return getattr(current_unit, sym_str)
+#         elif sym_str in units:  # Handle referencing a unit by name
+#             return units[sym_str]
+#         try:  # Attempt conversion for potential numeric symbols
+#             return int(sym_str)
+#         except ValueError:
+#             return sym_str  # otherwise return as string
+#     elif isinstance(expr, List):
+#         return [
+#             resolve_unit_property(item, units, current_unit, timestamp=timestamp) for item in expr
+#         ]
+#     elif isinstance(expr, Expression):
+#         resolved_subexprs = []
+#         for subexpr in expr:
+#             if isinstance(subexpr, Expression):
+#                 resolved_subexprs.append(resolve_unit_property(subexpr, units, current_unit, timestamp))
+#             else:
+#                 resolved_subexprs.append(subexpr)
+#         locals_dict = dict(
+#             __builtins__=globals()["__builtins__"],
+#             time=time,
+#             datetime=datetime,
+#             TIMESTAMP=timestamp,
+#             get_day_of_week=get_day_of_week,
+#             **units,
+#         )
+
+#         if current_unit:
+#             locals_dict["self"] = current_unit
+#         # print(expr)
+#         # print(resolved_subexprs)
+#         try:
+#             value = hy_eval(Expression(resolved_subexprs), locals_dict)
+#         except NameError:
+#             value = Expression(resolved_subexprs)
+#         # print(value)
+#         return value
+#     else:
+#         return expr
 
 
 def process_units(units_data, timestamp):
@@ -124,9 +265,20 @@ def process_units(units_data, timestamp):
 
     # Calculate index after all properties are resolved
     for unit in units.values():
-        if not unit.index and unit.names and unit.length and unit.start:
+        if (
+            not unit.get_index(timestamp)
+            and unit.get_names(timestamp)
+            and unit.get_length(timestamp)
+            and unit.get_start(timestamp)
+        ):
             unit.index = (
-                int((timestamp - unit.start) / unit.length * len(unit.names)) if unit.length else 0
+                int(
+                    (timestamp - unit.get_start(timestamp))
+                    / unit.get_length(timestamp)
+                    * len(unit.get_names(timestamp))
+                )
+                if unit.get_length(timestamp)
+                else 0
             )
 
     return units
@@ -175,7 +327,7 @@ def print_month_calendar(month_unit, week_unit, day_unit):
     print()
 
 
-def get_month_data(year_start, current_month, months_across, week_unit, day_unit):
+def get_month_data(year_start, current_month, months_across, month_unit, week_unit, day_unit):
     """Calculates and returns month-related data for a row of months."""
     timezone = datetime.timezone(datetime.timedelta(seconds=float(week_unit.timezone)))
     days = [1] * months_across
@@ -287,7 +439,7 @@ def print_year_calendar(year_unit, month_unit, week_unit, day_unit):
         print_weekday_headers(week_unit, months_across)
 
         days, month_starts, month_ends, first_day_weekdays = get_month_data(
-            year_start, current_month, months_across, week_unit, day_unit
+            year_start, current_month, months_across, month_unit, week_unit, day_unit
         )
         # print(days, month_starts, month_ends, first_day_weekdays)
 
@@ -332,22 +484,22 @@ def main():
 
     for unit in units.values():
         print(f"Unit: {unit.name}")
-        print(f"  length: {unit.length/86400}")
-        print(f"  timezone: {unit.timezone/3600}")
+        print(f"  length: {unit.get_length(timestamp)/86400}")
+        print(f"  timezone: {unit.get_timezone(timestamp)/3600}")
         if unit.start:
             print(
-                f"  start: {datetime.datetime.fromtimestamp(unit.start, tz=datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S %z')}"
+                f"  start: {datetime.datetime.fromtimestamp(unit.get_start(timestamp), tz=datetime.timezone.utc).strftime('%Y-%m-%d %H:%M:%S %z')}"
             )
-        print(f"  start: {unit.start}")
-        print(f"  names: {unit.names}")
-        print(f"  index: {unit.index}")
+        print(f"  start: {unit.get_start(timestamp)}")
+        print(f"  names: {unit.get_names(timestamp)}")
+        print(f"  index: {unit.get_index(timestamp)}")
         if unit.names:
-            print(f"  name: {unit.names[unit.index]}")
+            print(f"  name: {unit.get_names(timestamp)[unit.index]}")
         # Access other properties similarly: unit.timezone, unit.start, etc.
 
     # print_month_calendar(units["month"], units["week10"], units["day"])
     # print_calendar(units["month"], units["week10"], units["day"])
-    print_year_calendar(units["year"], units["month"], units["week7"], units["day"])
+    print_year_calendar(units["year"], units["month13"], units["week7"], units["day"])
 
 
 if __name__ == "__main__":
