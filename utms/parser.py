@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from typing import Optional
 
+import uuid
 import hy
 from hy.compiler import hy_eval
 from hy.models import Expression, Integer, Lazy, List, String, Symbol
@@ -55,13 +56,13 @@ class Unit:
 
 
 def get_day_of_week(timestamp: float, week_unit: Unit, day_unit: Unit) -> int:
-    timezone = datetime.timezone(datetime.timedelta(seconds=float(week_unit.timezone)))
+    timezone = datetime.timezone(datetime.timedelta(seconds=float(day_unit.get_timezone(timestamp))))
     reference_timestamp = (
         datetime.datetime(1970, 1, 1, tzinfo=timezone) + datetime.timedelta(days=week_unit.offset)
     ).timestamp()
 
-    total_days_elapsed = (Decimal(timestamp) - Decimal(reference_timestamp)) // day_unit.length
-    day_of_week = int(total_days_elapsed % (week_unit.length // day_unit.length))
+    total_days_elapsed = (Decimal(timestamp) - Decimal(reference_timestamp)) // day_unit.get_length(timestamp)
+    day_of_week = int(total_days_elapsed % (week_unit.get_length(timestamp) // day_unit.get_length(timestamp)))
 
     return day_of_week
 
@@ -73,7 +74,7 @@ def evaluate_hy_file(hy_file_path):
     return hy.read_many(hy_code)
 
 
-def _resolve_symbol(expr, units, current_unit, timestamp):
+def _resolve_symbol(expr, units, current_unit, timestamp, local_names=None):
     """Resolves a Symbol, handling inter-unit references."""
     sym_str = str(expr)
 
@@ -82,11 +83,11 @@ def _resolve_symbol(expr, units, current_unit, timestamp):
         if unit_name in units and hasattr(units[unit_name], prop_name):
             return getattr(units[unit_name], prop_name)
         elif unit_name in units:  # Circular/multi-step dependencies
-            return resolve_unit_property(expr, units, current_unit, timestamp)
+            return resolve_unit_property(expr, units, current_unit, timestamp, local_names)
         else:  # Unit not yet defined, create placeholder
             dependent_unit = Unit(name=unit_name)
             units[unit_name] = dependent_unit
-            return resolve_unit_property(expr, units, current_unit, timestamp)
+            return resolve_unit_property(expr, units, current_unit, timestamp, local_names)
 
     elif current_unit and hasattr(current_unit, sym_str):  # changed: incorrect check
         return getattr(current_unit, sym_str)
@@ -98,25 +99,22 @@ def _resolve_symbol(expr, units, current_unit, timestamp):
         return sym_str  # Return as string
 
 
-def _resolve_list(expr, units, current_unit, timestamp):
-    return [resolve_unit_property(item, units, current_unit, timestamp) for item in expr]
+def _resolve_list(expr, units, current_unit, timestamp, local_names = None):
+    return [resolve_unit_property(item, units, current_unit, timestamp, local_names) for item in expr]
 
 
-def _resolve_expression(expr, units, current_unit, timestamp):
+def _resolve_expression(expr, units, current_unit, timestamp, local_names=None):
     resolved_subexprs = []
+    if local_names is None:
+        local_names = {}
     for subexpr in expr:
         if isinstance(subexpr, Expression):
-            resolved = resolve_unit_property(subexpr, units, current_unit, timestamp)
+            resolved = resolve_unit_property(subexpr, units, current_unit, timestamp, local_names)
             if callable(resolved):
                 resolved_subexprs.append(subexpr)
             else:
                 resolved_subexprs.append(resolved)
-        # elif isinstance(subexpr, List):
-        #     print(subexpr)
-        #     breakpoint()
-        #     resolved = resolve_unit_property(subexpr, units, current_unit, timestamp)
         else:
-            print(subexpr)
             resolved_subexprs.append(subexpr)
 
     locals_dict = dict(
@@ -128,11 +126,21 @@ def _resolve_expression(expr, units, current_unit, timestamp):
         **units,
     )
 
+
     if current_unit:
         locals_dict["self"] = current_unit
-    try:
-        print(f"0: {resolved_subexprs}")
 
+    for i, item in enumerate(resolved_subexprs):
+        if isinstance(item, Expression) and isinstance(item[0], Symbol) and str(item[0]) == "fn":
+            func_name = f"_utms_{uuid.uuid4().hex}"
+            locals_dict[func_name] = hy_eval(item, locals_dict)
+            resolved_subexprs[i] = Symbol(func_name)
+            local_names[func_name] = locals_dict[func_name]
+    if current_unit:
+        locals_dict.update(local_names)
+
+    try:
+        # print(f"0: {resolved_subexprs}")
         value = hy_eval(Expression(resolved_subexprs), locals_dict)
     except NameError:
         value = Expression(resolved_subexprs)
@@ -147,7 +155,7 @@ def _resolve_expression(expr, units, current_unit, timestamp):
     return value
 
 
-def resolve_unit_property(expr, units, current_unit=None, timestamp=None):
+def resolve_unit_property(expr, units, current_unit=None, timestamp=None, local_names = None):
     """Recursively resolves unit properties."""
 
     if isinstance(expr, Integer):
@@ -155,16 +163,16 @@ def resolve_unit_property(expr, units, current_unit=None, timestamp=None):
     elif isinstance(expr, String):
         return str(expr)
     elif isinstance(expr, Symbol):
-        print(f"symbol:{expr}")
-        return _resolve_symbol(expr, units, current_unit, timestamp)
+        # print(f"symbol:{expr}")
+        return _resolve_symbol(expr, units, current_unit, timestamp, local_names)
     elif isinstance(expr, List):
-        print(f"list:{expr}")
-        return _resolve_list(expr, units, current_unit, timestamp)
+        # print(f"list:{expr}")
+        return _resolve_list(expr, units, current_unit, timestamp, local_names)
     elif isinstance(expr, Expression):
-        print(f"expression:{expr}")
-        return _resolve_expression(expr, units, current_unit, timestamp)
+        # print(f"expression:{expr}")
+        return _resolve_expression(expr, units, current_unit, timestamp, local_names)
     else:
-        print(f"expr:{expr}")
+        # print(f"expr:{expr}")
         return expr
 
 
@@ -327,14 +335,14 @@ def print_month_calendar(month_unit, week_unit, day_unit):
     print()
 
 
-def get_month_data(year_start, current_month, months_across, month_unit, week_unit, day_unit):
+def get_month_data(timestamp, year_start, current_month, months_across, month_unit, week_unit, day_unit):
     """Calculates and returns month-related data for a row of months."""
     timezone = datetime.timezone(datetime.timedelta(seconds=float(week_unit.timezone)))
     days = [1] * months_across
     month_starts = []
     month_ends = []
     first_day_weekdays = []
-    week_day_length = week_unit.length // day_unit.length
+    week_day_length = week_unit.get_length(timestamp) // day_unit.get_length(timestamp)
 
     for i in range(months_across):
         m = current_month + i
@@ -378,13 +386,13 @@ def print_weekday_headers(week_unit, months_across):
 
 
 def print_week_row(
-    days, month_starts, month_ends, first_day_weekdays, week_length, month_unit, week_unit, day_unit
+    timestamp, days, month_starts, month_ends, first_day_weekdays, week_length, month_unit, week_unit, day_unit
 ):
     week_row = []
-    current_week_start = week_unit.start
-    current_week_end = week_unit.start + week_unit.length
-    current_month_start = month_unit.start
-    current_month_end = month_unit.start + month_unit.length
+    current_week_start = week_unit.get_start(timestamp)
+    current_week_end = week_unit.get_start(timestamp) + week_unit.get_length(timestamp)
+    current_month_start = month_unit.get_start(timestamp)
+    current_month_end = month_unit.get_start(timestamp) + month_unit.get_length(timestamp)
     for i in range(len(month_starts)):  # Use correct index range
 
         month_week_days = []
@@ -398,7 +406,7 @@ def print_week_row(
                         day_str = f"{days[i]:2}"
                         if current_month_start <= current_date.timestamp() < current_month_end:
                             if current_week_start <= current_date.timestamp() < current_week_end:
-                                if current_date.timestamp() == day_unit.start + day_unit.timezone:
+                                if current_date.timestamp() == day_unit.get_start(timestamp) + day_unit.get_timezone(timestamp):
                                     day_str = f"\033[41m{day_str}\033[0m"
                                 else:
                                     day_str = f"\033[96m{day_str}\033[0m"
@@ -416,10 +424,10 @@ def print_week_row(
     print("   ".join(week_row))
 
 
-def print_year_calendar(year_unit, month_unit, week_unit, day_unit):
+def print_year_calendar(timestamp, year_unit, month_unit, week_unit, day_unit):
     """Prints the yearly calendar."""
-    year_start = datetime.datetime.fromtimestamp(year_unit.start)
-    week_length = week_unit.length // day_unit.length
+    year_start = datetime.datetime.fromtimestamp(year_unit.get_start(timestamp))
+    week_length = week_unit.get_length(timestamp) // day_unit.get_length(timestamp)
 
     months_across = 3
     total_width = months_across * (
@@ -439,7 +447,7 @@ def print_year_calendar(year_unit, month_unit, week_unit, day_unit):
         print_weekday_headers(week_unit, months_across)
 
         days, month_starts, month_ends, first_day_weekdays = get_month_data(
-            year_start, current_month, months_across, month_unit, week_unit, day_unit
+            timestamp, year_start, current_month, months_across, month_unit, week_unit, day_unit
         )
         # print(days, month_starts, month_ends, first_day_weekdays)
 
@@ -450,6 +458,7 @@ def print_year_calendar(year_unit, month_unit, week_unit, day_unit):
 
         for _ in range(max_weeks):
             print_week_row(
+                timestamp,
                 days,
                 month_starts,
                 month_ends,
@@ -479,7 +488,7 @@ def main():
     # timestamp = datetime.datetime(2025,1,15,23,59,59,tzinfo=datetime.timezone.utc).timestamp()
     # timestamp = datetime.datetime(2025,1,16,0,0,0,tzinfo=datetime.timezone.utc).timestamp()
     # timestamp = datetime.datetime(2025, 1, 16, 0, 0, 1, tzinfo=datetime.timezone.utc).timestamp()
-    # timestamp = datetime.datetime(2024,6,27,23,59,59,tzinfo=datetime.timezone.utc).timestamp()
+    timestamp = datetime.datetime(2024,6,27,23,59,59,tzinfo=datetime.timezone.utc).timestamp()
     units = process_units(units_data, timestamp)
 
     for unit in units.values():
@@ -494,12 +503,12 @@ def main():
         print(f"  names: {unit.get_names(timestamp)}")
         print(f"  index: {unit.get_index(timestamp)}")
         if unit.names:
-            print(f"  name: {unit.get_names(timestamp)[unit.index]}")
+            print(f"  name: {unit.get_names(timestamp)[unit.get_index(timestamp)]}")
         # Access other properties similarly: unit.timezone, unit.start, etc.
 
     # print_month_calendar(units["month"], units["week10"], units["day"])
     # print_calendar(units["month"], units["week10"], units["day"])
-    print_year_calendar(units["year"], units["month13"], units["week7"], units["day"])
+    print_year_calendar(timestamp, units["year"], units["month"], units["week7"], units["day"])
 
 
 if __name__ == "__main__":
