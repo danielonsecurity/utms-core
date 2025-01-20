@@ -71,9 +71,10 @@ from typing import Dict, Iterator, List, NamedTuple, Optional, Union
 
 from colorama import Fore, Style
 
-from utms import constants
-from utms.units import UnitManager
 from utms.utils import value_to_decimal
+
+from . import constants
+from .units import UnitManager
 
 
 class AnchorConfig(NamedTuple):

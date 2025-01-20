@@ -13,9 +13,10 @@ Exports:
     - `register_daytime_convert_command`: Function to register the daytime conversion command.
 """
 
-from utms.cli.commands.core import Command, CommandManager
-from utms.cli.commands.daytime.helper import add_value_argument
 from utms.utils import convert_time
+
+from ..core import Command, CommandManager
+from .helper import add_value_argument
 
 
 def register_daytime_convert_command(command_manager: CommandManager) -> None:

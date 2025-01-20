@@ -13,8 +13,8 @@ Exports:
     - `register_unit_table_command`: Function to register the unit table command.
 """
 
-from utms.cli.commands.core import Command, CommandManager
-from utms.cli.commands.unit.helper import add_columns_argument, add_rows_argument, add_unit_argument
+from ..core import Command, CommandManager
+from .helper import add_columns_argument, add_rows_argument, add_unit_argument
 
 
 def register_unit_table_command(command_manager: CommandManager) -> None:

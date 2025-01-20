@@ -18,8 +18,9 @@ Functions:
 import argparse
 
 from utms import Config
-from utms.cli.commands.anchor.helper import add_label_argument
-from utms.cli.commands.core import Command, CommandManager
+
+from ..core import Command, CommandManager
+from .helper import add_label_argument
 
 
 def delete_anchor(args: argparse.Namespace, config: Config) -> None:

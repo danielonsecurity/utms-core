@@ -22,8 +22,9 @@ Usage:
 import argparse
 
 from utms import Config
-from utms.cli.commands.anchor.helper import add_anchor_list_argument
-from utms.cli.commands.core import Command, CommandManager
+
+from ..core import Command, CommandManager
+from .helper import add_anchor_list_argument
 
 
 def get_anchors(args: argparse.Namespace, config: Config) -> None:

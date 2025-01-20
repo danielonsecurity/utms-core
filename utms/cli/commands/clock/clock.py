@@ -20,8 +20,9 @@ Usage:
         register_clock_command(command_manager)
 """
 
-from utms.cli.commands.core import Command, CommandManager
-from utms.clock import run_clock
+from utms.core import run_clock
+
+from ..core import Command, CommandManager
 
 
 def register_clock_command(command_manager: CommandManager) -> None:

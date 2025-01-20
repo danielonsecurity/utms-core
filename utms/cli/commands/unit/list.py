@@ -12,8 +12,8 @@ Exports:
     - `register_unit_list_command`: Function to register the unit list command.
 """
 
-from utms.cli.commands.core import Command, CommandManager
-from utms.cli.commands.unit.helper import add_plt_argument
+from ..core import Command, CommandManager
+from .helper import add_plt_argument
 
 
 def register_unit_list_command(command_manager: CommandManager) -> None:

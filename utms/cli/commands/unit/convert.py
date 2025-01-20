@@ -14,8 +14,8 @@ Exports:
     - `register_unit_convert_command`: Function to register the unit conversion command.
 """
 
-from utms.cli.commands.core import Command, CommandManager
-from utms.cli.commands.unit.helper import (
+from ..core import Command, CommandManager
+from .helper import (
     add_full_argument,
     add_plt_argument,
     add_precision_argument,

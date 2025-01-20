@@ -24,14 +24,15 @@ from datetime import datetime
 from decimal import Decimal
 
 from utms import AI, Config
-from utms.cli.commands.core import Command, CommandManager
-from utms.cli.commands.resolve.helper import (
+from utms.utils import print_time
+
+from ..core import Command, CommandManager
+from .helper import (
     add_anchor_list_argument,
     add_input_argument,
     add_plt_argument,
     add_units_argument,
 )
-from utms.utils import print_time
 
 
 def handle_resolve_command(args: argparse.Namespace, config: Config) -> None:

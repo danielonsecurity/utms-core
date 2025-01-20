@@ -15,7 +15,7 @@ Functions:
 import importlib
 import pkgutil
 
-from utms.cli.commands.core import CommandManager
+from .core import CommandManager
 
 
 def register_all_commands(command_manager: CommandManager) -> None:

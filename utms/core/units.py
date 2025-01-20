@@ -50,7 +50,7 @@ from typing import Dict, Iterator, Optional, Union
 
 from colorama import Fore, Style
 
-from utms.utils import seconds_to_hplt, seconds_to_pplt
+from .plt import seconds_to_hplt, seconds_to_pplt
 
 
 def format_value(

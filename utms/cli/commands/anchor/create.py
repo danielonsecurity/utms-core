@@ -18,9 +18,10 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import List, Optional
 
-from utms import AI, Config
-from utms.anchors import AnchorConfig
-from utms.cli.commands.anchor.helper import (
+from utms import AI, AnchorConfig, Config
+
+from ..core import Command, CommandManager
+from .helper import (
     add_breakdowns_argument,
     add_groups_argument,
     add_label_argument,
@@ -28,7 +29,6 @@ from utms.cli.commands.anchor.helper import (
     add_precision_argument,
     add_value_argument,
 )
-from utms.cli.commands.core import Command, CommandManager
 
 
 def set_anchor(args: argparse.Namespace, config: Config) -> None:

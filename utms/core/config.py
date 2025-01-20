@@ -32,9 +32,9 @@ from typing import Any, List, Optional, Tuple, Union
 import appdirs
 import ntplib
 
-from utms import constants
-from utms.anchors import AnchorConfig, AnchorManager
-from utms.units import UnitManager
+from . import constants
+from .anchors import AnchorConfig, AnchorManager
+from .units import UnitManager
 
 
 def get_ntp_date() -> datetime:

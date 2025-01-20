@@ -59,9 +59,10 @@ import requests
 from colorama import Fore, Style
 from google.api_core.exceptions import ResourceExhausted
 
-from utms import constants
-from utms.config import Config
 from utms.utils import resolve_date_dateparser
+
+from . import constants
+from .config import Config
 
 
 class AI:
