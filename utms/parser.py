@@ -18,8 +18,10 @@ from utms.utils import get_day_of_week, get_timezone
 def main():
     hy_file_path = "resources/units.hy"
     units_data = evaluate_hy_file(hy_file_path)
-    timestamp = time.time()
-    timestamp = datetime.datetime(2025, 1, 15, 0, 0, 0, tzinfo=datetime.timezone.utc).timestamp()
+    # timestamp = time.time()
+    timestamp = datetime.datetime(2025, 6, 19, 12, 0, 0, tzinfo=datetime.timezone.utc).timestamp()
+    # timestamp = datetime.datetime(2024, 6, 17, 12, 0, 0, tzinfo=datetime.timezone.utc).timestamp() # Leap day in IFT
+
     # timestamp = datetime.datetime(2025,1,16,0,0,0,tzinfo=datetime.timezone.utc).timestamp()
     # timestamp = datetime.datetime(2025, 1, 16, 0, 0, 1, tzinfo=datetime.timezone.utc).timestamp()
     # timestamp = datetime.datetime(2024,6,27,23,59,59,tzinfo=datetime.timezone.utc).timestamp()

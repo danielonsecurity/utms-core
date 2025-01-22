@@ -22,6 +22,7 @@ class HyResolver:
             return expr
 
     def _resolve_symbol(self, expr, context, local_names=None):
+        
         """Base symbol resolution - override in subclasses if needed"""
         if local_names and str(expr) in local_names:
             return local_names[str(expr)]

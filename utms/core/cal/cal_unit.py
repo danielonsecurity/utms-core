@@ -1,16 +1,14 @@
+from decimal import Decimal
+from typing import List, Optional
+from types import FunctionType
 import datetime
 import time
-from decimal import Decimal
-from types import FunctionType
-from typing import List, Optional
-
 from hy.models import Expression, Integer, List, String, Symbol
 
 from utms.resolvers import CalendarResolver
 from utms.utils import get_day_of_week
 
 _resolver = CalendarResolver()
-
 
 class CalendarUnit:
     def __init__(self, name, units=None, **kwargs):
@@ -24,7 +22,7 @@ class CalendarUnit:
         self.index: int = kwargs.get("index", 0)
         self._func_cache = {}
 
-    def get_value(self, prop, timestamp=0):
+    def get_value(self, prop, timestamp=0, *args, **kwargs):
         value = getattr(self, prop)
         if callable(value):
             if prop in self._func_cache:
@@ -38,18 +36,23 @@ class CalendarUnit:
                     "datetime": datetime,
                     "time": time,
                     "get_day_of_week": get_day_of_week,
-                    **self.units,
+                    **self.units
                 }
-
+                
                 # Create a new function with the updated globals
                 func_with_globals = FunctionType(
-                    func.__code__, func_globals, func.__name__, func.__defaults__, func.__closure__
+                    func.__code__, 
+                    func_globals,
+                    func.__name__,
+                    func.__defaults__,
+                    func.__closure__
                 )
 
                 # Cache the function
                 self._func_cache[prop] = func_with_globals
 
-            return func_with_globals(timestamp)
+                print(args, kwargs)
+            return func_with_globals(timestamp, *args, **kwargs)
         elif isinstance(value, (int, float, str, Decimal, list)):
             return value
         else:
@@ -69,4 +72,4 @@ class CalendarUnit:
             if unit_length:
                 self.index = int((timestamp - unit_start) / unit_length * names_len)
             else:
-                self.index = 0
+                self.index = 0        
