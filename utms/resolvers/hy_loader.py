@@ -4,12 +4,26 @@ import hy
 from hy.compiler import hy_eval
 from hy.models import Expression, Symbol
 
+from utms.utils import get_logger
+
+logger = get_logger('resolvers.hy_loader')
+
 
 def evaluate_hy_file(hy_file_path):
     """Evaluates the HyLang file and returns the resulting data structures."""
     with open(hy_file_path, "r") as file:
         hy_code = file.read()
-    return hy.read_many(hy_code)
+    
+    logger.debug(f"Reading Hy file: {hy_file_path}")
+    expressions = hy.read_many(hy_code)
+    
+    # Collect all expressions into a list
+    expressions_list = []
+    for expr in expressions:
+        expressions_list.append(expr)
+    
+    logger.debug(f"Loaded {len(expressions_list)} expressions")
+    return expressions_list
 
 
 def evaluate_hy_expression(expr, locals_dict=None):

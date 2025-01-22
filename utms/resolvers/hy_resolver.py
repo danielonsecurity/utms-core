@@ -1,9 +1,10 @@
 from decimal import Decimal
 
 from hy.models import Expression, Integer, List, String, Symbol
-
+from utms.utils import get_logger
 from .hy_loader import evaluate_hy_expression
 
+logger = get_logger("resolvers.hy_resolver")
 
 class HyResolver:
     def resolve(self, expr, context=None, local_names=None):
@@ -39,6 +40,7 @@ class HyResolver:
         ]
 
     def _resolve_expression(self, expr, context, local_names=None):
+        """Main resolution method"""
         if local_names is None:
             local_names = {}
 

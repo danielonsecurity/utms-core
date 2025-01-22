@@ -1,4 +1,4 @@
-(defunit "day"
+(defunit day
   (length (fn [[_ None]] (* 1 86400)))  ; Duration of a day in seconds
   (timezone (fn [[_ None]] 3600))  ; UTC+1 timezone
   ;; (timezone 0)  ; UTC+1 timezone
@@ -12,7 +12,7 @@
 
 
 
-(defunit "week7"
+(defunit week7
   (length (* 7 (day.length)))
   ;; offsets for week start:
   ;; 0 - Thursday (1970-01-01 was thursday)
@@ -41,7 +41,7 @@
   )
 
 
-(defunit "week7sunday"
+(defunit week7sunday
   (length (* 7 (day.length)))
   (timezone day.timezone)
   ;; offsets for week start:
@@ -64,7 +64,7 @@
   )
 
 
-(defunit "week10"
+(defunit week10
   (length (* 10 (day.length)))
   (timezone day.timezone)
   (offset 3)
@@ -78,7 +78,7 @@
   (names ["Firstday" "Secondday" "Thirdday" "Fourthday" "Fifthtday" "Sixthday" "Sevenday" "Eigthday" "Nineday" "Tenday"])
   )
 
-(defunit "month"
+(defunit month
   (timezone day.timezone)
   (length
     (fn [ts #* _]
@@ -112,7 +112,7 @@
 
 
 
-(defunit "year"
+(defunit year
   (timezone day.timezone)
   (length
     (fn [ts]
@@ -144,9 +144,69 @@
          )
   )
 
+(defcalendar gregorian
+  (day day)
+  (week week7)
+  (month month)
+  (year year)
+  (day-of-week
+    (fn [ts]
+      (let [day-length (day.length ts)
+            week-length week.length
+            timezone-offset (day.timezone ts)
+            reference (+ 0 (* (. week offset) day-length) (- timezone-offset))
+            days-elapsed (// (- ts reference) day-length)
+            days-per-week (// week-length day-length)
+            ]
+        (int (% days-elapsed days-per-week)))))
+  ;; (day-of-week
+  ;;   (fn [ts]
+  ;;     ;; (print "self object:" self)
+  ;;     ;; ;; (print "self.day_unit.get_value:" ((. self day_unit get_value)))
+  ;;     ;; (print "self.day_unit.get_value(length):" ((. self day_unit get_value) "length" ts))
+  ;;     (print "Starting function execution")
+  ;;     (print "Available names in outer scope:" (locals))
+  ;;     (breakpoint)
+  ;;     (print "day object:" (day.length ts))
+  ;;     ;; (print "day.length:" day.length)
+  ;;     ;; (print "(day.length):" (day.length))
+  ;;     ;; (print "Using get_value:" (day.get_value "length" ts))
+
+  ;;     ;; (print "Through self:" ((. self day_unit get_value) "length" ts))
+  ;;     ;; (print "Through self:" ((. self day_unit get_value) "length" ts))
+  ;;     ;; (print "(day.get_value \"length\" ts):" (day.get_value "length" ts))
+  ;;     ;; (print "(day.length ts):" (day.length ts))
+  ;;     ;; (let [length-fn day.length]
+  ;;     ;;   (print "Using stored function:" (length-fn ts)))
+
+  ;;     0
+  ;;     ))
+  ;; (day-of-week
+  ;;   (fn [timestamp]
+  ;;     (let [day-length (day.get_value "length" timestamp)
+  ;;           week-length (week7.get_value "length" timestamp)
+  ;;           timezone-offset (day.get_value "timezone" timestamp)
+  ;;           reference (+ 0 (* (. week7 offset) day-length) (- timezone-offset))
+  ;;           days-elapsed (// (- timestamp reference) day-length)
+  ;;           days-per-week (// week-length day-length)]
+  ;;       (% days-elapsed days-per-week))))
+  )
 
 
-(defunit "week7fixed"
+(defcalendar gregorian-sunday
+  (day day)
+  (week week7sunday)
+  (month month)
+  (year year))
+
+(defcalendar week10
+  (day day)
+  (week week10)
+  (month month)
+  (year year))
+
+
+(defunit week7fixed
   (length (* 7 (day.length)))
   (offset 4)
   (timezone day.timezone)
@@ -178,7 +238,7 @@
 
 
 
-(defunit "monthfixed"
+(defunit monthfixed
   (timezone day.timezone)
   (length
     (fn [ts [month-index None]]
@@ -261,7 +321,7 @@
 
 
 
-(defunit "yearfixed"
+(defunit yearfixed
   (timezone day.timezone)
   (length
     (fn [ts]
@@ -316,5 +376,12 @@
              ))
          )
   )
+
+
+(defcalendar ifc
+  (day day)
+  (week week7fixed)
+  (month monthfixed)
+  (year yearfixed))
 
 

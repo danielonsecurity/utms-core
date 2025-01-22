@@ -50,8 +50,6 @@ class CalendarUnit:
 
                 # Cache the function
                 self._func_cache[prop] = func_with_globals
-
-                print(args, kwargs)
             return func_with_globals(timestamp, *args, **kwargs)
         elif isinstance(value, (int, float, str, Decimal, list)):
             return value

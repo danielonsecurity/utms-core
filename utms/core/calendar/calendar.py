@@ -1,20 +1,78 @@
-from utms.utils import print_row, TimeRange, get_day_of_week, get_timezone
+from utms.utils import print_row, TimeRange, get_day_of_week, get_timezone, get_logger
+from .registry import CalendarRegistry
+from utms.resolvers import CalendarResolver
+from hy.models import Expression, Symbol
+from utms.utils import get_day_of_week
+from types import FunctionType
+from utms.resolvers import evaluate_hy_expression
+
+import datetime
+import time
+
+_resolver = CalendarResolver()
+logger = get_logger("core.calendar.calendar")
 
 
 class Calendar:
-    def __init__(self, timestamp, units):
+    def __init__(self, name, timestamp):
+        logger.debug(f"Initializing calendar: {name}")
+        self.name = name
         self.timestamp = timestamp
-        self.units = units
-        self.day_unit = units["day"]
-        self.week_unit = units["week7"]
-        self.month_unit = units["month"]
-        self.year_unit = units["year"]
+
+        self.units = CalendarRegistry.get_calendar_units(name)
+        # Set unit attributes from the configuration
+        for unit_type, unit in self.units.items():
+            if unit_type != "day_of_week_fn":
+                setattr(self, f"{unit_type}_unit", unit)
+                logger.debug(f"Set {unit_type}_unit to {unit.name}")
+
+        self.day_of_week_fn = self.units.get("day_of_week_fn")
+        logger.debug(f"Custom day-of-week function: {'exists' if self.day_of_week_fn else 'not found'}")
+
+
+        self._func_cache = {}
+
         self.week_length = self.week_unit.get_value("length", timestamp) // self.day_unit.get_value(
             "length", timestamp
         )
         self.today_start = self.day_unit.get_value("start", timestamp)
         self.current_week_range = self.get_time_range(timestamp, self.week_unit)
         self.current_month_range = self.get_time_range(timestamp, self.month_unit)
+
+        logger.info(f"Calendar '{name}' initialized successfully")
+
+    def get_day_of_week(self, timestamp):
+        """Get the day of week for a timestamp."""
+        logger.debug(f"Getting day of week for timestamp {timestamp}")
+        if self.day_of_week_fn:
+            logger.debug(f"Using custom day-of-week function")
+            if "day_of_week" in self._func_cache:
+                func = self._func_cache["day_of_week"]
+            else:
+                base_func = evaluate_hy_expression(self.day_of_week_fn, {})
+
+                func_globals = {
+                    **base_func.__globals__,
+                    "self": self,
+                    "datetime": datetime,
+                    "time": time,
+                    "get_day_of_week": get_day_of_week,
+                    **self.units
+                }
+                func = FunctionType(
+                    base_func.__code__,
+                    func_globals,
+                    base_func.__name__,
+                    base_func.__defaults__,
+                    base_func.__closure__
+                )
+                self._func_cache['day_of_week'] = func
+            logger.debug(f"Calling function with timestamp {timestamp}")
+            return func(timestamp)
+        else:
+            logger.debug("Using default implementation")
+            return get_day_of_week(timestamp, self.week_unit, self.day_unit)
+
 
     def get_time_range(self, timestamp, unit):
         start = unit.get_value("start", timestamp)
@@ -31,14 +89,14 @@ class Calendar:
         epoch_year = 1970
         years_since_epoch = int(self.timestamp / year_length)
         year_num = epoch_year + years_since_epoch
-        
+
         # Print year header
         total_width = months_across * (self.week_length * 3 + 3)
         year_str = str(year_num)
         padding = (total_width - len(year_str)) // 2
         print(" " * padding + "\033[1;31m" + year_str + "\033[0m " * padding)
         print()
-    
+
         # Walk through the year month by month
         current_month = 1
         current_timestamp = year_start
@@ -48,25 +106,23 @@ class Calendar:
             days, month_starts, month_ends, first_day_weekdays = self.get_month_data(
                 year_start, current_month, months_across
             )
-            
+
             # If no months to display in this group, we're done
             if not month_starts:
                 break
-                
+
             # Only print headers if we have data to display
             self.print_month_headers(year_start, current_month, months_across)
             self.print_weekday_headers(months_across, month_starts)
-            
+
             max_weeks = self.calculate_max_weeks(month_starts, month_ends, first_day_weekdays)
-    
+
             for _ in range(max_weeks):
                 self.print_week_row(days, month_starts, month_ends, first_day_weekdays)
                 self.reset_first_day_weekdays(first_day_weekdays, days, month_ends, month_starts)
-            
+
             current_month += months_across
             print()
-
-
 
     def print_month_headers(self, year_start, current_month, months_across):
         month_names = []
@@ -116,7 +172,6 @@ class Calendar:
 
         print_row(month_names)
 
-
     def get_month_data(self, year_start, current_month, months_across):
         days = []
         month_starts = []
@@ -147,7 +202,11 @@ class Calendar:
 
         # Calculate data for the current month group
         months_added = 0
-        while months_added < months_across and current_timestamp < year_end and month_index <= max_months:
+        while (
+            months_added < months_across
+            and current_timestamp < year_end
+            and month_index <= max_months
+        ):
             # Pass month_index to get_value
             month_length = self.month_unit.get_value("length", current_timestamp, month_index)
             # print(f"Processing month {month_index} - ts: {current_timestamp}, length: {month_length}")
@@ -159,7 +218,7 @@ class Calendar:
                 month_ends.append(month_end)
 
                 first_day_weekday = (
-                    get_day_of_week(current_timestamp, self.week_unit, self.day_unit)
+                    self.get_day_of_week(current_timestamp)
                     % self.week_length
                 )
                 first_day_weekdays.append(first_day_weekday)
@@ -174,18 +233,20 @@ class Calendar:
         max_weeks = 0
         day_length = self.day_unit.get_value("length", self.timestamp)
         days_per_week = self.week_unit.get_value("length", self.timestamp) // day_length
-        
+
         for i in range(len(month_starts)):
             # Calculate days in month using timestamps
             days_in_month = int((month_ends[i] - month_starts[i]) / day_length) + 1
-            
-            weeks_in_month = (days_in_month + first_day_weekdays[i] + (days_per_week - 1)) // days_per_week
+
+            weeks_in_month = (
+                days_in_month + first_day_weekdays[i] + (days_per_week - 1)
+            ) // days_per_week
             max_weeks = max(max_weeks, weeks_in_month)
         return max_weeks
 
     def print_week_row(self, days, month_starts, month_ends, first_day_weekdays):
         week_row = []
-    
+
         for i in range(len(month_starts)):
             week_days_str = self.get_month_week_days(
                 days, month_starts, month_ends, first_day_weekdays, i
@@ -193,15 +254,15 @@ class Calendar:
             total_width = (self.week_length * 2) + (self.week_length - 1)
             week_row.append(week_days_str.ljust(total_width))
         print_row(week_row)
-    
+
     def get_month_week_days(self, days, month_starts, month_ends, first_day_weekdays, i):
         """Generates the week's days string for a specific month index."""
         month_week_days = []
         day_length = self.day_unit.get_value("length", self.timestamp)
-        
+
         # Calculate total days in month
         days_in_month = int((month_ends[i] - month_starts[i]) / day_length) + 1
-        
+
         for day_of_week in range(self.week_length):
             if day_of_week < first_day_weekdays[i] and days[i] == 1:
                 # Pad with spaces before the first day of the month
@@ -212,9 +273,11 @@ class Calendar:
             else:
                 # Calculate timestamp for current day
                 current_day_timestamp = month_starts[i] + (days[i] - 1) * day_length
-                
+
                 is_current_month = (
-                    self.current_month_range.start <= current_day_timestamp < self.current_month_range.end
+                    self.current_month_range.start
+                    <= current_day_timestamp
+                    < self.current_month_range.end
                 )
                 day_str = self.format_day(
                     days[i],
@@ -223,10 +286,9 @@ class Calendar:
                 )
                 month_week_days.append(day_str)
                 days[i] += 1
-        
+
         # Join with single space between days
         return " ".join(month_week_days)
-
 
     def print_weekday_headers(self, months_across, month_starts=None):
         """Prints the weekday headers for a row of months."""
@@ -236,7 +298,9 @@ class Calendar:
         # Only print weekday headers for months that have data
         for i in range(months_across):
             if i < len(month_starts):
-                week_header = " ".join(["\033[33m" + name[:2] + "\033[0m" for name in weekday_names])
+                week_header = " ".join(
+                    ["\033[33m" + name[:2] + "\033[0m" for name in weekday_names]
+                )
                 week_headers.append(week_header.ljust(self.week_length * 3))
             else:
                 week_headers.append(" " * (self.week_length * 3))
@@ -261,11 +325,11 @@ class Calendar:
     def reset_first_day_weekdays(self, first_day_weekdays, days, month_ends, month_starts):
         """Resets first_day_weekdays after the first week."""
         day_length = self.day_unit.get_value("length", self.timestamp)
-        
+
         for i in range(len(first_day_weekdays)):
             # Calculate days in month using timestamps
             days_in_month = int((month_ends[i] - month_starts[i]) / day_length) + 1
-            
+
             if days[i] > days_in_month:
                 # Month is complete, stop incrementing days[i]
                 days[i] = days_in_month + 1
