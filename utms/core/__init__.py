@@ -1,7 +1,7 @@
 from . import constants
 from .ai import AI
 from .anchors import Anchor, AnchorConfig, AnchorManager
-from .calendar import Calendar, CalendarUnit, process_units, CalendarRegistry
+from .calendar import Calendar, CalendarRegistry, CalendarUnit, process_units
 from .clock import run_clock
 from .config import Config
 from .plt import seconds_to_hplt, seconds_to_pplt
@@ -19,6 +19,6 @@ __all__ = [
     "run_clock",
     "Calendar",
     "CalendarUnit",
-    "CalendarRegistry"
+    "CalendarRegistry",
     "process_units",
 ]

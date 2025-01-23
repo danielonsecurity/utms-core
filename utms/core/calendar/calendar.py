@@ -1,13 +1,13 @@
-from utms.utils import print_row, TimeRange, get_day_of_week, get_timezone, get_logger
-from .registry import CalendarRegistry
-from utms.resolvers import CalendarResolver
-from hy.models import Expression, Symbol
-from utms.utils import get_day_of_week
-from types import FunctionType
-from utms.resolvers import evaluate_hy_expression
-
 import datetime
 import time
+from types import FunctionType
+
+from hy.models import Expression, Symbol
+
+from utms.resolvers import CalendarResolver, evaluate_hy_expression
+from utms.utils import TimeRange, get_day_of_week, get_logger, get_timezone, print_row
+
+from .registry import CalendarRegistry
 
 _resolver = CalendarResolver()
 logger = get_logger("core.calendar.calendar")
@@ -27,8 +27,9 @@ class Calendar:
                 logger.debug(f"Set {unit_type}_unit to {unit.name}")
 
         self.day_of_week_fn = self.units.get("day_of_week_fn")
-        logger.debug(f"Custom day-of-week function: {'exists' if self.day_of_week_fn else 'not found'}")
-
+        logger.debug(
+            f"Custom day-of-week function: {'exists' if self.day_of_week_fn else 'not found'}"
+        )
 
         self._func_cache = {}
 
@@ -57,22 +58,21 @@ class Calendar:
                     "datetime": datetime,
                     "time": time,
                     "get_day_of_week": get_day_of_week,
-                    **self.units
+                    **self.units,
                 }
                 func = FunctionType(
                     base_func.__code__,
                     func_globals,
                     base_func.__name__,
                     base_func.__defaults__,
-                    base_func.__closure__
+                    base_func.__closure__,
                 )
-                self._func_cache['day_of_week'] = func
+                self._func_cache["day_of_week"] = func
             logger.debug(f"Calling function with timestamp {timestamp}")
             return func(timestamp)
         else:
             logger.debug("Using default implementation")
             return get_day_of_week(timestamp, self.week_unit, self.day_unit)
-
 
     def get_time_range(self, timestamp, unit):
         start = unit.get_value("start", timestamp)
@@ -217,10 +217,7 @@ class Calendar:
                 month_end = min(current_timestamp + month_length - 1, year_end - 1)
                 month_ends.append(month_end)
 
-                first_day_weekday = (
-                    self.get_day_of_week(current_timestamp)
-                    % self.week_length
-                )
+                first_day_weekday = self.get_day_of_week(current_timestamp) % self.week_length
                 first_day_weekdays.append(first_day_weekday)
                 months_added += 1
                 current_timestamp += month_length

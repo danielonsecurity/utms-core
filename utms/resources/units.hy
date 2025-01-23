@@ -159,37 +159,6 @@
             days-per-week (// week-length day-length)
             ]
         (int (% days-elapsed days-per-week)))))
-  ;; (day-of-week
-  ;;   (fn [ts]
-  ;;     ;; (print "self object:" self)
-  ;;     ;; ;; (print "self.day_unit.get_value:" ((. self day_unit get_value)))
-  ;;     ;; (print "self.day_unit.get_value(length):" ((. self day_unit get_value) "length" ts))
-  ;;     (print "Starting function execution")
-  ;;     (print "Available names in outer scope:" (locals))
-  ;;     (breakpoint)
-  ;;     (print "day object:" (day.length ts))
-  ;;     ;; (print "day.length:" day.length)
-  ;;     ;; (print "(day.length):" (day.length))
-  ;;     ;; (print "Using get_value:" (day.get_value "length" ts))
-
-  ;;     ;; (print "Through self:" ((. self day_unit get_value) "length" ts))
-  ;;     ;; (print "Through self:" ((. self day_unit get_value) "length" ts))
-  ;;     ;; (print "(day.get_value \"length\" ts):" (day.get_value "length" ts))
-  ;;     ;; (print "(day.length ts):" (day.length ts))
-  ;;     ;; (let [length-fn day.length]
-  ;;     ;;   (print "Using stored function:" (length-fn ts)))
-
-  ;;     0
-  ;;     ))
-  ;; (day-of-week
-  ;;   (fn [timestamp]
-  ;;     (let [day-length (day.get_value "length" timestamp)
-  ;;           week-length (week7.get_value "length" timestamp)
-  ;;           timezone-offset (day.get_value "timezone" timestamp)
-  ;;           reference (+ 0 (* (. week7 offset) day-length) (- timezone-offset))
-  ;;           days-elapsed (// (- timestamp reference) day-length)
-  ;;           days-per-week (// week-length day-length)]
-  ;;       (% days-elapsed days-per-week))))
   )
 
 
@@ -298,7 +267,7 @@
 
             ;; _ (print "Start calculation:")
             ;; _ (print "  ts:" ts)
-            ;; _ (print "  days_elapsed:" days-elapsed)            
+            ;; _ (print "  days_elapsed:" days-elapsed)
             month-start (cond
                                 ; First 6 months (0-167 days)
                           (< days-elapsed 168)
@@ -370,7 +339,7 @@
                                (+ 7 (int (/ (- days-elapsed (if leap-year? 169 168)) 28)))
                                 ; Year Day
                                True 14)
-                 
+
                  ]
              month-index
              ))
@@ -382,6 +351,19 @@
   (day day)
   (week week7fixed)
   (month monthfixed)
-  (year yearfixed))
+  (year yearfixed)
+  (day-of-week
+    (fn [ts]
+      (let [day-length (day.length ts)
+            week-length week.length
+            timezone-offset (day.timezone ts)
+            reference (+ 0 (* (. week offset) day-length) (- timezone-offset))
+            ;; year-start (year.get_value "start" ts)
+            ;; heres-what-i-need-to-debug-please ((. year heres-what-i-need-to-debug-please) ts)
+            days-elapsed (// (- ts reference) day-length)
+            days-per-week (// week-length day-length)
+            ]
+        ;; (print year-start)
+        (int (% days-elapsed days-per-week)))))
 
-
+  )

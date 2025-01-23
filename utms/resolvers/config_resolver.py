@@ -1,8 +1,9 @@
+from ..utms_types import Context, HyExpression, LocalsDict, ResolvedValue
 from .hy_resolver import HyResolver
 
 
 class ConfigResolver(HyResolver):
-    def get_locals_dict(self, context, local_names):
+    def get_locals_dict(self, context: Context, local_names: LocalsDict = None) -> LocalsDict:
         """Provide config-specific context for Hy evaluation"""
         locals_dict = {}
 
@@ -16,6 +17,6 @@ class ConfigResolver(HyResolver):
 
         return locals_dict
 
-    def resolve_config_property(self, expr, config=None, local_names=None):
+    def resolve_config_property(self, expr: HyExpression, config=None) -> ResolvedValue:
         """Config-specific resolution method"""
-        return self.resolve(expr, config, local_names)
+        return self.resolve(expr, config)

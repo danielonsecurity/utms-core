@@ -1,11 +1,11 @@
 # utms/utils/__init__.py
 from typing import List, Set
 
-from . import date, display, time, logger
+from . import date, display, logger, time
 from .date import *
 from .display import *
-from .time import *
 from .logger import *
+from .time import *
 
 
 def combine_all_lists(*modules: List[str]) -> List[str]:
