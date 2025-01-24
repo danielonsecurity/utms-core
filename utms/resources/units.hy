@@ -82,8 +82,9 @@
   (timezone day.timezone)
   (length
     (fn [ts #* _]
-      (let [timezone (datetime.timezone (datetime.timedelta :seconds (day.timezone ts)))
-            now (datetime.datetime.fromtimestamp ts :tz timezone)
+      (let [
+            timezone (get_timezone (day.timezone ts))
+            now (get_datetime_from_timestamp ts timezone)
             year now.year
             month now.month
             leap-year? (or
@@ -105,8 +106,8 @@
         month-length)))
   (start
     (fn [ts  #* _]
-      (let [timezone (datetime.timezone (datetime.timedelta :seconds (day.timezone ts)))
-            now (datetime.datetime.fromtimestamp ts :tz timezone)
+      (let [timezone (get_timezone (day.timezone ts))
+            now (get_datetime_from_timestamp ts timezone)
             midnight-timestamp (.timestamp (datetime.datetime now.year now.month 1 :tzinfo timezone))]
         midnight-timestamp))))
 
@@ -116,10 +117,10 @@
   (timezone day.timezone)
   (length
     (fn [ts]
-      (let [timezone (datetime.timezone (datetime.timedelta :seconds (day.timezone)))
-	    current-date (datetime.datetime.fromtimestamp ts :tz timezone)
-            next-year (datetime.datetime (+ current-date.year 1) 1 1 :tzinfo timezone)
-            this-year (datetime.datetime current-date.year 1 1 :tzinfo timezone)
+      (let [timezone (get_timezone (day.timezone ts))
+	    now (get_datetime_from_timestamp ts timezone)
+            next-year (datetime.datetime (+ now.year 1) 1 1 :tzinfo timezone)
+            this-year (datetime.datetime now.year 1 1 :tzinfo timezone)
 	    year-length (- (.timestamp next-year)
                            (.timestamp this-year)
                            )
@@ -129,17 +130,17 @@
      )
   (start
    (fn [ts]
-     (let [timezone (datetime.timezone (datetime.timedelta :seconds (day.timezone)))
-           current-date (datetime.datetime.fromtimestamp ts :tz timezone)
-           year-start (.timestamp (datetime.datetime current-date.year 1 1 :tzinfo timezone))]
+     (let [timezone (get_timezone (day.timezone ts))
+           now (get_datetime_from_timestamp ts timezone)
+           year-start (.timestamp (datetime.datetime now.year 1 1 :tzinfo timezone))]
        year-start
        )))
 
   (names ["January" "February" "March" "April" "May" "June" "July" "August" "September" "October" "November" "December" "Intercallary"])
   (index (fn [ts]
-           (let [timezone (datetime.timezone (datetime.timedelta :seconds (day.timezone)))
-                 current-date (datetime.datetime.fromtimestamp ts :tz timezone)]
-             (- current-date.month 1)
+           (let [timezone (get_timezone (day.timezone ts))
+                 now (get_datetime_from_timestamp ts timezone)]
+             (- now.month 1)
              ))
          )
   )
@@ -182,12 +183,12 @@
   (start
     (fn [ts]
       (let [
-            timezone (datetime.timezone (datetime.timedelta :seconds (day.timezone ts)))
-            now (datetime.datetime.fromtimestamp ts :tz timezone)
+            timezone (get_timezone (day.timezone ts))
+            now (get_datetime_from_timestamp ts timezone)
             year now.year
             year-start (.timestamp (datetime.datetime year 1 1 :tzinfo timezone))
             day-length (day.length ts)
-            days-elapsed (int (/ (- ts year-start) day-length))
+            days-elapsed (int (/ (- (float ts) year-start) day-length))
             leap-year? (or
                          (and (= (% year 4) 0) (!= (% year 100) 0))
                          (= (% year 400) 0))
@@ -211,8 +212,8 @@
   (timezone day.timezone)
   (length
     (fn [ts [month-index None]]
-      (let [timezone (datetime.timezone (datetime.timedelta :seconds (day.timezone ts)))
-            now (datetime.datetime.fromtimestamp ts :tz timezone)
+      (let [timezone (get_timezone (day.timezone ts))
+            now (get_datetime_from_timestamp ts timezone)
             year now.year
             day-length (day.length ts)
             ;; _ (print "MONTH INDEX:" month-index)
@@ -221,7 +222,7 @@
 
             ; Calculate year boundaries
             year-start (.timestamp (datetime.datetime year 1 1 :tzinfo timezone))
-            days-elapsed (int (/ (- ts year-start) day-length))
+            days-elapsed (int (/ (- (float ts) year-start) day-length))
 
             leap-year? (or
                          (and (= (% year 4) 0) (!= (% year 100) 0))
@@ -255,12 +256,12 @@
         month-length)))
   (start
     (fn [ts]
-      (let [timezone (datetime.timezone (datetime.timedelta :seconds (day.timezone ts)))
-            now (datetime.datetime.fromtimestamp ts :tz timezone)
+      (let [timezone (get_timezone (day.timezone ts))
+            now (get_datetime_from_timestamp ts timezone)
             year now.year
             day-length (day.length ts)
             year-start (.timestamp (datetime.datetime year 1 1 :tzinfo timezone))
-            days-elapsed (int (/ (- ts year-start) day-length))
+            days-elapsed (int (/ (- (float ts) year-start) day-length))
             leap-year? (or
                          (and (= (% year 4) 0) (!= (% year 100) 0))
                          (= (% year 400) 0))
@@ -295,8 +296,8 @@
   (length
     (fn [ts]
       (let [
-            timezone (datetime.timezone (datetime.timedelta :seconds (day.timezone)))
-	    now (datetime.datetime.fromtimestamp ts :tz timezone)
+            timezone (get_timezone (day.timezone ts))
+	    now (get_datetime_from_timestamp ts timezone)
             year now.year
             leap-year? (or
                          (and (= (% year 4) 0) (!= (% year 100) 0))
@@ -311,20 +312,20 @@
      )
   (start
    (fn [ts]
-     (let [timezone (datetime.timezone (datetime.timedelta :seconds (day.timezone)))
-           current-date (datetime.datetime.fromtimestamp ts :tz timezone)
-           year-start (.timestamp (datetime.datetime current-date.year 1 1 :tzinfo timezone))]
+     (let [timezone (get_timezone (day.timezone ts))
+           now (get_datetime_from_timestamp ts timezone)
+           year-start (.timestamp (datetime.datetime now.year 1 1 :tzinfo timezone))]
        year-start
        )))
 
   (names ["January" "February" "March" "April" "May" "June" "Leap Day" "Sol" "July" "August" "September" "October" "November" "December" "Year Day"])
   (index (fn [ts]
-           (let [timezone (datetime.timezone (datetime.timedelta :seconds (day.timezone)))
-                 now (datetime.datetime.fromtimestamp ts :tz timezone)
+           (let [timezone (get_timezone (day.timezone ts))
+                 now (get_datetime_from_timestamp ts timezone)
                  year now.year
                  year-start (.timestamp (datetime.datetime year 1 1 :tzinfo timezone))
                  day-length (day.length ts)
-                 days-elapsed (int (/ (- ts year-start) day-length))
+                 days-elapsed (int (/ (- (float ts) year-start) day-length))
                  leap-year? (or
                               (and (= (% year 4) 0) (!= (% year 100) 0))
                               (= (% year 400) 0))

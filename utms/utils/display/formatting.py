@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 from utms.core.plt import seconds_to_hplt, seconds_to_pplt
 
 from ..time.conversion import calculate_decimal_time, calculate_standard_time
-from .colors import format_with_color, print_header
+from .colors import ColorFormatter
 
 init()
 
@@ -71,7 +71,7 @@ def print_time(
 
     # Iterate over the anchors and print results
     for anchor in anchor_list:
-        print_header(f"{config.anchors.get_label(anchor)}: {anchor.name}")
+        ColorFormatter.cyan(f"{config.anchors.get_label(anchor)}: {anchor.name}")
         print(anchor.breakdown(total_seconds - anchor.value, config.units))
         if plt:
             print(
@@ -113,12 +113,18 @@ def generate_time_table() -> str:
         is_kiloseconds_red = kiloseconds % 10 == 0
 
         # Apply conditional coloring
-        decimal_time_colored = format_with_color(
-            f"{deciday}.{centiday}.{decimal_seconds:03}", is_decimal_red
+        decimal_time_colored = ColorFormatter.format_if(
+            f"{deciday}.{centiday}.{decimal_seconds:03}", is_decimal_red, ColorFormatter.RED
         )
-        standard_time_colored = format_with_color(standard_time, is_standard_red)
-        kiloseconds_colored = format_with_color(f"{kiloseconds:.2f}", is_kiloseconds_red)
-        decidays_colored = format_with_color(f"{decidays_float:.5f}", is_decimal_red)
+        standard_time_colored = ColorFormatter.format_if(
+            standard_time, is_standard_red, ColorFormatter.RED
+        )
+        kiloseconds_colored = ColorFormatter.format_if(
+            f"{kiloseconds:.2f}", is_kiloseconds_red, ColorFormatter.RED
+        )
+        decidays_colored = ColorFormatter.format_if(
+            f"{decidays_float:.5f}", is_decimal_red, ColorFormatter.RED
+        )
 
         # Add row if any condition is satisfied
         if is_decimal_red or is_standard_red or is_kiloseconds_red:

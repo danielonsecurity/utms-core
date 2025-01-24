@@ -16,5 +16,3 @@ Usage:
 """
 
 from .clock import register_clock_command
-
-__all__ = ["register_clock_command"]

@@ -22,5 +22,3 @@ Usage:
 from .command import Command
 from .command_manager import CommandManager
 from .hierarchy import CommandHierarchy
-
-__all__ = ["Command", "CommandManager", "CommandHierarchy"]

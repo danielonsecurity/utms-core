@@ -1,16 +1,18 @@
 from decimal import Decimal
-from typing import Union, Dict, Any, Callable, Optional, TypeAlias, List as PyList, TypeGuard
-from hy.models import Expression, Symbol, Lazy, Integer, String, List
+from typing import Any, Callable, Dict
+from typing import List as PyList
+from typing import Optional, TypeAlias, TypeGuard, Union
 
+from hy.models import Expression, Integer, Lazy, List, String, Symbol
 
 HyExpression: TypeAlias = Expression
 HySymbol: TypeAlias = Symbol
 HyList: TypeAlias = List
 HyInteger: TypeAlias = Integer
 HyString: TypeAlias = String
-HyCompound = Union[Expression, Symbol, List]
+HyCompound: TypeAlias = Union[Expression, Symbol, List]
 HyLazy: TypeAlias = Lazy
-HyValue = Union[
+HyValue: TypeAlias = Union[
     Integer,
     float,
     int,
@@ -22,7 +24,7 @@ HyValue = Union[
 ]
 
 
-ResolvedValue = Union[
+ResolvedValue: TypeAlias = Union[
     int,
     float,
     Decimal,
@@ -32,31 +34,34 @@ ResolvedValue = Union[
     Any,
 ]
 
-Context = Optional[Any] # TODO
+Context: TypeAlias = Optional[Any]  # TODO
 
 
-ExpressionList = PyList[HyExpression]
+ExpressionList: TypeAlias = PyList[HyExpression]
 
-LocalsDict = Optional[Dict[str, Any]]
-EvaluatedResult = Union[Callable[..., Any], Any]
-
-
+LocalsDict: TypeAlias = Optional[Dict[str, Any]]
+EvaluatedResult: TypeAlias = Union[Callable[..., Any], Any]
 
 
 def is_symbol(obj: Any) -> TypeGuard[Symbol]:
     return isinstance(obj, Symbol)
 
+
 def is_number(obj: Any) -> TypeGuard[Union[Integer, float, int, Decimal]]:
     return isinstance(obj, (Integer, float, int, Decimal))
+
 
 def is_string(obj: Any) -> TypeGuard[String]:
     return isinstance(obj, String)
 
+
 def is_list(obj: Any) -> TypeGuard[List]:
-    return isinstance(obj, List)
+    return isinstance(obj, (HyList, PyList))
+
 
 def is_expression(obj: Any) -> TypeGuard[Expression]:
     return isinstance(obj, Expression)
+
 
 def is_hy_compound(obj: Any) -> TypeGuard[HyCompound]:
     return isinstance(obj, Expression)

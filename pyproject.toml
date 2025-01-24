@@ -121,7 +121,7 @@ hy = "^1.0.0"
         "import-error"]
     max-line-length = 100
     ignore = ["docs", "tests", ".tox", ".git"]
-
+    ignore-patterns = ["__init__.py"]
 
 [tool.mypy]
     disallow_untyped_calls = true
@@ -129,6 +129,7 @@ hy = "^1.0.0"
     strict = true
     files = "src, tests"
     ignore_missing_imports = true
+    implicit_reexport = true
 
 
 [flake8]

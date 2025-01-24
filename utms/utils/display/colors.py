@@ -1,51 +1,72 @@
-from colorama import Fore, Style, init
+from typing import List, Union
+
+from colorama import Back, Fore, Style, init
 
 init()
 
-
-def old_unit(unit: str) -> str:
-    """Applies magenta color styling to the given unit string.
-
-    Args:
-        unit (str): The unit name to be styled.
-    Returns:
-        str: The unit name wrapped in magenta color styling.
-    Example:
-        >>> old_unit("Seconds")
-        # This will return the string "Seconds" in magenta color.
-    """
-    return str(Fore.MAGENTA) + unit + str(Style.RESET_ALL)
+ColorCode = Union[str, Fore, Back, Style]
 
 
-def new_unit(unit: str) -> str:
-    """Applies green color styling to the given unit string.
+class ColorFormatter:
+    """Formats text with colorama colors."""
 
-    Args:
-        unit (str): The unit name to be styled.
-    Returns:
-        str: The unit name wrapped in green color styling.
-    Example:
-        >>> new_unit("Years")
-        # This will return the string "Years" in green color.
-    """
-    return str(Fore.GREEN) + unit + str(Style.RESET_ALL)
+    # Color codes available as class attributes
+    RED = Fore.RED
+    GREEN = Fore.GREEN
+    BLUE = Fore.BLUE
+    CYAN = Fore.CYAN
+    YELLOW = Fore.YELLOW
+    MAGENTA = Fore.MAGENTA
+    WHITE = Fore.WHITE
+    BLACK = Fore.BLACK
 
+    RED_BG = Back.RED
+    GREEN_BG = Back.GREEN
+    BLUE_BG = Back.BLUE
+    CYAN_BG = Back.CYAN
+    YELLOW_BG = Back.YELLOW
+    MAGENTA_BG = Back.MAGENTA
+    WHITE_BG = Back.WHITE
+    BLACK_BG = Back.BLACK
 
-def format_with_color(value: str, condition: bool, color_code: str = "\033[31m") -> str:
-    """Format a value with color if the condition is met."""
-    reset_code = "\033[0m"
-    return f"{color_code}{value}{reset_code}" if condition else value
+    BRIGHT = Style.BRIGHT
+    DIM = Style.DIM
+    NORMAL = Style.NORMAL
 
+    @staticmethod
+    def format(text: str, *colors: ColorCode) -> str:
+        """Format text with color codes."""
+        return "".join(colors) + str(text) + Style.RESET_ALL
 
-def print_header(header: str) -> None:
-    """Prints the given header in cyan color with bright styling.
+    # Convenience methods for common colors
+    @staticmethod
+    def red(text: str) -> str:
+        return ColorFormatter.format(text, Fore.RED)
 
-    Args:
-        header (str): The header text to be printed.
-    Returns:
-        None: This function only prints the header with styling and has no return value.
-    Example:
-        >>> print_header("Important Notice")
-        # This will print "Important Notice" in cyan with bright styling.
-    """
-    print(Fore.CYAN + Style.BRIGHT + header + Style.RESET_ALL)
+    @staticmethod
+    def red_bg(text: str) -> str:
+        return ColorFormatter.format(text, Back.RED)
+
+    @staticmethod
+    def green(text: str) -> str:
+        return ColorFormatter.format(text, Fore.GREEN)
+
+    @staticmethod
+    def blue(text: str) -> str:
+        return ColorFormatter.format(text, Fore.BLUE)
+
+    @staticmethod
+    def cyan(text: str) -> str:
+        return ColorFormatter.format(text, Fore.CYAN)
+
+    @staticmethod
+    def yellow(text: str) -> str:
+        return ColorFormatter.format(text, Fore.YELLOW)
+
+    @staticmethod
+    def bright(text: str) -> str:
+        return ColorFormatter.format(text, Style.BRIGHT)
+
+    @staticmethod
+    def format_if(text: str, condition: bool, *colors: ColorCode) -> str:
+        return ColorFormatter.format(text, *colors) if condition else text

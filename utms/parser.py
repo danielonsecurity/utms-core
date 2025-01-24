@@ -12,12 +12,12 @@ from hy.models import Expression, Integer, Lazy, List, String, Symbol
 
 from utms.core import Calendar, CalendarRegistry, CalendarUnit, process_units
 from utms.resolvers import evaluate_hy_file
-from utms.utils import get_day_of_week, get_logger, get_timezone, set_log_level
+from utms.utils import get_day_of_week, get_logger, set_log_level
 
 logger = get_logger("parser")
 
 
-from utms.core.calendar.unit_loader import get_calendar_units, parse_calendar_definitions
+from utms.core.calendar.unit_loader import parse_calendar_definitions
 
 
 def main():
@@ -60,7 +60,7 @@ def main():
     # calendar = Calendar("gregorian", timestamp)
     # calendar = Calendar("gregorian-sunday", timestamp)
     # calendar = Calendar("week10", timestamp)
-    calendar = Calendar("ifc", timestamp)
+    calendar = Calendar("gregorian", timestamp)
     calendar.print_year_calendar()
 
 
