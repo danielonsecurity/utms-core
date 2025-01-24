@@ -4,9 +4,11 @@ from typing import Dict, List
 from utms.utils import TimeRange
 from utms.utms_types import CalendarUnit
 
+
 @dataclass
 class YearData:
     """Data structure for year calculations."""
+
     year_num: int
     year_start: float
     year_length: float
@@ -17,14 +19,17 @@ class YearData:
 @dataclass
 class MonthData:
     """Data structure for month-related calculations."""
+
     days: List[int]
     month_starts: List[float]
     month_ends: List[float]
     first_day_weekdays: List[int]
 
+
 @dataclass
 class CalendarState:
     """Core calendar state."""
+
     name: str
     timestamp: float
     week_length: int

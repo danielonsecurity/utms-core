@@ -1,33 +1,11 @@
-import datetime
-import time
-from types import FunctionType
-from typing import Optional
+from utms.resolvers import CalendarResolver
+from utms.utils import TimeRange, get_logger
 
-from utms.resolvers import CalendarResolver, evaluate_hy_expression
-from utms.utils import (
-    ColorFormatter,
-    TimeRange,
-    get_datetime_from_timestamp,
-    get_day_of_week,
-    get_logger,
-    get_timezone_from_seconds,
-)
-from utms.utms_types import HyExpression
-
-from .calendar_calculator import MonthCalculator, YearCalculator
-from .calendar_data import CalendarState, MonthData
-from .calendar_display import (
-    DayContext,
-    DayFormatter,
-    MonthHeaderFormatter,
-    WeekContext,
-    WeekdayHeaderFormatter,
-    WeekRowFormatter,
-    YearContext,
-    YearHeaderFormatter,
-)
+from .calendar_calculator import CalendarCalculator
+from .calendar_data import CalendarState, MonthData, YearData
 from .calendar_printer import CalendarPrinter, PrinterContext
 from .registry import CalendarRegistry
+from .unit_accessor import UnitAccessor
 
 _resolver = CalendarResolver()
 logger = get_logger("core.calendar.calendar")
@@ -38,16 +16,14 @@ class Calendar:
         logger.debug("Initializing calendar %s", name)
         self.name = name
         self.timestamp = timestamp
-        self.units = CalendarRegistry.get_calendar_units(name)
+        units = CalendarRegistry.get_calendar_units(name)
+        self._units = UnitAccessor(units)
+
+        self._calculator = CalendarCalculator()
 
         self._state = self._create_calendar_state()
         self._printer = self._create_printer()
-        self._year_calculator = YearCalculator()
-        self._month_calculator = MonthCalculator()
-
-        self._func_cache = {}
-
-        logger.info(f"Calendar '{name}' initialized successfully")
+        logger.info("Calendar %s initialized successfully", name)
 
     def _create_calendar_state(self) -> CalendarState:
         """Create initial calendar state."""
@@ -55,8 +31,8 @@ class Calendar:
             "length", self.timestamp
         )
         today_start = self.day_unit.get_value("start", self.timestamp)
-        current_week_range = self.get_time_range(self.timestamp, self.week_unit)
-        current_month_range = self.get_time_range(self.timestamp, self.month_unit)
+        current_week_range = self._calculator.calculate_time_range(self.timestamp, self.week_unit)
+        current_month_range = self._calculator.calculate_time_range(self.timestamp, self.month_unit)
 
         return CalendarState(
             name=self.name,
@@ -65,7 +41,7 @@ class Calendar:
             today_start=today_start,
             current_week_range=current_week_range,
             current_month_range=current_month_range,
-            units=self.units,
+            units=self._units.get_all(),
         )
 
     def _create_printer(self) -> CalendarPrinter:
@@ -84,46 +60,64 @@ class Calendar:
         return TimeRange(start, end)
 
     def print_year_calendar(self):
-        year_data = self._year_calculator.calculate_year_data(self.timestamp, self.year_unit)
+        year_data = self._calculator.calculate_year_data(self.timestamp, self.year_unit)
+        self._print_year(year_data)
+
+    def _print_year(self, year_data: YearData) -> None:
         self._printer.print_year_header(year_data)
         current_month = 1
         while True:
-            month_data = self._month_calculator.get_month_data(
-                year_data.year_start,
-                current_month,
-                year_data.months_across,
-                self.units,
-                self.timestamp,
-            )
-            if not month_data.month_starts:
+            if not self._print_month_group(year_data, current_month):
                 break
-            self._printer.print_month_headers(
-                year_data.year_start,
-                current_month,
-                year_data.months_across,
-                self.year_unit.get_value("names"),
-                self.month_unit,
-            )
-
-            self._printer.print_weekday_headers(
-                year_data.months_across,
-                month_data.month_starts,
-                self.week_unit.get_value("names"),
-            )
-
-            max_weeks = self._month_calculator.calculate_max_weeks(
-                month_data, self.day_unit.get_value("length", self.timestamp), self.week_length
-            )
-            for _ in range(max_weeks):
-                self._printer.print_week_row(
-                    month_data, self.day_unit.get_value("length", self.timestamp)
-                )
-                self._month_calculator.reset_first_day_weekdays(
-                    month_data, self.day_unit.get_value("length", self.timestamp)
-                )
-
             current_month += year_data.months_across
             print()
+
+    def _print_month_group(self, year_data: YearData, current_month: int) -> bool:
+        month_data = self._get_month_group_data(year_data, current_month)
+        if not month_data.month_starts:
+            return False
+
+        self._print_month_group_headers(year_data, current_month, month_data)
+        self._print_month_group_weeks(month_data)
+        return True
+
+    def _get_month_group_data(self, year_data: YearData, current_month: int) -> MonthData:
+        return self._calculator.calculate_month_data(
+            year_data.year_start,
+            current_month,
+            year_data.months_across,
+            self._units,
+            self.timestamp,
+        )
+
+    def _print_month_group_headers(
+        self, year_data: YearData, current_month: int, month_data: MonthData
+    ) -> None:
+        self._printer.print_month_headers(
+            year_data.year_start,
+            current_month,
+            year_data.months_across,
+            self.year_unit.get_value("names"),
+            self.month_unit,
+        )
+
+        self._printer.print_weekday_headers(
+            year_data.months_across,
+            month_data.month_starts,
+            self.week_unit.get_value("names"),
+        )
+
+    def _print_month_group_weeks(self, month_data: MonthData) -> None:
+        max_weeks = self._calculator.calculate_max_weeks(
+            month_data, self.day_unit.get_value("length", self.timestamp), self.week_length
+        )
+        for _ in range(max_weeks):
+            self._printer.print_week_row(
+                month_data, self.day_unit.get_value("length", self.timestamp)
+            )
+            self._calculator.reset_first_day_weekdays(
+                month_data, self.day_unit.get_value("length", self.timestamp)
+            )
 
     def __str__(self) -> str:
         """String representation of the Calendar.
@@ -132,7 +126,7 @@ class Calendar:
         """
         unit_info = ", ".join(
             f"{unit_type}: {unit.name}"
-            for unit_type, unit in self.units.items()
+            for unit_type, unit in self._units.items()
             if unit_type != "day_of_week_fn"
         )
 
@@ -153,19 +147,19 @@ class Calendar:
 
     @property
     def year_unit(self):
-        return self.units["year"]
+        return self._units.year
 
     @property
     def month_unit(self):
-        return self.units["month"]
+        return self._units.month
 
     @property
     def week_unit(self):
-        return self.units["week"]
+        return self._units.week
 
     @property
     def day_unit(self):
-        return self.units["day"]
+        return self._units.day
 
     @property
     def week_length(self) -> int:
@@ -186,8 +180,3 @@ class Calendar:
     def current_month_range(self) -> TimeRange:
         """Get current month range from state."""
         return self._state.current_month_range
-
-    @property
-    def day_of_week_fn(self) -> Optional[HyExpression]:
-        """Get custom day-of-week function if it exists."""
-        return self.units.get("day_of_week_fn")

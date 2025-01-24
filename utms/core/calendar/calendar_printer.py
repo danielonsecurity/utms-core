@@ -2,30 +2,35 @@
 from dataclasses import dataclass
 from typing import Dict
 
+from utms.utils import TimeRange
+from utms.utms_types import CalendarUnit
+
+from .calendar_data import MonthData, YearData
 from .calendar_display import (
+    DayContext,
+    DayFormatter,
     MonthHeaderFormatter,
     WeekContext,
     WeekdayHeaderFormatter,
-    DayFormatter,
     WeekRowFormatter,
+    YearContext,
     YearHeaderFormatter,
 )
-from .calendar_data import MonthData, YearData
-from .calendar_display import YearContext, DayContext
-from utms.utils import TimeRange
-from utms.utms_types import CalendarUnit
+
 
 @dataclass
 class PrinterContext:
     """Context for printer operations."""
+
     week_length: int
     current_week_range: TimeRange
     current_month_range: TimeRange
     today_start: float
 
+
 class CalendarPrinter:
     """Handles all calendar display operations."""
-    
+
     def __init__(self, context: PrinterContext):
         self._context = context
         self._year_formatter = YearHeaderFormatter()
@@ -41,7 +46,7 @@ class CalendarPrinter:
                 timestamp=year_data.year_start,
                 year_length=year_data.year_length,
                 months_across=year_data.months_across,
-                week_length=self._context.week_length
+                week_length=self._context.week_length,
             )
         )
         print(header)
@@ -80,10 +85,7 @@ class CalendarPrinter:
                 current_timestamp += month_length
             month_index += 1
 
-        formatted_headers = self._month_formatter.format_month_headers(
-            month_names,
-            months_across
-        )
+        formatted_headers = self._month_formatter.format_month_headers(month_names, months_across)
         print(formatted_headers)
 
     def print_weekday_headers(
@@ -94,9 +96,7 @@ class CalendarPrinter:
     ) -> None:
         """Print weekday headers for all visible months."""
         formatted_headers = self._weekday_formatter.format_weekday_row(
-            weekday_names,
-            months_across,
-            month_starts
+            weekday_names, months_across, month_starts
         )
         print(formatted_headers)
 
@@ -105,7 +105,7 @@ class CalendarPrinter:
         day_context = DayContext(
             current_week_range=self._context.current_week_range,
             today_start=self._context.today_start,
-            day_start=0
+            day_start=0,
         )
         week_context = WeekContext(
             week_length=self._context.week_length,
@@ -113,11 +113,10 @@ class CalendarPrinter:
             month_starts=month_data.month_starts,
             month_ends=month_data.month_ends,
             first_day_weekdays=month_data.first_day_weekdays,
-            day_length=day_length)
-        
+            day_length=day_length,
+        )
+
         formatted_row = self._week_row_formatter.format_week_row(
-            week_context,
-            day_context,
-            self._context.current_month_range
+            week_context, day_context, self._context.current_month_range
         )
         print(formatted_row)
