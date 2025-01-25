@@ -1,7 +1,8 @@
 from utms.resolvers import CalendarResolver
 from utms.utils import TimeRange, get_logger
+from utms.utms_types import CalendarUnit, DecimalTimestamp, Timestamp
 
-from .calendar_calculator import CalendarCalculator
+from .calendar_calculator import CalendarCalculator, MonthCalculationParams
 from .calendar_data import CalendarState, MonthData, YearData
 from .calendar_printer import CalendarPrinter, PrinterContext
 from .registry import CalendarRegistry
@@ -12,17 +13,15 @@ logger = get_logger("core.calendar.calendar")
 
 
 class Calendar:
-    def __init__(self, name, timestamp):
+    def __init__(self, name: str, timestamp: Timestamp):
         logger.debug("Initializing calendar %s", name)
-        self.name = name
-        self.timestamp = timestamp
+        self.name: str = name
+        self.timestamp: Timestamp = timestamp
         units = CalendarRegistry.get_calendar_units(name)
-        self._units = UnitAccessor(units)
-
-        self._calculator = CalendarCalculator()
-
-        self._state = self._create_calendar_state()
-        self._printer = self._create_printer()
+        self._units: UnitAccessor = UnitAccessor(units)
+        self._calculator: CalendarCalculator = CalendarCalculator()
+        self._state: CalendarState = self._create_calendar_state()
+        self._printer: CalendarPrinter = self._create_printer()
         logger.info("Calendar %s initialized successfully", name)
 
     def _create_calendar_state(self) -> CalendarState:
@@ -54,12 +53,7 @@ class Calendar:
         )
         return CalendarPrinter(printer_context)
 
-    def get_time_range(self, timestamp, unit):
-        start = unit.get_value("start", timestamp)
-        end = start + unit.get_value("length", timestamp)
-        return TimeRange(start, end)
-
-    def print_year_calendar(self):
+    def print_year_calendar(self) -> None:
         year_data = self._calculator.calculate_year_data(self.timestamp, self.year_unit)
         self._print_year(year_data)
 
@@ -82,13 +76,14 @@ class Calendar:
         return True
 
     def _get_month_group_data(self, year_data: YearData, current_month: int) -> MonthData:
-        return self._calculator.calculate_month_data(
-            year_data.year_start,
-            current_month,
-            year_data.months_across,
-            self._units,
-            self.timestamp,
+        params = MonthCalculationParams(
+            year_start=year_data.year_start,
+            current_month=current_month,
+            months_across=year_data.months_across,
+            units=self._units,
+            timestamp=self.timestamp,
         )
+        return self._calculator.calculate_month_data(params)
 
     def _print_month_group_headers(
         self, year_data: YearData, current_month: int, month_data: MonthData
@@ -146,19 +141,19 @@ class Calendar:
         )
 
     @property
-    def year_unit(self):
+    def year_unit(self) -> CalendarUnit:
         return self._units.year
 
     @property
-    def month_unit(self):
+    def month_unit(self) -> CalendarUnit:
         return self._units.month
 
     @property
-    def week_unit(self):
+    def week_unit(self) -> CalendarUnit:
         return self._units.week
 
     @property
-    def day_unit(self):
+    def day_unit(self) -> CalendarUnit:
         return self._units.day
 
     @property
@@ -167,7 +162,7 @@ class Calendar:
         return self._state.week_length
 
     @property
-    def today_start(self) -> float:
+    def today_start(self) -> Timestamp:
         """Get today's start timestamp from state."""
         return self._state.today_start
 

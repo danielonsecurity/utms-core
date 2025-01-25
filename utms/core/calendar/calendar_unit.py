@@ -14,29 +14,35 @@ from utms.utils import (
 from utms.utms_types import ArbitraryArgs, ArbitraryKwargs
 from utms.utms_types import CalendarUnit as CalendarUnitProtocol
 from utms.utms_types import (
+    DecimalTimestamp,
     FunctionCache,
     OptionalUnitKwargs,
     PropertyValue,
     ResolvedValue,
+    Timestamp,
+    TimeLength,
+    DecimalTimeLength,
     UnitAttributes,
     UnitKwargs,
     is_list,
     is_number,
+    is_timelength,
+    is_timestamp,
 )
 
 _resolver = CalendarResolver()
 logger = get_logger("core.calendar.calendar_unit")
 
 
-class CalendarUnit(CalendarUnitProtocol):
+class BaseCalendarUnit(CalendarUnitProtocol):
     class Attributes(UnitAttributes):
         def __init__(self, name: str, kwargs: UnitKwargs):
             self.name = name
             self._values = {
-                "length": kwargs.get("length", Decimal(0)),
-                "start": kwargs.get("start", Decimal(0)),
+                "length": kwargs.get("length", DecimalTimestamp(0)),
+                "start": kwargs.get("start", DecimalTimestamp(0)),
                 "names": kwargs.get("names"),
-                "timezone": kwargs.get("timezone", Decimal(0)),
+                "timezone": kwargs.get("timezone", DecimalTimestamp(0)),
                 "offset": kwargs.get("offset", 0),
                 "index": kwargs.get("index", 0),
             }
@@ -61,7 +67,7 @@ class CalendarUnit(CalendarUnitProtocol):
     def get_value(  # pylint: disable=keyword-arg-before-vararg
         self,
         prop: str,
-        timestamp: Decimal = Decimal(0),
+        timestamp: Timestamp = DecimalTimestamp(0),
         *args: ArbitraryArgs,
         **kwargs: ArbitraryKwargs,
     ) -> ResolvedValue:
@@ -113,7 +119,36 @@ class CalendarUnit(CalendarUnitProtocol):
             return value
         return _resolver.resolve_unit_property(value, self)
 
-    def calculate_index(self, timestamp: Decimal = Decimal(0)) -> None:
+    def get_start(self, timestamp: Timestamp = DecimalTimestamp(0)) -> Timestamp:
+        """Get unit start time with guaranteed Timestamp return type."""
+        value = self.get_value("start", timestamp)
+        if isinstance(value, (int, float, Decimal)):
+            return DecimalTimestamp(value)
+        if isinstance(value, Timestamp):
+            return value
+        raise TypeError(f"Invalid start value type: {type(value)}")
+
+    def get_length(self, timestamp: Timestamp = DecimalTimestamp(0)) -> TimeLength:
+        """Get unit length with guaranteed TimeLength return type."""
+        value = self.get_value("length", timestamp)
+        if isinstance(value, (int, float, Decimal)):
+            return DecimalTimeLength(value)
+        if isinstance(value, TimeLength):
+            return value
+        raise TypeError(f"Invalid length value type: {type(value)}")
+
+    def get_timezone(self, timestamp: Timestamp = DecimalTimestamp(0)) -> TimeLength:
+        """Get timezone offset with guaranteed TimeLength return type."""
+        value = self.get_value("timezone", timestamp)
+        if isinstance(value, (int, float, Decimal)):
+            return DecimalTimeLength(value)
+        if isinstance(value, TimeLength):
+            return value
+        raise TypeError(f"Invalid timezone value type: {type(value)}")
+
+
+
+    def calculate_index(self, timestamp: Timestamp = DecimalTimestamp(0)) -> None:
         """Calculate the index based on timestamp and unit properties"""
         index = self.get_value("index", timestamp)
         names = self.get_value("names")
@@ -122,9 +157,9 @@ class CalendarUnit(CalendarUnitProtocol):
             logger.error("%s must be a number", length)
             raise ValueError(f"{length} length must be a number")
         start = self.get_value("start", timestamp)
-        if not is_number(start):
-            logger.error("%s must be a number", start)
-            raise ValueError(f"{start} length must be a number")
+        if not is_timestamp(start):
+            logger.error("%s must be a number, not a %s", start, type(start))
+            raise ValueError(f"{start} length must be a number, instead it's {type(start)}")
 
         if not index and names and length and start:
             if not is_list(names):
@@ -133,7 +168,7 @@ class CalendarUnit(CalendarUnitProtocol):
 
             names_len = len(names)
             unit_length = Decimal(length)
-            unit_start = Decimal(start)
+            unit_start = start
             if unit_length:
                 self.index = int((timestamp - unit_start) / unit_length * names_len)
             else:

@@ -1,11 +1,11 @@
 from .calendar import Calendar
-from .calendar_unit import CalendarUnit
+from .calendar_unit import BaseCalendarUnit
 from .registry import CalendarRegistry
 from .unit_loader import process_units
 
 __all__ = [
     "Calendar",
-    "CalendarUnit",
+    "BaseCalendarUnit",
     "CalendarRegistry",
     "process_units",
 ]

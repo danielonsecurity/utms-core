@@ -10,9 +10,10 @@ import hy
 from hy.compiler import hy_eval
 from hy.models import Expression, Integer, Lazy, List, String, Symbol
 
-from utms.core import Calendar, CalendarRegistry, CalendarUnit, process_units
+from utms.core import Calendar, CalendarRegistry, process_units
 from utms.resolvers import evaluate_hy_file
 from utms.utils import get_day_of_week, get_logger, set_log_level
+from utms.utms_types import DecimalTimestamp
 
 logger = get_logger("parser")
 
@@ -32,6 +33,7 @@ def main():
     # # timestamp = datetime.datetime(2025, 1, 16, 0, 0, 1, tzinfo=datetime.timezone.utc).timestamp()
     # # timestamp = datetime.datetime(2024,6,27,23,59,59,tzinfo=datetime.timezone.utc).timestamp()
     timestamp = datetime.datetime(2025, 6, 19, 12, 0, 0, tzinfo=datetime.timezone.utc).timestamp()
+    timestamp = DecimalTimestamp(timestamp)
     units = process_units(units_data, timestamp)
 
     calendars = parse_calendar_definitions(units_data)

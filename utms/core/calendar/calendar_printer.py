@@ -2,10 +2,9 @@
 from dataclasses import dataclass
 from typing import Dict
 
-from utms.utils import TimeRange
-from utms.utms_types import CalendarUnit
+from utms.utms_types import CalendarUnit, NamesList, TimeRange
 
-from .calendar_data import MonthData, YearData
+from .calendar_data import MonthData, Timestamp, YearData
 from .calendar_display import (
     DayContext,
     DayFormatter,
@@ -25,7 +24,7 @@ class PrinterContext:
     week_length: int
     current_week_range: TimeRange
     current_month_range: TimeRange
-    today_start: float
+    today_start: Timestamp
 
 
 class CalendarPrinter:
@@ -54,10 +53,10 @@ class CalendarPrinter:
 
     def print_month_headers(
         self,
-        year_start: float,
+        year_start: Timestamp,
         current_month: int,
         months_across: int,
-        year_unit_names: list[str],
+        year_unit_names: NamesList,
         month_unit: CalendarUnit,
     ) -> None:
         """Print headers for the current row of months."""

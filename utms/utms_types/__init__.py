@@ -1,4 +1,6 @@
-from .calendar.protocols import CalendarUnit, TimeRange, TimeUnit, UnitAttributes
+from .calendar.protocols import CalendarUnit, Timestamp, TimeUnit, UnitAttributes, TimeLength
+from .calendar.timelength import DecimalTimeLength
+from .calendar.timestamp import DecimalTimestamp
 from .calendar.types import (
     ArbitraryArgs,
     ArbitraryKwargs,
@@ -12,12 +14,15 @@ from .calendar.types import (
     OptionalUnitKwargs,
     PropertyDict,
     PropertyValue,
+    TimeRange,
     UnitDefinitions,
     UnitInfo,
     UnitKwargs,
     UnitMappings,
     UnitsDict,
     UnitType,
+    is_timelength,
+    is_timestamp,
     to_unit_type,
 )
 from .hy.protocols import ExpressionResolver, LocalsProvider

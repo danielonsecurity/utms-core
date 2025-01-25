@@ -1,21 +1,18 @@
 import datetime
 import time
+from dataclasses import dataclass
 from types import FunctionType
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 
 from utms.resolvers import evaluate_hy_expression
-from utms.utils import (
-    TimeRange,
-    get_datetime_from_timestamp,
-    get_day_of_week,
-    get_timezone_from_seconds,
-)
-from utms.utms_types import CalendarUnit, HyExpression
+from utms.utils import get_datetime_from_timestamp, get_day_of_week, get_timezone_from_seconds
+from utms.utms_types import CalendarUnit, HyExpression, TimeRange, Timestamp
 
-from .calendar_data import MonthData, YearData
+from .calendar_data import MonthCalculationParams, MonthContext, MonthData, MonthGroupData, YearData
 from .unit_accessor import UnitAccessor
 
-class DayOfWeekCalculator:
+
+class DayOfWeekCalculator:  # pylint: disable=too-few-public-methods
     """Handles day of week calculations with support for custom functions."""
 
     def __init__(self):
@@ -23,7 +20,7 @@ class DayOfWeekCalculator:
 
     def calculate(
         self,
-        timestamp: float,
+        timestamp: Timestamp,
         units: Dict[str, CalendarUnit],
         custom_fn: Optional[HyExpression] = None,
     ) -> int:
@@ -56,86 +53,122 @@ class DayOfWeekCalculator:
 
 
 class CalendarCalculator:
-    def __init__(self):
+    def __init__(self) -> None:
         self._day_of_week_calculator = DayOfWeekCalculator()
         self.epoch_year: int = 1970
 
-    def calculate_time_range(self, timestamp: float, unit: CalendarUnit) -> TimeRange:
+    def calculate_time_range(self, timestamp: Timestamp, unit: CalendarUnit) -> TimeRange:
         start = unit.get_value("start", timestamp)
         end = start + unit.get_value("length", timestamp)
         return TimeRange(start, end)
 
-    def calculate_year_data(self, timestamp: float, year_unit: CalendarUnit) -> YearData:
+    def calculate_year_data(self, timestamp: Timestamp, year_unit: CalendarUnit) -> YearData:
         """Calculate year-related data."""
         year_start = year_unit.get_value("start", timestamp)
         year_length = year_unit.get_value("length", timestamp)
         years_since_epoch = int(timestamp / year_length)
         year_num = self.epoch_year + years_since_epoch
-        
-        return YearData(
-            year_num=year_num,
-            year_start=year_start,
-            year_length=year_length
-        )
 
-    def calculate_month_data(self, year_start:float, current_month: int, months_across:int, units:UnitAccessor, timestamp:float) -> MonthData:
+        return YearData(year_num=year_num, year_start=year_start, year_length=year_length)
+
+    def calculate_month_data(
+        self,
+        params: MonthCalculationParams,
+    ) -> MonthData:
         """Calculate month data for calendar display."""
-        year_unit = units.year
-        month_unit = units.month
-        week_unit = units.week
-        day_unit = units.day
-        custom_day_of_week = units.day_of_week_fn
-        if current_month > len(year_unit.get_value("names")):
+        if not self._is_valid_month(params.current_month, params.units.year):
             return MonthData([], [], [], [])
 
-        days = []
-        month_starts = []
-        month_ends = []
-        first_day_weekdays = []
+        week_length = self._calculate_week_length(params.units, params.timestamp)
+        month_context = self._create_month_context(params)
 
-        current_timestamp = year_start
-        year_end = year_start + year_unit.get_value("length", timestamp)
-        max_months = len(year_unit.get_value("names"))
-        week_length = week_unit.get_value("length", timestamp) // day_unit.get_value(
-            "length", timestamp
+        return self._collect_month_data(month_context, params.units, week_length)
+
+    def _is_valid_month(self, current_month: int, year_unit: CalendarUnit) -> bool:
+        """Check if month number is valid."""
+        return current_month <= len(year_unit.get_value("names"))
+
+    def _calculate_week_length(self, units: UnitAccessor, timestamp: Timestamp) -> int:
+        """Calculate week length in days."""
+        return units.week.get_value("length", timestamp) // units.day.get_value("length", timestamp)
+
+    def _create_month_context(self, params) -> MonthContext:
+        """Create context for month calculations."""
+        year_end = params.year_start + params.units.year.get_value("length", params.timestamp)
+        max_months = len(params.units.year.get_value("names"))
+
+        # Skip to start of current month group
+        current_timestamp = self._skip_to_month_group(
+            params.year_start, params.current_month, params.units.month
         )
-        # Skip to the start of this group
+
+        return MonthContext(
+            current_timestamp=current_timestamp,
+            year_end=year_end,
+            max_months=max_months,
+            month_index=params.current_month,
+            months_across=params.months_across,
+        )
+
+    def _skip_to_month_group(
+        self,
+        year_start: Timestamp,
+        current_month: int,
+        month_unit: CalendarUnit,
+    ) -> Timestamp:
+        """Skip to the start of the current month group."""
+        current_timestamp = year_start
         month_index = 1
+
         while month_index < current_month:
             month_length = month_unit.get_value("length", current_timestamp, month_index)
             if month_length > 0:
                 current_timestamp += month_length
             month_index += 1
 
-        # Calculate data for the current month group
-        months_added = 0
+        return current_timestamp
+
+    def _collect_month_data(
+        self,
+        context: MonthContext,
+        units: UnitAccessor,
+        week_length: int,
+    ) -> MonthData:
+        """Collect data for all months in the group."""
+        group_data = MonthGroupData.empty()
+
         while (
-            months_added < months_across
-            and current_timestamp < year_end
-            and month_index <= max_months
+            context.months_added < context.months_across
+            and context.current_timestamp < context.year_end
+            and context.month_index <= context.max_months
         ):
+            self._process_month(context, units, week_length, group_data)
+            context.month_index += 1
 
-            month_length = month_unit.get_value("length", current_timestamp, month_index)
+        return group_data.to_month_data()
 
-            if month_length > 0:
-                days.append(1)
-                month_starts.append(current_timestamp)
-                month_end = min(current_timestamp + month_length - 1, year_end - 1)
-                month_ends.append(month_end)
+    def _process_month(
+        self,
+        context: MonthContext,
+        units: UnitAccessor,
+        week_length: int,
+        group_data: MonthGroupData,
+    ) -> None:
+        month_length = units.month.get_value(
+            "length", context.current_timestamp, context.month_index
+        )
 
-                first_day_weekday = (
-                    self._day_of_week_calculator.calculate(
-                        current_timestamp, units, custom_day_of_week
-                    )
-                    % week_length
+        if month_length > 0:
+            month_end = min(context.current_timestamp + month_length - 1, context.year_end - 1)
+            first_day_weekday = (
+                self._day_of_week_calculator.calculate(
+                    context.current_timestamp, units, units.day_of_week_fn
                 )
-                first_day_weekdays.append(first_day_weekday)
-                months_added += 1
-                current_timestamp += month_length
-
-            month_index += 1
-
-        return MonthData(days, month_starts, month_ends, first_day_weekdays)
+                % week_length
+            )
+            group_data.add_month(context.current_timestamp, month_end, first_day_weekday)
+            context.months_added += 1
+            context.current_timestamp += month_length
 
     def calculate_max_weeks(
         self,

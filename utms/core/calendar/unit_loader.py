@@ -7,6 +7,7 @@ from utms.utms_types import (
     ExpressionList,
     OptionalHyExpression,
     PropertyDict,
+    Timestamp,
     UnitDefinitions,
     UnitKwargs,
     UnitMappings,
@@ -16,7 +17,7 @@ from utms.utms_types import (
     to_unit_type,
 )
 
-from .calendar_unit import CalendarUnit
+from .calendar_unit import BaseCalendarUnit
 
 logger = get_logger("core.calendar.unit_loader")
 
@@ -106,11 +107,11 @@ def parse_calendar_definitions(units_data: ExpressionList) -> CalendarDefinition
 
 
 def initialize_units(parsed_units: UnitDefinitions) -> UnitsDict:
-    """Create CalendarUnit instances from parsed definitions."""
+    """Create BaseCalendarUnit instances from parsed definitions."""
     units: UnitsDict = {}
     for unit_name, unit_info in parsed_units.items():
         unit_kwargs = unit_info["kwargs"]
-        units[unit_name] = CalendarUnit(unit_name, units, unit_kwargs)
+        units[unit_name] = BaseCalendarUnit(unit_name, units, unit_kwargs)
     return units
 
 
@@ -123,9 +124,8 @@ def resolve_unit_properties(units: UnitsDict) -> None:
                 unit._attrs.set(prop_name, resolved_value)
 
 
-def process_units(units_data: ExpressionList, timestamp: float) -> UnitsDict:
+def process_units(units_data: ExpressionList, timestamp: Timestamp) -> UnitsDict:
     """Process Hy unit definitions into fully initialized calendar units."""
-    decimal_timestamp = Decimal(timestamp)
     logger.debug("Starting process_units")
     parsed_units = parse_unit_definitions(units_data)
     logger.debug("Parsed units: %s", list(parsed_units.keys()))
@@ -136,6 +136,6 @@ def process_units(units_data: ExpressionList, timestamp: float) -> UnitsDict:
 
     # Calculate indexes after all properties are resolved
     for unit in units.values():
-        unit.calculate_index(decimal_timestamp)
+        unit.calculate_index(timestamp)
 
     return units

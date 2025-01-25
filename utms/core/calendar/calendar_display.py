@@ -2,6 +2,9 @@ from dataclasses import dataclass
 from typing import List, Optional
 
 from utms.utils import ColorFormatter, TimeRange
+from utms.utms_types import Timestamp
+
+from .calendar_data import YearContext
 
 
 class MonthHeaderFormatter:
@@ -94,7 +97,7 @@ class DayFormatter:
         self,
         day_num: int,
         is_current_month: bool,
-        current_day_timestamp: float,
+        current_day_timestamp: Timestamp,
         context: DayContext,
     ) -> str:
         day_str = f"{day_num:2}"
@@ -198,18 +201,6 @@ class WeekRowFormatter:
             week_row.append(week_days_str.ljust(total_width))
 
         return "  ".join(week_row)
-
-
-# In display.py
-@dataclass
-class YearContext:
-    """Context for year header formatting."""
-
-    timestamp: float
-    year_length: float
-    months_across: int
-    week_length: int
-    epoch_year: int = 1970
 
 
 class YearHeaderFormatter:

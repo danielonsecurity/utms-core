@@ -7,11 +7,109 @@ from ..hy.types import PyList, ResolvedValue
 if TYPE_CHECKING:
     from .types import FunctionCache, PropertyValue
 
+from .timestamp import DecimalTimestamp
 
-@dataclass
-class TimeRange:
-    start: float
-    end: float
+
+class Timestamp(Protocol):
+    """Protocol defining the interface for timestamp values."""
+
+    def __float__(self) -> float:
+        """Convert timestamp to float."""
+        ...
+
+    def __int__(self) -> int:
+        """Convert timestamp to integer."""
+        ...
+
+    def __add__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp":
+        """Add timestamps or numbers."""
+        ...
+
+    def __sub__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp":
+        """Subtract timestamps or numbers."""
+        ...
+
+    def __mul__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...
+
+    def __truediv__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...
+
+    def __floordiv__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...
+
+    def __mod__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...
+
+    def __lt__(self, other: Union["Timestamp", int, float, Decimal]) -> bool:
+        """Less than comparison."""
+        ...
+
+    def __le__(self, other: Union["Timestamp", int, float, Decimal]) -> bool:
+        """Less than or equal comparison."""
+        ...
+
+    def __gt__(self, other: Union["Timestamp", int, float, Decimal]) -> bool:
+        """Greater than comparison."""
+        ...
+
+    def __ge__(self, other: Union["Timestamp", int, float, Decimal]) -> bool:
+        """Greater than or equal comparison."""
+        ...
+
+    def __eq__(self, other: object) -> bool:
+        """Equality comparison."""
+        ...
+
+    # Right-side operations (when Timestamp is on the right)
+    def __radd__(self, other: Union[int, float, Decimal]) -> "Timestamp": ...
+    def __rsub__(self, other: Union[int, float, Decimal]) -> "Timestamp": ...
+    def __rmul__(self, other: Union[int, float, Decimal]) -> "Timestamp": ...
+    def __rtruediv__(self, other: Union[int, float, Decimal]) -> "Timestamp": ...
+    def __rfloordiv__(self, other: Union[int, float, Decimal]) -> "Timestamp": ...
+    def __rmod__(self, other: Union[int, float, Decimal]) -> "Timestamp": ...
+
+    # Unary operations
+    def __neg__(self) -> "Timestamp": ...  # -x
+    def __pos__(self) -> "Timestamp": ...  # +x
+    def __abs__(self) -> "Timestamp": ...  # abs(x)
+    def __round__(self, ndigits: Optional[int] = None) -> "Timestamp": ...  # round(x)
+
+    # In-place operations
+    def __iadd__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...  # +=
+    def __isub__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...  # -=
+    def __imul__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...  # *=
+    def __itruediv__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...  # /=
+    def __ifloordiv__(
+        self, other: Union["Timestamp", int, float, Decimal]
+    ) -> "Timestamp": ...  # //=
+    def __imod__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...  # %=
+
+
+class TimeLength(Protocol):
+    """Protocol defining the interface for time duration/length values."""
+
+    def to_seconds(self) -> "Timestamp": ...
+    def to_minutes(self) -> "Timestamp": ...
+    def to_hours(self) -> "Timestamp": ...
+    def to_days(self) -> "Timestamp": ...
+
+    def __float__(self) -> float: ...
+    def __int__(self) -> int: ...
+
+    # Arithmetic with other TimeLengths
+    def __add__(self, other: Union["TimeLength", int, float, Decimal]) -> "TimeLength": ...
+    def __sub__(self, other: Union["TimeLength", int, float, Decimal]) -> "TimeLength": ...
+    def __mul__(
+        self, other: Union[int, float, Decimal]
+    ) -> "TimeLength": ...  # Note: only scalar multiplication
+    def __truediv__(
+        self, other: Union["TimeLength", int, float, Decimal]
+    ) -> Union["TimeLength", float]: ...
+    def __floordiv__(self, other: Union["TimeLength", int, float, Decimal]) -> "TimeLength": ...
+
+    # Comparison
+    def __lt__(self, other: "TimeLength") -> bool: ...
+    def __le__(self, other: "TimeLength") -> bool: ...
+    def __gt__(self, other: "TimeLength") -> bool: ...
+    def __ge__(self, other: "TimeLength") -> bool: ...
+    def __eq__(self, other: object) -> bool: ...
 
 
 class UnitAttributes(Protocol):
@@ -20,6 +118,10 @@ class UnitAttributes(Protocol):
 
     def get(self, prop: str) -> "ResolvedValue": ...
     def set(self, prop: str, value: "PropertyValue") -> None: ...
+
+    # String conversion
+    def __str__(self) -> str: ...
+    def __repr__(self) -> str: ...
 
 
 class CalendarUnit(Protocol):
@@ -32,7 +134,7 @@ class CalendarUnit(Protocol):
     _func_cache: "FunctionCache"
 
     def get_value(
-        self, prop: str, timestamp: Decimal = Decimal(0), *args: object, **kwargs: object
+        self, prop: str, timestamp: Timestamp = DecimalTimestamp(0), *args: object, **kwargs: object
     ) -> ResolvedValue:
         """Get the value of a unit property.
 
@@ -45,7 +147,12 @@ class CalendarUnit(Protocol):
         """
         ...
 
-    def calculate_index(self, timestamp: Decimal = Decimal(0)) -> None:
+    def get_start(self, timestamp: Timestamp = DecimalTimestamp(0)) -> Timestamp: ...
+    def get_length(self, timestamp: Timestamp = DecimalTimestamp(0)) -> TimeLength: ...
+    def get_timezone(self, timestamp: Timestamp = DecimalTimestamp(0)) -> TimeLength: ...
+
+
+    def calculate_index(self, timestamp: Timestamp = DecimalTimestamp(0)) -> None:
         """Calculate the index based on timestamp and unit properties.
 
         Args:

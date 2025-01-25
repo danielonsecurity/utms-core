@@ -1,12 +1,14 @@
 from collections.abc import Mapping
 from typing import Dict, Optional
-from utms.utms_types import CalendarUnit, HyExpression
+
+from utms.utms_types import CalendarComponents, CalendarUnit, HyExpression
+
 
 class UnitAccessor(Mapping):
     """Manages access to calendar units."""
-    
-    def __init__(self, units: Dict[str, CalendarUnit]):
-        self._units = units
+
+    def __init__(self, units: CalendarComponents):
+        self._units: CalendarComponents = units
 
     # Required methods for Mapping interface
     def __getitem__(self, key: str) -> CalendarUnit:
