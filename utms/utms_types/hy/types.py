@@ -34,13 +34,19 @@ ResolvedValue: TypeAlias = Union[
     Any,
 ]
 
-Context: TypeAlias = Optional[Any]  # TODO
+Context: TypeAlias = Optional[Any]
 
 
 ExpressionList: TypeAlias = PyList[HyExpression]
 
 LocalsDict: TypeAlias = Optional[Dict[str, Any]]
 EvaluatedResult: TypeAlias = Union[Callable[..., Any], Any]
+
+OptionalHyExpression: TypeAlias = Optional[HyExpression]
+
+PropertyValue: TypeAlias = Union[HyExpression, HySymbol, HyList, Decimal, int, str, None]
+PropertyDict: TypeAlias = Dict[str, PropertyValue]
+NamesList: TypeAlias = Optional[Union[HyList, PyList[str]]]
 
 
 def is_symbol(obj: Any) -> TypeGuard[Symbol]:
@@ -52,11 +58,11 @@ def is_number(obj: Any) -> TypeGuard[Union[Integer, float, int, Decimal]]:
 
 
 def is_string(obj: Any) -> TypeGuard[String]:
-    return isinstance(obj, String)
+    return isinstance(obj, (str, String))
 
 
 def is_list(obj: Any) -> TypeGuard[List]:
-    return isinstance(obj, (HyList, PyList))
+    return isinstance(obj, (List, PyList))
 
 
 def is_expression(obj: Any) -> TypeGuard[Expression]:

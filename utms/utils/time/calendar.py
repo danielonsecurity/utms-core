@@ -3,7 +3,7 @@ from decimal import Decimal
 from typing import Optional
 
 from utms.utms_types import CalendarUnit as CalendarUnitProtocol
-from utms.utms_types import TimeRange
+from utms.utms_types import DecimalTimeStamp, TimeRange, TimeStamp
 
 
 def get_timezone(unit, timestamp=None):
@@ -38,7 +38,7 @@ def get_datetime_from_timestamp(timestamp: Decimal, tz: Optional[timezone] = Non
 
 
 def get_day_of_week(
-    timestamp: float, week_unit: CalendarUnitProtocol, day_unit: CalendarUnitProtocol
+    timestamp: TimeStamp, week_unit: CalendarUnitProtocol, day_unit: CalendarUnitProtocol
 ) -> int:
     """Calculate day of week using pure arithmetic.
 
@@ -50,20 +50,20 @@ def get_day_of_week(
     Returns:
         Integer representing the day of week (0-based index)
     """
-    day_length = day_unit.get_value("length", timestamp)
-    week_length = week_unit.get_value("length", timestamp)
-
-    # Get timezone offset in seconds
-    timezone_offset = day_unit.get_value("timezone", timestamp)
+    decimal_timestamp = DecimalTimeStamp(timestamp)
+    day_length = day_unit.get_length(decimal_timestamp)
+    week_length = week_unit.get_length(decimal_timestamp)
+    week_offset = week_unit.get_offset()  # Get timezone offset in seconds
+    timezone_offset = day_unit.get_timezone(decimal_timestamp)
 
     # Calculate the reference point (1970-01-01 00:00:00)
     epoch_reference = 0  # Unix epoch starts at 0
 
     # Apply week offset and timezone offset to reference point
-    reference = epoch_reference + (week_unit.offset * day_length) - timezone_offset
+    reference = epoch_reference + (week_offset * day_length) - timezone_offset
 
     # Calculate days elapsed from reference, adjusting for timezone
-    days_elapsed = (timestamp - reference) // day_length
+    days_elapsed = (decimal_timestamp - reference) // day_length
 
     # Calculate day of week
     days_per_week = week_length // day_length
@@ -72,7 +72,7 @@ def get_day_of_week(
     return day_of_week
 
 
-def get_time_range(timestamp: float, unit: CalendarUnitProtocol) -> TimeRange:
-    start = unit.get_value("start", timestamp)
-    end = start + unit.get_value("length", timestamp)
+def get_time_range(timestamp: TimeStamp, unit: CalendarUnitProtocol) -> TimeRange:
+    start = unit.get_start(timestamp)
+    end = start + unit.get_length(timestamp)
     return TimeRange(start, end)

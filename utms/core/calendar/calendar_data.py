@@ -1,7 +1,13 @@
 from dataclasses import dataclass
-from typing import Dict, List
 
-from utms.utms_types import CalendarUnit, TimeRange, Timestamp
+from utms.utms_types import (
+    CalendarComponents,
+    IntegerList,
+    TimeLength,
+    TimeRange,
+    TimeStamp,
+    TimeStampList,
+)
 
 from .unit_accessor import UnitAccessor
 
@@ -11,8 +17,8 @@ class YearData:
     """Data structure for year calculations."""
 
     year_num: int
-    year_start: Timestamp
-    year_length: Timestamp
+    year_start: TimeStamp
+    year_length: TimeLength
     months_across: int = 3
     epoch_year: int = 1970
 
@@ -21,10 +27,10 @@ class YearData:
 class MonthData:
     """Data structure for month-related calculations."""
 
-    days: List[int]
-    month_starts: List[float]
-    month_ends: List[float]
-    first_day_weekdays: List[int]
+    days: IntegerList
+    month_starts: TimeStampList
+    month_ends: TimeStampList
+    first_day_weekdays: IntegerList
 
 
 @dataclass
@@ -32,31 +38,31 @@ class CalendarState:
     """Core calendar state."""
 
     name: str
-    timestamp: Timestamp
+    timestamp: TimeStamp
     week_length: int
-    today_start: Timestamp
+    today_start: TimeStamp
     current_week_range: TimeRange
     current_month_range: TimeRange
-    units: Dict[str, CalendarUnit]
+    units: CalendarComponents
 
 
 @dataclass
 class MonthCalculationParams:
     """Parameters for month data calculation."""
 
-    year_start: Timestamp
+    year_start: TimeStamp
     current_month: int
     months_across: int
     units: UnitAccessor
-    timestamp: Timestamp
+    timestamp: TimeStamp
 
 
 @dataclass
 class YearContext:
     """Context for year header formatting."""
 
-    timestamp: Timestamp
-    year_length: float
+    timestamp: TimeStamp
+    year_length: TimeLength
     months_across: int
     week_length: int
     epoch_year: int = 1970
@@ -66,8 +72,8 @@ class YearContext:
 class MonthContext:
     """Context for month calculations."""
 
-    current_timestamp: Timestamp
-    year_end: Timestamp
+    current_timestamp: TimeStamp
+    year_end: TimeStamp
     max_months: int
     month_index: int
     months_across: int
@@ -78,10 +84,10 @@ class MonthContext:
 class MonthGroupData:
     """Data for collecting month group information."""
 
-    days: List[int]
-    month_starts: List[float]
-    month_ends: List[float]
-    first_day_weekdays: List[int]
+    days: IntegerList
+    month_starts: TimeStampList
+    month_ends: TimeStampList
+    first_day_weekdays: IntegerList
 
     @classmethod
     def empty(cls) -> "MonthGroupData":
@@ -90,8 +96,8 @@ class MonthGroupData:
 
     def add_month(
         self,
-        current_timestamp: Timestamp,
-        month_end: Timestamp,
+        current_timestamp: TimeStamp,
+        month_end: TimeStamp,
         first_day_weekday: int,
     ) -> None:
         """Add data for a single month."""

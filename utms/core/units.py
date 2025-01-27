@@ -50,6 +50,8 @@ from typing import Dict, Iterator, Optional, Union
 
 from colorama import Fore, Style
 
+from utms.utms_types import UnitManagerProtocol, UnitProtocol
+
 from .plt import seconds_to_hplt, seconds_to_pplt
 
 
@@ -135,7 +137,7 @@ def format_value(
     return formatted_value.ljust(33)
 
 
-class Unit:
+class Unit(UnitProtocol):
     """Represents a time unit with a full name, abbreviation, and value in
     seconds. Provides methods for comparisons, conversions, and formatting.
 
@@ -153,9 +155,21 @@ class Unit:
             abbreviation (str): The abbreviation of the time unit.
             value (Decimal): The value of the time unit in seconds.
         """
-        self.name = name
-        self.abbreviation = abbreviation
-        self.value = value
+        self._name = name
+        self._abbreviation = abbreviation
+        self._value = value
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def abbreviation(self) -> str:
+        return self._abbreviation
+
+    @property
+    def value(self) -> Decimal:
+        return self._value
 
     def __repr__(self) -> str:
         """Provides a string representation of the Unit instance.
@@ -213,7 +227,7 @@ class Unit:
         return f"{self.name} ({self.abbreviation}): {self.value} seconds"
 
 
-class UnitManager:
+class UnitManager(UnitManagerProtocol):
     """A class to manage time units, allowing adding new units, sorting by
     value, and accessing them by abbreviation."""
 

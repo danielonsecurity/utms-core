@@ -81,7 +81,7 @@
 (defunit month
   (timezone day.timezone)
   (length
-    (fn [ts #* _]
+    (fn [ts #* _ ]
       (let [
             timezone (get_timezone (day.timezone ts))
             now (get_datetime_from_timestamp ts timezone)

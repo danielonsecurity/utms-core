@@ -1,6 +1,6 @@
 import datetime
 import time
-from types import FunctionType
+from types import FunctionType  # pylint: disable=no-name-in-module
 
 from ..utils import get_day_of_week, get_logger
 from ..utms_types import (

@@ -1,115 +1,13 @@
-from dataclasses import dataclass
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
 
-from ..hy.types import PyList, ResolvedValue
+from ..base.protocols import TimeStamp
+from ..base.time import DecimalTimeLength, DecimalTimeStamp
+from ..base.types import ArbitraryKwargs
+from ..hy.types import ResolvedValue
 
 if TYPE_CHECKING:
-    from .types import FunctionCache, PropertyValue
-
-from .timestamp import DecimalTimestamp
-
-
-class Timestamp(Protocol):
-    """Protocol defining the interface for timestamp values."""
-
-    def __float__(self) -> float:
-        """Convert timestamp to float."""
-        ...
-
-    def __int__(self) -> int:
-        """Convert timestamp to integer."""
-        ...
-
-    def __add__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp":
-        """Add timestamps or numbers."""
-        ...
-
-    def __sub__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp":
-        """Subtract timestamps or numbers."""
-        ...
-
-    def __mul__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...
-
-    def __truediv__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...
-
-    def __floordiv__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...
-
-    def __mod__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...
-
-    def __lt__(self, other: Union["Timestamp", int, float, Decimal]) -> bool:
-        """Less than comparison."""
-        ...
-
-    def __le__(self, other: Union["Timestamp", int, float, Decimal]) -> bool:
-        """Less than or equal comparison."""
-        ...
-
-    def __gt__(self, other: Union["Timestamp", int, float, Decimal]) -> bool:
-        """Greater than comparison."""
-        ...
-
-    def __ge__(self, other: Union["Timestamp", int, float, Decimal]) -> bool:
-        """Greater than or equal comparison."""
-        ...
-
-    def __eq__(self, other: object) -> bool:
-        """Equality comparison."""
-        ...
-
-    # Right-side operations (when Timestamp is on the right)
-    def __radd__(self, other: Union[int, float, Decimal]) -> "Timestamp": ...
-    def __rsub__(self, other: Union[int, float, Decimal]) -> "Timestamp": ...
-    def __rmul__(self, other: Union[int, float, Decimal]) -> "Timestamp": ...
-    def __rtruediv__(self, other: Union[int, float, Decimal]) -> "Timestamp": ...
-    def __rfloordiv__(self, other: Union[int, float, Decimal]) -> "Timestamp": ...
-    def __rmod__(self, other: Union[int, float, Decimal]) -> "Timestamp": ...
-
-    # Unary operations
-    def __neg__(self) -> "Timestamp": ...  # -x
-    def __pos__(self) -> "Timestamp": ...  # +x
-    def __abs__(self) -> "Timestamp": ...  # abs(x)
-    def __round__(self, ndigits: Optional[int] = None) -> "Timestamp": ...  # round(x)
-
-    # In-place operations
-    def __iadd__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...  # +=
-    def __isub__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...  # -=
-    def __imul__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...  # *=
-    def __itruediv__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...  # /=
-    def __ifloordiv__(
-        self, other: Union["Timestamp", int, float, Decimal]
-    ) -> "Timestamp": ...  # //=
-    def __imod__(self, other: Union["Timestamp", int, float, Decimal]) -> "Timestamp": ...  # %=
-
-
-class TimeLength(Protocol):
-    """Protocol defining the interface for time duration/length values."""
-
-    def to_seconds(self) -> "Timestamp": ...
-    def to_minutes(self) -> "Timestamp": ...
-    def to_hours(self) -> "Timestamp": ...
-    def to_days(self) -> "Timestamp": ...
-
-    def __float__(self) -> float: ...
-    def __int__(self) -> int: ...
-
-    # Arithmetic with other TimeLengths
-    def __add__(self, other: Union["TimeLength", int, float, Decimal]) -> "TimeLength": ...
-    def __sub__(self, other: Union["TimeLength", int, float, Decimal]) -> "TimeLength": ...
-    def __mul__(
-        self, other: Union[int, float, Decimal]
-    ) -> "TimeLength": ...  # Note: only scalar multiplication
-    def __truediv__(
-        self, other: Union["TimeLength", int, float, Decimal]
-    ) -> Union["TimeLength", float]: ...
-    def __floordiv__(self, other: Union["TimeLength", int, float, Decimal]) -> "TimeLength": ...
-
-    # Comparison
-    def __lt__(self, other: "TimeLength") -> bool: ...
-    def __le__(self, other: "TimeLength") -> bool: ...
-    def __gt__(self, other: "TimeLength") -> bool: ...
-    def __ge__(self, other: "TimeLength") -> bool: ...
-    def __eq__(self, other: object) -> bool: ...
+    from .types import FunctionCache, NamesList, PropertyDict, PropertyValue
 
 
 class UnitAttributes(Protocol):
@@ -118,6 +16,7 @@ class UnitAttributes(Protocol):
 
     def get(self, prop: str) -> "ResolvedValue": ...
     def set(self, prop: str, value: "PropertyValue") -> None: ...
+    def get_all(self) -> "PropertyDict": ...
 
     # String conversion
     def __str__(self) -> str: ...
@@ -134,35 +33,40 @@ class CalendarUnit(Protocol):
     _func_cache: "FunctionCache"
 
     def get_value(
-        self, prop: str, timestamp: Timestamp = DecimalTimestamp(0), *args: object, **kwargs: object
-    ) -> ResolvedValue:
-        """Get the value of a unit property.
+        self, prop: str, timestamp: TimeStamp = DecimalTimeStamp(0), *args: object, **kwargs: object
+    ) -> ResolvedValue: ...
 
-        Args:
-            prop: Name of the property to get
-            timestamp: Optional timestamp for time-dependent properties
+    def get_start(
+        self, timestamp: TimeStamp = DecimalTimeStamp(0), **kwargs: "ArbitraryKwargs"
+    ) -> DecimalTimeStamp: ...
 
-        Returns:
-            Resolved property value
-        """
-        ...
+    def get_length(
+        self, timestamp: TimeStamp = DecimalTimeStamp(0), **kwargs: "ArbitraryKwargs"
+    ) -> DecimalTimeLength: ...
 
-    def get_start(self, timestamp: Timestamp = DecimalTimestamp(0)) -> Timestamp: ...
-    def get_length(self, timestamp: Timestamp = DecimalTimestamp(0)) -> TimeLength: ...
-    def get_timezone(self, timestamp: Timestamp = DecimalTimestamp(0)) -> TimeLength: ...
+    def get_timezone(
+        self, timestamp: TimeStamp = DecimalTimeStamp(0), **kwargs: "ArbitraryKwargs"
+    ) -> DecimalTimeLength: ...
 
+    def get_names(
+        self, timestamp: TimeStamp = DecimalTimeStamp(0), **kwargs: "ArbitraryKwargs"
+    ) -> "NamesList": ...
 
-    def calculate_index(self, timestamp: Timestamp = DecimalTimestamp(0)) -> None:
-        """Calculate the index based on timestamp and unit properties.
+    def get_offset(
+        self, timestamp: TimeStamp = DecimalTimeStamp(0), **kwargs: "ArbitraryKwargs"
+    ) -> Decimal: ...
 
-        Args:
-            timestamp: Timestamp to calculate index for
-        """
-        ...
+    def get_index(
+        self, timestamp: TimeStamp = DecimalTimeStamp(0), **kwargs: "ArbitraryKwargs"
+    ) -> int: ...
 
-    def __str__(self) -> str:
-        """String representation of the unit."""
-        ...
+    def get_property(self, prop: str) -> "PropertyValue": ...
+    def set_property(self, prop: str, value: "PropertyValue") -> None: ...
+    def get_all_properties(self) -> "PropertyDict": ...
+
+    def calculate_index(self, timestamp: TimeStamp = DecimalTimeStamp(0)) -> None: ...
+
+    def __str__(self) -> str: ...
 
     def __repr__(self) -> str: ...
 
@@ -179,60 +83,15 @@ class TimeUnit(Protocol):
     @property
     def timezone(self) -> "PropertyValue": ...
 
-    def get_start(self, timestamp: float) -> float:
-        """Get the start time of the unit containing the timestamp.
+    def get_start(self, timestamp: float) -> float: ...
 
-        Args:
-            timestamp: The timestamp to get the start time for
+    def get_end(self, timestamp: float) -> float: ...
 
-        Returns:
-            Start timestamp of the containing unit
-        """
-        ...
+    def get_next(self, timestamp: float) -> float: ...
 
-    def get_end(self, timestamp: float) -> float:
-        """Get the end time of the unit containing the timestamp.
+    def get_previous(self, timestamp: float) -> float: ...
 
-        Args:
-            timestamp: The timestamp to get the end time for
-
-        Returns:
-            End timestamp of the containing unit
-        """
-        ...
-
-    def get_next(self, timestamp: float) -> float:
-        """Get the start time of the next unit.
-
-        Args:
-            timestamp: The reference timestamp
-
-        Returns:
-            Start timestamp of the next unit
-        """
-        ...
-
-    def get_previous(self, timestamp: float) -> float:
-        """Get the start time of the previous unit.
-
-        Args:
-            timestamp: The reference timestamp
-
-        Returns:
-            Start timestamp of the previous unit
-        """
-        ...
-
-    def get_current(self, timestamp: float) -> float:
-        """Get the normalized timestamp within the current unit.
-
-        Args:
-            timestamp: The timestamp to normalize
-
-        Returns:
-            Normalized timestamp within the current unit
-        """
-        ...
+    def get_current(self, timestamp: float) -> float: ...
 
 
 class NamedUnit(Protocol):
@@ -241,43 +100,13 @@ class NamedUnit(Protocol):
     names: Optional[List[str]]
     index: int
 
-    def get_name(self, timestamp: float = 0) -> Optional[str]:
-        """Get the name of the unit for the given timestamp.
+    def get_name(self, timestamp: float = 0) -> Optional[str]: ...
 
-        Args:
-            timestamp: Optional timestamp to determine the name
+    def get_names(self) -> Optional[List[str]]: ...
 
-        Returns:
-            The name of the unit or None if no names are defined
-        """
-        ...
+    def get_index(self, timestamp: float = 0) -> int: ...
 
-    def get_names(self) -> Optional[List[str]]:
-        """Get all possible names for this unit.
-
-        Returns:
-            List of all possible names or None if no names are defined
-        """
-        ...
-
-    def get_index(self, timestamp: float = 0) -> int:
-        """Get the current index in the names list.
-
-        Args:
-            timestamp: Optional timestamp to determine the index
-
-        Returns:
-            Current index in the names list
-        """
-        ...
-
-    def set_index(self, index: int) -> None:
-        """Set the current index in the names list.
-
-        Args:
-            index: New index value
-        """
-        ...
+    def set_index(self, index: int) -> None: ...
 
 
 class IndexedUnit(Protocol):
@@ -287,54 +116,15 @@ class IndexedUnit(Protocol):
     length: Decimal  # For calculating index
     start: Decimal  # Reference point for index calculation
 
-    def get_index(self, timestamp: float = 0) -> int:
-        """Get the index for the given timestamp.
+    def get_index(self, timestamp: float = 0) -> int: ...
 
-        Args:
-            timestamp: Timestamp to calculate index for
+    def set_index(self, index: int) -> None: ...
 
-        Returns:
-            Calculated index value
-        """
-        ...
+    def calculate_index(self, timestamp: float = 0) -> None: ...
 
-    def set_index(self, index: int) -> None:
-        """Set the current index.
+    def get_cycle_position(self, timestamp: float = 0) -> float: ...
 
-        Args:
-            index: New index value
-        """
-        ...
-
-    def calculate_index(self, timestamp: float = 0) -> None:
-        """Calculate and update the index based on timestamp.
-
-        Args:
-            timestamp: Timestamp to calculate index for
-        """
-        ...
-
-    def get_cycle_position(self, timestamp: float = 0) -> float:
-        """Get position within the current cycle (0.0 to 1.0).
-
-        Args:
-            timestamp: Timestamp to calculate position for
-
-        Returns:
-            Position within cycle as float between 0 and 1
-        """
-        ...
-
-    def get_cycle_length(self, timestamp: float = 0) -> int:
-        """Get the length of the complete cycle.
-
-        Args:
-            timestamp: Optional timestamp for variable cycle lengths
-
-        Returns:
-            Number of positions in the complete cycle
-        """
-        ...
+    def get_cycle_length(self, timestamp: float = 0) -> int: ...
 
 
 class CalendarOperations(Protocol):
@@ -343,94 +133,23 @@ class CalendarOperations(Protocol):
     name: str
     units: Dict[str, Any]  # Dictionary of calendar units
 
-    def get_day_of_week(self, timestamp: float, timezone: Optional[float] = None) -> int:
-        """Get day of week for timestamp.
+    def get_day_of_week(self, timestamp: float, timezone: Optional[float] = None) -> int: ...
 
-        Args:
-            timestamp: The timestamp to calculate for
-            timezone: Optional timezone offset
+    def get_week_number(self, timestamp: float, timezone: Optional[float] = None) -> int: ...
 
-        Returns:
-            Day of week index (0-6)
-        """
-        ...
+    def get_days_in_month(self, timestamp: float, timezone: Optional[float] = None) -> int: ...
 
-    def get_week_number(self, timestamp: float, timezone: Optional[float] = None) -> int:
-        """Get week number in year.
+    def is_leap_year(self, timestamp: float, timezone: Optional[float] = None) -> bool: ...
 
-        Args:
-            timestamp: The timestamp to calculate for
-            timezone: Optional timezone offset
-
-        Returns:
-            Week number (1-53)
-        """
-        ...
-
-    def get_days_in_month(self, timestamp: float, timezone: Optional[float] = None) -> int:
-        """Get number of days in the month.
-
-        Args:
-            timestamp: The timestamp to calculate for
-            timezone: Optional timezone offset
-
-        Returns:
-            Number of days in the month
-        """
-        ...
-
-    def is_leap_year(self, timestamp: float, timezone: Optional[float] = None) -> bool:
-        """Check if timestamp is in a leap year.
-
-        Args:
-            timestamp: The timestamp to check
-            timezone: Optional timezone offset
-
-        Returns:
-            True if leap year, False otherwise
-        """
-        ...
-
-    def get_unit_by_name(self, unit_name: str) -> Optional[Any]:
-        """Get a calendar unit by its name.
-
-        Args:
-            unit_name: Name of the unit to get
-
-        Returns:
-            Calendar unit if found, None otherwise
-        """
-        ...
+    def get_unit_by_name(self, unit_name: str) -> Optional[Any]: ...
 
     def format_timestamp(
         self, timestamp: float, format_str: str, timezone: Optional[float] = None
-    ) -> str:
-        """Format timestamp according to format string.
-
-        Args:
-            timestamp: The timestamp to format
-            format_str: Format string (similar to strftime)
-            timezone: Optional timezone offset
-
-        Returns:
-            Formatted timestamp string
-        """
-        ...
+    ) -> str: ...
 
     def parse_date(
         self, date_str: str, format_str: Optional[str] = None, timezone: Optional[float] = None
-    ) -> float:
-        """Parse date string to timestamp.
-
-        Args:
-            date_str: Date string to parse
-            format_str: Optional format string
-            timezone: Optional timezone offset
-
-        Returns:
-            Timestamp corresponding to date string
-        """
-        ...
+    ) -> float: ...
 
 
 class DateFormatter(Protocol):
@@ -442,19 +161,7 @@ class DateFormatter(Protocol):
         format_str: str,
         timezone: Optional[float] = None,
         locale: Optional[str] = None,
-    ) -> str:
-        """Format timestamp according to format string.
-
-        Args:
-            timestamp: Timestamp to format
-            format_str: Format string (strftime-style)
-            timezone: Optional timezone offset
-            locale: Optional locale name
-
-        Returns:
-            Formatted date/time string
-        """
-        ...
+    ) -> str: ...
 
     def parse(
         self,
@@ -462,59 +169,14 @@ class DateFormatter(Protocol):
         format_str: Optional[str] = None,
         timezone: Optional[float] = None,
         locale: Optional[str] = None,
-    ) -> float:
-        """Parse date string into timestamp.
+    ) -> float: ...
 
-        Args:
-            date_str: Date string to parse
-            format_str: Optional format string
-            timezone: Optional timezone offset
-            locale: Optional locale name
-
-        Returns:
-            Parsed timestamp
-        """
-        ...
-
-    def get_format_tokens(self) -> Dict[str, str]:
-        """Get dictionary of supported format tokens.
-
-        Returns:
-            Dictionary mapping format tokens to their descriptions
-        """
-        ...
+    def get_format_tokens(self) -> Dict[str, str]: ...
 
     def format_relative(
         self, timestamp: float, reference: Optional[float] = None, timezone: Optional[float] = None
-    ) -> str:
-        """Format timestamp relative to reference time.
+    ) -> str: ...
 
-        Args:
-            timestamp: Timestamp to format
-            reference: Reference timestamp (defaults to now)
-            timezone: Optional timezone offset
+    def format_duration(self, seconds: float, detailed: bool = False) -> str: ...
 
-        Returns:
-            Relative time string (e.g., "2 hours ago")
-        """
-        ...
-
-    def format_duration(self, seconds: float, detailed: bool = False) -> str:
-        """Format duration in seconds to human-readable string.
-
-        Args:
-            seconds: Number of seconds
-            detailed: Whether to include more detail
-
-        Returns:
-            Formatted duration string
-        """
-        ...
-
-    def get_calendar_formats(self) -> Dict[str, str]:
-        """Get dictionary of predefined calendar formats.
-
-        Returns:
-            Dictionary mapping format names to format strings
-        """
-        ...
+    def get_calendar_formats(self) -> Dict[str, str]: ...

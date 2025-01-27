@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from utms.resolvers import CalendarResolver
 from utms.utils import get_logger
 from utms.utms_types import (
@@ -7,7 +5,7 @@ from utms.utms_types import (
     ExpressionList,
     OptionalHyExpression,
     PropertyDict,
-    Timestamp,
+    TimeStamp,
     UnitDefinitions,
     UnitKwargs,
     UnitMappings,
@@ -117,14 +115,14 @@ def initialize_units(parsed_units: UnitDefinitions) -> UnitsDict:
 
 def resolve_unit_properties(units: UnitsDict) -> None:
     """Resolve all Hy expressions in unit properties."""
-    for unit in list(units.values()):
-        for prop_name, prop_value in unit._attrs._values.items():
+    for unit in units.values():
+        for prop_name, prop_value in unit.get_all_properties().items():
             if prop_name != "name" and is_hy_compound(prop_value):
                 resolved_value = _resolver.resolve_unit_property(prop_value, unit)
-                unit._attrs.set(prop_name, resolved_value)
+                unit.set_property(prop_name, resolved_value)
 
 
-def process_units(units_data: ExpressionList, timestamp: Timestamp) -> UnitsDict:
+def process_units(units_data: ExpressionList, timestamp: TimeStamp) -> UnitsDict:
     """Process Hy unit definitions into fully initialized calendar units."""
     logger.debug("Starting process_units")
     parsed_units = parse_unit_definitions(units_data)

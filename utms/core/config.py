@@ -32,6 +32,8 @@ from typing import Any, List, Optional, Tuple, Union
 import appdirs
 import ntplib
 
+from utms.utms_types import AnchorManagerProtocol, ConfigProtocol, UnitManagerProtocol
+
 from . import constants
 from .anchors import AnchorConfig, AnchorManager
 from .units import UnitManager
@@ -68,7 +70,7 @@ def get_ntp_date() -> datetime:
     return current_date
 
 
-class Config:
+class Config(ConfigProtocol):
     """Configuration class that manages units and anchors for time and datetime
     references.
 
@@ -85,17 +87,33 @@ class Config:
         This method calls `populate_units()` to add time units and
         `populate_anchors()` to add datetime anchors.
         """
-        self.utms_dir = appdirs.user_config_dir(constants.APP_NAME, constants.COMPANY_NAME)
+        self._utms_dir = appdirs.user_config_dir(constants.APP_NAME, constants.COMPANY_NAME)
         # Ensure the config directory exists
         os.makedirs(self.utms_dir, exist_ok=True)
         self.init_resources()
-        self.data: Any = self.load()
+        self._data: Any = self.load()
 
-        self.units = UnitManager()
-        self.anchors = AnchorManager(self.units)
+        self._units: UnitManagerProtocol = UnitManager()
+        self._anchors: AnchorManagerProtocol = AnchorManager(self.units)
         self.load_units()
         self.populate_dynamic_anchors()
         self.load_anchors()
+
+    @property
+    def utms_dir(self) -> str:
+        return str(self._utms_dir)
+
+    @property
+    def data(self) -> Any:
+        return self._data
+
+    @property
+    def units(self) -> UnitManagerProtocol:
+        return self._units
+
+    @property
+    def anchors(self) -> AnchorManagerProtocol:
+        return self._anchors
 
     def _parse_key(self, key: str) -> List[Union[str, int]]:
         """Parse a dot-separated key with support for array indices.

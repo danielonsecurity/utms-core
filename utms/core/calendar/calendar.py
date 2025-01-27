@@ -1,6 +1,6 @@
 from utms.resolvers import CalendarResolver
 from utms.utils import TimeRange, get_logger
-from utms.utms_types import CalendarUnit, DecimalTimestamp, Timestamp
+from utms.utms_types import CalendarUnit, TimeStamp
 
 from .calendar_calculator import CalendarCalculator, MonthCalculationParams
 from .calendar_data import CalendarState, MonthData, YearData
@@ -13,10 +13,10 @@ logger = get_logger("core.calendar.calendar")
 
 
 class Calendar:
-    def __init__(self, name: str, timestamp: Timestamp):
+    def __init__(self, name: str, timestamp: TimeStamp):
         logger.debug("Initializing calendar %s", name)
         self.name: str = name
-        self.timestamp: Timestamp = timestamp
+        self.timestamp: TimeStamp = timestamp
         units = CalendarRegistry.get_calendar_units(name)
         self._units: UnitAccessor = UnitAccessor(units)
         self._calculator: CalendarCalculator = CalendarCalculator()
@@ -26,17 +26,17 @@ class Calendar:
 
     def _create_calendar_state(self) -> CalendarState:
         """Create initial calendar state."""
-        week_length = self.week_unit.get_value("length", self.timestamp) // self.day_unit.get_value(
-            "length", self.timestamp
+        week_length = self.week_unit.get_length(self.timestamp) // self.day_unit.get_length(
+            self.timestamp
         )
-        today_start = self.day_unit.get_value("start", self.timestamp)
+        today_start = self.day_unit.get_start(self.timestamp)
         current_week_range = self._calculator.calculate_time_range(self.timestamp, self.week_unit)
         current_month_range = self._calculator.calculate_time_range(self.timestamp, self.month_unit)
 
         return CalendarState(
             name=self.name,
             timestamp=self.timestamp,
-            week_length=week_length,
+            week_length=int(week_length),
             today_start=today_start,
             current_week_range=current_week_range,
             current_month_range=current_month_range,
@@ -77,7 +77,7 @@ class Calendar:
 
     def _get_month_group_data(self, year_data: YearData, current_month: int) -> MonthData:
         params = MonthCalculationParams(
-            year_start=year_data.year_start,
+            year_start=year_data.year_start.copy(),
             current_month=current_month,
             months_across=year_data.months_across,
             units=self._units,
@@ -88,30 +88,29 @@ class Calendar:
     def _print_month_group_headers(
         self, year_data: YearData, current_month: int, month_data: MonthData
     ) -> None:
-        self._printer.print_month_headers(
-            year_data.year_start,
-            current_month,
-            year_data.months_across,
-            self.year_unit.get_value("names"),
-            self.month_unit,
+        params = MonthCalculationParams(
+            year_start=year_data.year_start.copy(),
+            current_month=current_month,
+            months_across=year_data.months_across,
+            units=self._units,
+            timestamp=self.timestamp,
         )
 
+        self._printer.print_month_headers(params)
         self._printer.print_weekday_headers(
             year_data.months_across,
             month_data.month_starts,
-            self.week_unit.get_value("names"),
+            self.week_unit.get_names(),
         )
 
     def _print_month_group_weeks(self, month_data: MonthData) -> None:
         max_weeks = self._calculator.calculate_max_weeks(
-            month_data, self.day_unit.get_value("length", self.timestamp), self.week_length
+            month_data, self.day_unit.get_length(self.timestamp), self.week_length
         )
         for _ in range(max_weeks):
-            self._printer.print_week_row(
-                month_data, self.day_unit.get_value("length", self.timestamp)
-            )
+            self._printer.print_week_row(month_data, self.day_unit.get_length(self.timestamp))
             self._calculator.reset_first_day_weekdays(
-                month_data, self.day_unit.get_value("length", self.timestamp)
+                month_data, self.day_unit.get_length(self.timestamp)
             )
 
     def __str__(self) -> str:
@@ -162,7 +161,7 @@ class Calendar:
         return self._state.week_length
 
     @property
-    def today_start(self) -> Timestamp:
+    def today_start(self) -> TimeStamp:
         """Get today's start timestamp from state."""
         return self._state.today_start
 

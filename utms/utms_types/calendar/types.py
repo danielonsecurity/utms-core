@@ -1,46 +1,52 @@
+from collections.abc import Mapping
 from decimal import Decimal
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Iterator
 from typing import List as PyList
 from typing import Literal, Optional, TypeAlias, TypedDict, TypeGuard, Union, cast
 
-from ..hy.types import HyExpression, HyInteger, HyList, HyString, HySymbol, ResolvedValue
-from .protocols import CalendarUnit, TimeLength, Timestamp
-from .timelength import DecimalTimeLength
-from .timestamp import DecimalTimestamp
+from ..base.protocols import TimeLength, TimeStamp
+from ..base.time import DecimalTimeLength, DecimalTimeStamp
+from ..hy.types import (
+    HyExpression,
+    HyInteger,
+    HyList,
+    HySymbol,
+    NamesList,
+    OptionalHyExpression,
+    PropertyValue,
+    ResolvedValue,
+    is_list,
+    is_number,
+)
+from .protocols import CalendarUnit
 
-# Basic type aliases
-TimezoneOffset: TypeAlias = Optional[Union[int, float]]
-LocaleString: TypeAlias = Optional[str]
-FormatString: TypeAlias = str
-
-# Calendar-specific types
+# Basic calendar literals
 UnitType: TypeAlias = Literal["day", "week", "month", "year"]
 FunctionType: TypeAlias = Literal["day_of_week_fn"]
 
-# Hy-related types
-OptionalHyExpression: TypeAlias = Optional[HyExpression]
-PropertyValue: TypeAlias = Union[HyExpression, HySymbol, HyList, Decimal, int, str, None]
-PropertyDict: TypeAlias = Dict[str, PropertyValue]
-
-# Unit-related types
+# Unit related types
 UnitName: TypeAlias = str
 UnitIndex: TypeAlias = int
 UnitLength: TypeAlias = Union[int, Decimal]
-CyclePosition: TypeAlias = float
+
+# Unit mapping types
+UnitKey: TypeAlias = Union[UnitType, FunctionType]
+UnitValue: TypeAlias = Union["CalendarUnit", HyExpression]
+UnitKeyIterator: TypeAlias = Iterator[UnitKey]
 UnitMappings: TypeAlias = Dict[UnitType, HySymbol]
 UnitsDict: TypeAlias = Dict[str, "CalendarUnit"]
-NamesList: TypeAlias = Optional[Union[HyList, PropertyValue]]
+OptionalUnitsDict: TypeAlias = Optional[Dict[str, "CalendarUnit"]]
 
 
-# Function types
+# Collection types
+CalendarComponents: TypeAlias = Dict[UnitKey, UnitValue]
+UnitAccessorMapping: TypeAlias = Mapping[UnitKey, UnitValue]
+CalendarDefinitions: TypeAlias = Dict[str, "CalendarConfig"]
+UnitDefinitions: TypeAlias = Dict[str, "UnitInfo"]
+
+# Function-related types
 CalendarFunction: TypeAlias = Callable[..., ResolvedValue]
-TimeCalculator: TypeAlias = Callable[[Timestamp], Timestamp]
-IndexCalculator: TypeAlias = Callable[[Timestamp], int]
-FormatterFunction: TypeAlias = Callable[[Timestamp, FormatString, TimezoneOffset], str]
-
-# Cache types
 FunctionCache: TypeAlias = Dict[str, CalendarFunction]
-ValueCache: TypeAlias = Dict[str, Any]
 
 
 # Complex types
@@ -53,6 +59,9 @@ class UnitKwargs(TypedDict, total=False):
     index: Union[int, PropertyValue]
 
 
+OptionalUnitKwargs: TypeAlias = Optional[UnitKwargs]
+
+
 class UnitInfo(TypedDict):
     name: UnitName
     kwargs: UnitKwargs
@@ -61,51 +70,6 @@ class UnitInfo(TypedDict):
 class CalendarConfig(TypedDict):
     units: UnitMappings
     day_of_week: OptionalHyExpression
-
-
-class TimeRange:
-    """Represents a time range with start and end timestamps."""
-
-    def __init__(self, start, end) -> None:
-        self.start: Timestamp = start
-        self.end: Timestamp = end
-
-    def __post_init__(self) -> None:
-        """Validate that end is not before start."""
-        if self.end < self.start:
-            raise ValueError("TimeRange end cannot be before start")
-
-    @property
-    def duration(self) -> Timestamp:
-        """Calculate the duration of the time range."""
-        return self.end - self.start
-
-    def contains(self, timestamp: Timestamp) -> bool:
-        """Check if a timestamp falls within this range."""
-        return self.start <= timestamp < self.end
-
-    def overlaps(self, other: "TimeRange") -> bool:
-        """Check if this range overlaps with another range."""
-        return self.start < other.end and self.end > other.start
-
-
-# Args
-ArbitraryArgs: TypeAlias = Any
-ArbitraryKwargs: TypeAlias = Any
-OptionalUnitKwargs: TypeAlias = Optional[UnitKwargs]
-
-
-# Collection types
-CalendarComponents: TypeAlias = Dict[
-    Union[UnitType, FunctionType], Union["CalendarUnit", HyExpression]
-]
-
-CalendarDefinitions: TypeAlias = Dict[str, CalendarConfig]
-UnitDefinitions: TypeAlias = Dict[str, UnitInfo]
-
-# Result types
-CalculationResult: TypeAlias = Union[int, float, Decimal, TimeRange]
-FormattingResult: TypeAlias = str
 
 
 # Error types
@@ -133,9 +97,14 @@ def to_unit_type(s: str) -> UnitType:
     return cast(UnitType, s)
 
 
-def is_timestamp(obj: Any) -> TypeGuard[Union[HyInteger, float, int, Decimal, Timestamp]]:
-    return isinstance(obj, (HyInteger, float, int, Decimal, DecimalTimestamp))
+def is_timestamp(value: Any) -> TypeGuard[Union[HyInteger, float, int, Decimal, TimeStamp]]:
+    return is_number(value) or isinstance(value, DecimalTimeStamp)
 
 
-def is_timelength(obj: Any) -> TypeGuard[Union[HyInteger, float, int, Decimal, TimeLength]]:
-    return isinstance(obj, (HyInteger, float, int, DecimalTimeLength))
+def is_timelength(value: Any) -> TypeGuard[Union[HyInteger, float, int, Decimal, TimeLength]]:
+    return is_number(value) or isinstance(value, DecimalTimeLength)
+
+
+def is_names_list(value: Any) -> TypeGuard[Union[PyList[str], HyList]]:
+    """Type guard for NamesList."""
+    return is_list(value) and all(isinstance(x, str) for x in value)

@@ -72,39 +72,39 @@ from typing import Dict, Iterator, List, NamedTuple, Optional, Union
 from colorama import Fore, Style
 
 from utms.utils import value_to_decimal
+from utms.utms_types import (
+    AnchorConfigProtocol,
+    AnchorManagerProtocol,
+    AnchorProtocol,
+    UnitManagerProtocol,
+)
 
 from . import constants
-from .units import UnitManager
+
+# from .units import UnitManager
 
 
-class AnchorConfig(NamedTuple):
-    """Configuration for defining a time anchor.
+class AnchorConfig(AnchorConfigProtocol):
+    """Implementation of AnchorConfigProtocol."""
 
-    This class encapsulates the essential attributes needed to configure a time anchor,
-    including its full name, value, precision, and breakdown structure.
-
-    Attributes
-    ----------
-    name : str
-        The full descriptive name of the anchor.
-    value : Decimal
-        The numeric value associated with the anchor.
-    precision : Decimal
-        The precision to use for calculations involving the anchor.
-    breakdowns : List[List[str]]
-        A nested list defining the breakdown structure for the anchor, where each sublist
-        represents a level of detail (e.g., ["hours", "minutes", "seconds"]).
-    """
-
-    label: str
-    name: str
-    value: Union[Decimal, datetime]
-    breakdowns: Optional[List[List[str]]] = None
-    groups: Optional[List[str]] = None
-    precision: Optional[Decimal] = None
+    def __init__(
+        self,
+        label: str,
+        name: str,
+        value: Union[Decimal, datetime],
+        breakdowns: Optional[List[List[str]]] = None,
+        groups: Optional[List[str]] = None,
+        precision: Optional[Decimal] = None,
+    ) -> None:
+        self.label = label
+        self.name = name
+        self.value = value
+        self.breakdowns = breakdowns
+        self.groups = groups
+        self.precision = precision
 
 
-class Anchor:
+class Anchor(AnchorProtocol):
     """Represents a single time anchor with a full name, value, precision, and
     associated breakdown formats.
 
@@ -140,12 +140,38 @@ class Anchor:
 
     def __init__(self, anchor_config: AnchorConfig) -> None:
         """Create the Anchor object with its parameters inside."""
-        self.label = anchor_config.label
-        self.name = anchor_config.name
-        self.value = value_to_decimal(anchor_config.value)
-        self.precision = anchor_config.precision or constants.STANDARD_PRECISION
-        self.breakdowns = anchor_config.breakdowns or constants.STANDARD_BREAKDOWN
-        self.groups = anchor_config.groups or []
+        self._label = anchor_config.label
+        self._name = anchor_config.name
+        self._value = value_to_decimal(anchor_config.value)
+        self._precision = anchor_config.precision or constants.STANDARD_PRECISION
+        self._breakdowns = anchor_config.breakdowns or constants.STANDARD_BREAKDOWN
+        self._groups = anchor_config.groups or []
+
+    # Read-only properties
+    @property
+    def label(self) -> str:
+        return self._label
+
+    @property
+    def name(self) -> str:
+        return self._name
+
+    @property
+    def value(self) -> Decimal:
+        return self._value
+
+    @property
+    def breakdowns(self) -> List[List[str]]:
+        return self._breakdowns
+
+    @property
+    def groups(self) -> List[str]:
+        return self._groups
+
+    @property
+    def precision(self) -> Decimal:
+        return self._precision
+
 
     def _format_breakdown_entry(self, count: Union[int, Decimal], unit: str) -> str:
         """Formats a single breakdown entry."""
@@ -160,7 +186,7 @@ class Anchor:
         return f"{formatted_count} {apply_blue_color(unit)}".ljust(25)
 
     def _calculate_breakdown(
-        self, total_seconds: Decimal, breakdown_units: List[str], units: "UnitManager"
+        self, total_seconds: Decimal, breakdown_units: List[str], units: "UnitManagerProtocol"
     ) -> List[str]:
         """Calculates the breakdown for a given list of units."""
         remaining_seconds = Decimal(total_seconds)
@@ -202,7 +228,7 @@ class Anchor:
             print(f"  - {', '.join(breakdown)}")
         print("-" * 50)
 
-    def breakdown(self, total_seconds: Decimal, units: "UnitManager") -> str:
+    def breakdown(self, total_seconds: Decimal, units: "UnitManagerProtocol") -> str:
         """Breaks down a duration in seconds into multiple unit formats.
 
         Args:
@@ -235,14 +261,18 @@ class Anchor:
         return "\n".join(f"{prefix}{line}" for line in output)
 
 
-class AnchorManager:
+class AnchorManager(AnchorManagerProtocol):
     """A class to manage time anchors, allowing adding new anchors, sorting by
     value, and accessing them by abbreviation."""
 
-    def __init__(self, units: UnitManager) -> None:
+    def __init__(self, units: UnitManagerProtocol) -> None:
         """Create the AnchorManager object with Anchor objects inside."""
         self._anchors: Dict[str, Anchor] = {}
-        self.units = units
+        self._units = units
+
+    @property
+    def units(self) -> UnitManagerProtocol:
+        return self._units
 
     def add_anchor(self, anchor_config: AnchorConfig) -> None:
         """Adds a new anchor using the given configuration object.
@@ -250,10 +280,19 @@ class AnchorManager:
         Args:
             anchor_config: AnchorConfig object containing the configuration for the new anchor.
         """
-        decimal_anchor = anchor_config._replace(value=value_to_decimal(anchor_config.value))
+        decimal_value = value_to_decimal(anchor_config.value)
+        self._anchors[anchor_config.label] = Anchor(
+            AnchorConfig(
+                label=anchor_config.label,
+                name=anchor_config.name,
+                value=decimal_value,
+                breakdowns=anchor_config.breakdowns,
+                groups=anchor_config.groups,
+                precision=anchor_config.precision))
+        # decimal_anchor = anchor_config._replace(value=value_to_decimal(anchor_config.value))
 
-        # Add the anchor to the dictionary
-        self._anchors[anchor_config.label] = Anchor(decimal_anchor)
+        # # Add the anchor to the dictionary
+        # self._anchors[anchor_config.label] = Anchor(decimal_anchor)
 
     def delete_anchor(self, label: str) -> None:
         """Deletes an anchor by its label.

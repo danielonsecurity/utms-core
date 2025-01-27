@@ -1,8 +1,15 @@
 from dataclasses import dataclass
-from typing import List, Optional
 
 from utms.utils import ColorFormatter, TimeRange
-from utms.utms_types import Timestamp
+from utms.utms_types import (
+    IntegerList,
+    NamesList,
+    OptionalInteger,
+    OptionalTimeStampList,
+    TimeLength,
+    TimeStamp,
+    TimeStampList,
+)
 
 from .calendar_data import YearContext
 
@@ -13,7 +20,7 @@ class MonthHeaderFormatter:
     def __init__(self, week_length: int):
         self.week_length = week_length
 
-    def format_month_header(self, month_name: str, total_width: Optional[int] = None) -> str:
+    def format_month_header(self, month_name: str, total_width: OptionalInteger = None) -> str:
         """Format a month name as a centered header.
 
         Args:
@@ -25,12 +32,12 @@ class MonthHeaderFormatter:
         """
         width = total_width or self.week_length * 3
         padding_total = width - len(month_name)
-        padding_left = padding_total // 2
-        padding_right = padding_total - padding_left
+        padding_left = int(padding_total // 2)
+        padding_right = int(padding_total - padding_left)
 
         return " " * padding_left + ColorFormatter.blue(month_name) + " " * padding_right
 
-    def format_month_headers(self, month_names: List[str], months_across: int) -> str:
+    def format_month_headers(self, month_names: NamesList, months_across: int) -> str:
         """Format multiple month headers for display.
 
         Args:
@@ -43,8 +50,9 @@ class MonthHeaderFormatter:
         headers = []
         total_width = self.week_length * 3
 
-        for month_name in month_names[:months_across]:
-            headers.append(self.format_month_header(month_name, total_width))
+        if month_names:
+            for month_name in month_names[:months_across]:
+                headers.append(self.format_month_header(month_name, total_width))
 
         return "  ".join(headers)
 
@@ -61,19 +69,19 @@ class WeekdayHeaderFormatter:
 
     def format_weekday_row(
         self,
-        weekday_names: List[str],
+        weekday_names: NamesList,
         months_across: int,
-        month_starts: Optional[List[float]] = None,
+        month_starts: OptionalTimeStampList = None,
     ) -> str:
         """Format weekday headers for all visible months."""
         week_headers = []
 
         for i in range(months_across):
-            if month_starts and i < len(month_starts):
+            if weekday_names and month_starts and i < len(month_starts):
                 # Format weekday names for this month
                 formatted_names = [self.format_weekday_name(name) for name in weekday_names]
                 week_header = " ".join(formatted_names)
-                week_headers.append(week_header.ljust(self.week_length * 3))
+                week_headers.append(week_header.ljust(int(self.week_length) * 3))
             else:
                 # Empty space for months without data
                 week_headers.append(" " * (self.week_length * 3))
@@ -86,18 +94,18 @@ class DayContext:
     """Context for day formatting decisions."""
 
     current_week_range: TimeRange
-    today_start: float
-    day_start: float
+    today_start: TimeStamp
+    day_start: TimeStamp
 
 
-class DayFormatter:
+class DayFormatter:  # pylint: disable=too-few-public-methods
     """Handles formatting of day numbers in calendar display."""
 
     def format_day(
         self,
         day_num: int,
         is_current_month: bool,
-        current_day_timestamp: Timestamp,
+        current_day_timestamp: TimeStamp,
         context: DayContext,
     ) -> str:
         day_str = f"{day_num:2}"
@@ -126,11 +134,11 @@ class WeekContext:
     """Context for week row formatting."""
 
     week_length: int
-    days: List[int]
-    month_starts: List[float]
-    month_ends: List[float]
-    first_day_weekdays: List[int]
-    day_length: float
+    days: IntegerList
+    month_starts: TimeStampList
+    month_ends: TimeStampList
+    first_day_weekdays: IntegerList
+    day_length: TimeLength
 
 
 class WeekRowFormatter:
@@ -190,13 +198,12 @@ class WeekRowFormatter:
         week_row = []
         total_width = (self.week_length * 2) + (self.week_length - 1)
 
-        for i in range(len(context.month_starts)):
+        for month_idx, month_start in enumerate(context.month_starts):
+            # for i in range(len(context.month_starts)):
             # Check if this month is the current month
-            is_current_month = (
-                current_month_range.start <= context.month_starts[i] < current_month_range.end
-            )
+            is_current_month = current_month_range.start <= month_start < current_month_range.end
             week_days_str = self.format_month_week_days(
-                context, i, day_context, is_current_month  # Pass it to format_month_week_days
+                context, month_idx, day_context, is_current_month
             )
             week_row.append(week_days_str.ljust(total_width))
 
@@ -217,6 +224,6 @@ class YearHeaderFormatter:
         total_width = context.months_across * (context.week_length * 3 + 3)
 
         year_str = str(year_num)
-        padding = (total_width - len(year_str)) // 2
+        padding = int((total_width - len(year_str)) // 2)
 
         return " " * padding + ColorFormatter.red(year_str) + " " * padding

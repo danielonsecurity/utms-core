@@ -1,20 +1,25 @@
-from collections.abc import Mapping
-from typing import Dict, Optional
+from utms.utms_types import (
+    CalendarComponents,
+    CalendarUnit,
+    OptionalHyExpression,
+    UnitAccessorMapping,
+    UnitKey,
+    UnitKeyIterator,
+    UnitValue,
+)
 
-from utms.utms_types import CalendarComponents, CalendarUnit, HyExpression
 
-
-class UnitAccessor(Mapping):
+class UnitAccessor(UnitAccessorMapping):
     """Manages access to calendar units."""
 
     def __init__(self, units: CalendarComponents):
         self._units: CalendarComponents = units
 
     # Required methods for Mapping interface
-    def __getitem__(self, key: str) -> CalendarUnit:
+    def __getitem__(self, key: UnitKey) -> UnitValue:
         return self._units[key]
 
-    def __iter__(self):
+    def __iter__(self) -> UnitKeyIterator:
         return iter(self._units)
 
     def __len__(self) -> int:
@@ -37,9 +42,9 @@ class UnitAccessor(Mapping):
         return self._units["day"]
 
     @property
-    def day_of_week_fn(self) -> Optional[HyExpression]:
+    def day_of_week_fn(self) -> OptionalHyExpression:
         return self._units.get("day_of_week_fn")
 
-    def get_all(self) -> Dict[str, CalendarUnit]:
+    def get_all(self) -> CalendarComponents:
         """Get all units."""
         return self._units
