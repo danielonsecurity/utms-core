@@ -29,7 +29,7 @@ def evaluate_hy_file(hy_file_path: str) -> ExpressionList:
     for expr in expressions:
         expressions_list.append(expr)
 
-    logger.debug("Loaded % expressions", len(expressions_list))
+    logger.debug("Loaded %d expressions", len(expressions_list))
     return expressions_list
 
 

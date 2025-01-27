@@ -172,7 +172,6 @@ class Anchor(AnchorProtocol):
     def precision(self) -> Decimal:
         return self._precision
 
-
     def _format_breakdown_entry(self, count: Union[int, Decimal], unit: str) -> str:
         """Formats a single breakdown entry."""
 
@@ -288,7 +287,9 @@ class AnchorManager(AnchorManagerProtocol):
                 value=decimal_value,
                 breakdowns=anchor_config.breakdowns,
                 groups=anchor_config.groups,
-                precision=anchor_config.precision))
+                precision=anchor_config.precision,
+            )
+        )
         # decimal_anchor = anchor_config._replace(value=value_to_decimal(anchor_config.value))
 
         # # Add the anchor to the dictionary

@@ -32,12 +32,26 @@ from typing import Any, List, Optional, Tuple, Union
 import appdirs
 import ntplib
 
-from utms.utms_types import AnchorManagerProtocol, ConfigProtocol, UnitManagerProtocol
+from utms.utms_types import (
+    AnchorManagerProtocol,
+    ConfigData,
+    ConfigPath,
+    ConfigProtocol,
+    ConfigValue,
+    NestedConfig,
+    OptionalString,
+    UnitManagerProtocol,
+)
+from utms.utils import hy_to_python, format_hy_value
 
 from . import constants
 from .anchors import AnchorConfig, AnchorManager
 from .units import UnitManager
+from ..resolvers import ConfigResolver, evaluate_hy_file
 
+from .config_loader import get_logger, is_hy_compound, parse_config_definitions, resolve_config_values
+
+logger = get_logger("core.config")
 
 def get_ntp_date() -> datetime:
     """Retrieves the current date in datetime format using an NTP (Network Time
@@ -91,61 +105,101 @@ class Config(ConfigProtocol):
         # Ensure the config directory exists
         os.makedirs(self.utms_dir, exist_ok=True)
         self.init_resources()
-        self._data: Any = self.load()
-
+        self._data: NestedConfig = {}# = self.load()
         self._units: UnitManagerProtocol = UnitManager()
         self._anchors: AnchorManagerProtocol = AnchorManager(self.units)
         self.load_units()
         self.populate_dynamic_anchors()
         self.load_anchors()
 
-    @property
-    def utms_dir(self) -> str:
-        return str(self._utms_dir)
+        self.resolver = ConfigResolver()
+        self._load_hy_config()
+    
 
-    @property
-    def data(self) -> Any:
-        return self._data
+    def _load_hy_config(self) -> None:
+        config_hy = os.path.join(self.utms_dir, "config.hy")
+        if os.path.exists(config_hy):
+            try:
+                expressions = evaluate_hy_file(config_hy)
+                if expressions:
+                    config = self.resolver.resolve_config_property(expressions[0])
+                    self._data = config
+            except Exception as e:
+                logger.error("Error loading Hy config: %s", e)
 
-    @property
-    def units(self) -> UnitManagerProtocol:
-        return self._units
 
-    @property
-    def anchors(self) -> AnchorManagerProtocol:
-        return self._anchors
 
-    def _parse_key(self, key: str) -> List[Union[str, int]]:
-        """Parse a dot-separated key with support for array indices.
+    def _save_hy_config(self) -> None:
+        """Save current configuration to config.hy."""
+        config_hy = os.path.join(self.utms_dir, "config.hy")
 
-        :param key: The key to parse (e.g.,
-            'gemini.available_models[1]').
-        :return: A list of keys and indices to traverse.
+        settings = []
+        for key, value in self._data.items():
+            formatted_value = format_hy_value(value)
+            settings.append(f"  '({key} {formatted_value})")
+
+        content = [
+            ";; This file is managed by UTMS - do not edit manually",
+            "(custom-set-config",
+            *sorted(settings),
+            ")"
+        ]
+
+        with open(config_hy, 'w') as f:
+            f.write('\n'.join(content))
+
+
+    def get_value(self, key: ConfigPath, pretty: bool = False) -> ConfigValue:
+        """Get value from configuration."""
+        value = self._data.get(key)
+
+        if value is not None:
+            value = hy_to_python(value)
+
+        if pretty and value is not None:
+            return json.dumps(value, indent=4, sort_keys=True)
+        
+        return value
+
+    def has_value(self, key: ConfigPath) -> bool:
+        return key in self._data
+
+    def set_value(self, key: ConfigPath, value: ConfigValue) -> None:
+        self._data[key] = value
+        self._save_hy_config()
+
+    def print(self, filter_key: OptionalString = None) -> None:
         """
-        pattern = re.compile(r"(\w+)|\[(\d+)\]")
-        return [int(match[1]) if match[1] else match[0] for match in pattern.findall(key)]
+        Print the configuration in a formatted JSON style.
 
-    def _traverse(self, key: str) -> Tuple[Any, Union[str, int]]:
-        """Traverse the configuration using a parsed key.
+        Optionally filters the output to display the value of a specific key path.
 
-        :param key: The dot-separated key (e.g.,
-            'gemini.available_models[1]').
-        :return: The parent object and the last key/index.
+        Parameters
+        ----------
+        filter_key : str, optional
+            A dot-separated key path to filter the config output (e.g., 'gemini.api_key').
+            If provided, only the value of the specified key will be printed. If the key
+            points to a nested dictionary or list, its content is displayed in a
+            formatted manner.
+
+        Returns
+        -------
+        None
+
+        Raises
+        ------
+        KeyError
+            If the provided key path is invalid or does not exist in the configuration.
         """
-        keys = self._parse_key(key)
-        current = self.data
+        if filter_key:
+            try:
+                pretty_result = self.get_value(filter_key, pretty=True)
+                print(pretty_result)
+            except KeyError as e:
+                print(f"Error: {e}")
+        else:
+            print(json.dumps(self.data, indent=4, sort_keys=True))
 
-        for part in keys[:-1]:
-            if isinstance(part, int):  # Array index
-                if not isinstance(current, list) or part >= len(current):
-                    raise KeyError(f"Array index {part} out of range.")
-                current = current[part]
-            else:  # Dictionary key
-                if part not in current:
-                    raise KeyError(f"Key '{part}' does not exist.")
-                current = current[part]
-
-        return current, keys[-1]
 
     def init_resources(self) -> None:
         """Copy resources to the user config directory if they do not already
@@ -159,31 +213,6 @@ class Config(ConfigProtocol):
             if not os.path.exists(destination_file):
                 shutil.copy(str(source_file), destination_file)
 
-    def load(self) -> Any:
-        """Load the configuration from the JSON file.
-
-        Returns:
-            dict: Configuration data.
-        """
-
-        config_file = os.path.join(self.utms_dir, "config.json")
-
-        if os.path.exists(config_file):
-            with open(config_file, "r", encoding="utf-8") as f:
-                return json.load(f)
-        return {}
-
-    # Function to save the configuration to the JSON file
-    def save(self) -> None:
-        """Save the configuration data to the JSON file.
-
-        Args:
-            config (dict): Configuration data to be saved.
-        """
-        config_file = os.path.join(self.utms_dir, "config.json")
-
-        with open(config_file, "w", encoding="utf-8") as f:
-            json.dump(self.data, f, indent=4)
 
     def load_anchors(self) -> None:
         """Loads anchors from the 'anchors.json' file and populates the anchors
@@ -299,248 +328,6 @@ class Config(ConfigProtocol):
         except json.JSONDecodeError as e:
             print(f"Error serializing data to JSON: {e}")
 
-    def get_value(self, key: str, pretty: bool = False) -> Union[Any, str]:
-        """Get the value from the configuration by key.
-
-        :param key: The dot-separated key (e.g.,
-            'gemini.available_models[1]').
-        :param pretty: If True, return the value formatted as pretty
-            JSON.
-        :return: The value at the specified key.
-        """
-        current, last_key = self._traverse(key)
-
-        # Handle array index or dictionary key
-        if isinstance(last_key, int):  # Array index
-            if not isinstance(current, list) or last_key >= len(current):
-                raise KeyError(f"Array index {last_key} out of range.")
-            result = current[last_key]
-        else:
-            result = current[last_key]
-
-        if pretty:
-            return json.dumps(result, indent=4, sort_keys=True)
-        return result
-
-    def has_value(self, key: str) -> bool:
-        """Checks whether a nested key exists in the configuration and its
-        value is not None.
-
-        :param key: The dot-separated key path (e.g., 'gemini.api_key').
-        :return: True if the key exists and its value is not None, False
-            otherwise.
-        """
-        try:
-            current, last_key = self._traverse(key)
-
-            # Handle array index or dictionary key
-            if isinstance(last_key, int):  # Array index
-                return (
-                    isinstance(current, list)
-                    and 0 <= last_key < len(current)
-                    and current[last_key] is not None
-                )
-            return last_key in current and current[last_key] is not None
-        except KeyError:
-            return False
-
-    def set_value(self, key: str, value: Any) -> None:
-        """Set a value in the configuration by key.
-
-        :param key: The dot-separated key (e.g.,
-            'gemini.available_models[1]').
-        :param value: The value to set.
-        """
-        current, last_key = self._traverse(key)
-        if isinstance(last_key, int):  # Array index
-            if not isinstance(current, list) or last_key >= len(current):
-                raise KeyError(f"Array index {last_key} out of range.")
-            current[last_key] = value
-        else:
-            current[last_key] = value
-        print(f"Configuration for '{key}' updated to '{value}'")
-
-        # Check if the '_choices' field exists and append the new value if not already present
-        choices_key = f"{key}_choices"
-        if self.has_value(choices_key):
-            # Get the current choices list
-            choices = self.get_value(choices_key)
-            if isinstance(choices, list):
-                # Only append if the value doesn't already exist in the list
-                if value not in choices:
-                    choices.append(value)
-
-        self.save()
-
-    def print(self, filter_key: Optional[str] = None) -> None:
-        """
-        Print the configuration in a formatted JSON style.
-
-        Optionally filters the output to display the value of a specific key path.
-
-        Parameters
-        ----------
-        filter_key : str, optional
-            A dot-separated key path to filter the config output (e.g., 'gemini.api_key').
-            If provided, only the value of the specified key will be printed. If the key
-            points to a nested dictionary or list, its content is displayed in a
-            formatted manner.
-
-        Returns
-        -------
-        None
-
-        Raises
-        ------
-        KeyError
-            If the provided key path is invalid or does not exist in the configuration.
-        """
-        if filter_key:
-            try:
-                pretty_result = self.get_value(filter_key, pretty=True)
-                print(pretty_result)
-            except KeyError as e:
-                print(f"Error: {e}")
-        else:
-            print(json.dumps(self.data, indent=4, sort_keys=True))
-
-    def select_from_choices(self, key: str) -> Any:
-        """
-        Allow interactive selection for configuration parameters with a '_choices' field.
-
-        If the specified configuration key has an associated '_choices' field, this method
-        displays the available options and prompts the user to select one. The selected
-        value is then set as the new value for the key. If no '_choices' field is found,
-        the current value of the key is returned.
-
-        Parameters
-        ----------
-        key : str
-            The dot-separated key to check (e.g., 'gemini.model').
-
-        Returns
-        -------
-        Any
-            The selected value from the available choices, or the current value if no
-            choices are available. Returns `None` if the user does not make a choice.
-
-        Raises
-        ------
-        ValueError
-            If the '_choices' field is not a list.
-        """
-        # Get the base config value and choices (if any)
-        current, last_key = self._traverse(key)
-
-        # Check if '_choices' field exists
-        choices_key = f"{key}_choices"
-        if self.has_value(choices_key):
-            # Get the list of available choices
-            choices = self.get_value(choices_key)
-
-            if isinstance(choices, list):
-                print(f"Available choices for '{key}':")
-                for idx, choice in enumerate(choices, 1):
-                    print(f"{idx}. {choice}")
-
-                # Prompt user for a choice
-                while True:
-                    try:
-                        user_choice = input(f"Select a choice (1-{len(choices)}): ")
-                        if not user_choice:
-                            return None  # Explicit return of None if no choice is made
-                        if 1 <= int(user_choice) <= len(choices):
-                            selected_value = choices[int(user_choice) - 1]
-                            # Set the selected value in the config
-                            self.set_value(key, selected_value)
-                            return selected_value
-                        print("Invalid choice. Please try again.")
-                    except ValueError:
-                        print("Invalid input. Please enter a number.")
-            else:
-                raise ValueError(f"Invalid '_choices' format for '{key}'. Expected a list.")
-        else:
-            print(f"No choices available for '{key}'.")
-            return current[last_key]  # No choices, return the current value
-
-    def select_from_list(self, source_key: str, target_key: str, index: int) -> None:
-        """
-        Assign an element from a JSON array to a target key in the configuration.
-
-        This method retrieves an element from a list at the specified source key
-        and assigns it to the target key in the configuration. The element is
-        identified by its index in the list.
-
-        Parameters
-        ----------
-        source_key : str
-            The dot-separated key path of the source list (e.g., 'gemini.available_models').
-        target_key : str
-            The dot-separated key path of the destination (e.g., 'gemini.model').
-        index : int
-            The index of the element to select from the list.
-
-        Raises
-        ------
-        KeyError
-            If the source or target key paths are invalid.
-        ValueError
-            If the source key does not refer to a list or the index is out of range.
-        """
-        # Get the source list
-        source_list = self.get_value(source_key)
-        if not isinstance(source_list, list):
-            raise ValueError(f"Source key '{source_key}' must refer to a list.")
-
-        # Find the selected element
-        if index < 0 or index >= len(source_list):
-            raise ValueError(f"Index {index} is out of range for list at '{source_key}'.")
-        selected_value = source_list[index]
-
-        # Set the selected value in the target key
-        self.set_value(target_key, selected_value)
-
-    def select_from_list_interactive(self, source_key: str, target_key: str) -> None:
-        """
-        Prompt the user to select an element from a JSON array interactively.
-
-        This method retrieves a list from the specified source key, displays the
-        available elements to the user, and prompts them to select one by index.
-        The selected element is then assigned to the target key in the configuration.
-
-        Parameters
-        ----------
-        source_key : str
-            The dot-separated key path of the source list (e.g., 'gemini.available_models').
-        target_key : str
-            The dot-separated key path of the destination (e.g., 'gemini.model').
-
-        Raises
-        ------
-        KeyError
-            If the source or target key paths are invalid.
-        ValueError
-            If the source key does not refer to a list.
-        """
-        source_list = self.get_value(source_key)
-        if not isinstance(source_list, list):
-            raise ValueError(f"Source key '{source_key}' must refer to a list.")
-
-        print(f"Choose an element from the list at '{source_key}':")
-        for i, item in enumerate(source_list):
-            print(f"{i}: {item}")
-
-        while True:
-            try:
-                index = int(input("Enter the index of the element to select: "))
-                if 0 <= index < len(source_list):
-                    break
-                print(f"Invalid index. Must be between 0 and {len(source_list) - 1}.")
-            except ValueError:
-                print("Invalid input. Please enter a valid index.")
-
-        self.set_value(target_key, source_list[index])
-
     def populate_dynamic_anchors(self) -> None:
         """Populates the `AnchorManager` instance with predefined datetime
         anchors.
@@ -607,3 +394,19 @@ class Config(ConfigProtocol):
                 groups=["dynamic", "modern"],
             )
         )
+
+    @property
+    def utms_dir(self) -> str:
+        return str(self._utms_dir)
+
+    @property
+    def data(self) -> ConfigData:
+        return self._data
+
+    @property
+    def units(self) -> UnitManagerProtocol:
+        return self._units
+
+    @property
+    def anchors(self) -> AnchorManagerProtocol:
+        return self._anchors

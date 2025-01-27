@@ -1,1 +1,1 @@
-from .protocols import AnchorProtocol, AnchorManagerProtocol, AnchorConfigProtocol
+from .protocols import AnchorConfigProtocol, AnchorManagerProtocol, AnchorProtocol

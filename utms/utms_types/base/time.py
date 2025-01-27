@@ -1,14 +1,14 @@
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional, Union
 
-
 if TYPE_CHECKING:
-    from .protocols import TimeStamp, TimeLength
+    from .protocols import TimeLength, TimeStamp
 
 
 class DecimalTimeStamp:
     """Default implementation of TimeStamp using Decimal for precision."""
-    def copy(self) -> 'DecimalTimeStamp':
+
+    def copy(self) -> "DecimalTimeStamp":
         """Create a new instance with the same value."""
         return DecimalTimeStamp(self._value)
 
@@ -24,21 +24,27 @@ class DecimalTimeStamp:
     def __int__(self) -> int:
         return int(self._value)
 
-    def __add__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeStamp":
+    def __add__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeStamp":
         if isinstance(other, DecimalTimeStamp):
             return DecimalTimeStamp(self._value + other._value)
         if isinstance(other, DecimalTimeLength):
             return DecimalTimeStamp(self._value + other._seconds)
         return DecimalTimeStamp(self._value + Decimal(str(other)))
 
-    def __radd__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeStamp":
+    def __radd__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeStamp":
         if isinstance(other, DecimalTimeStamp):
             return DecimalTimeStamp(self._value + other._value)
         elif isinstance(other, DecimalTimeLength):
             return DecimalTimeStamp(other._seconds + self._value)
         return DecimalTimeStamp(Decimal(str(other)) + self._value)
 
-    def __iadd__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeStamp":
+    def __iadd__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeStamp":
         if isinstance(other, DecimalTimeStamp):
             self._value += other._value
         elif isinstance(other, DecimalTimeLength):
@@ -47,22 +53,27 @@ class DecimalTimeStamp:
             self._value += Decimal(str(other))
         return self
 
-    def __sub__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeStamp":
+    def __sub__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeStamp":
         if isinstance(other, DecimalTimeStamp):
             return DecimalTimeStamp(self._value - other._value)
         if isinstance(other, DecimalTimeLength):
             return DecimalTimeStamp(self._value - other._seconds)
         return DecimalTimeStamp(self._value - Decimal(str(other)))
 
-    def __rsub__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeStamp":
+    def __rsub__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeStamp":
         if isinstance(other, DecimalTimeStamp):
             return DecimalTimeStamp(other._value - self._value)
         if isinstance(other, DecimalTimeLength):
             return DecimalTimeStamp(other._seconds - self._value)
         return DecimalTimeStamp(Decimal(str(other)) - self._value)
 
-
-    def __isub__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeStamp":
+    def __isub__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeStamp":
         if isinstance(other, DecimalTimeStamp):
             self._value -= other._value
         elif isinstance(other, DecimalTimeLength):
@@ -71,22 +82,27 @@ class DecimalTimeStamp:
             self._value -= Decimal(str(other))
         return self
 
-
-    def __truediv__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeLength":
+    def __truediv__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeLength":
         if isinstance(other, DecimalTimeStamp):
             return DecimalTimeLength(self._value / other._value)
         if isinstance(other, DecimalTimeLength):
             return DecimalTimeLength(self._value / other._seconds)
         return DecimalTimeLength(self._value / Decimal(str(other)))
 
-    def __rtruediv__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeLength":
+    def __rtruediv__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeLength":
         if isinstance(other, DecimalTimeStamp):
             return DecimalTimeLength(other._value / self._value)
         if isinstance(other, DecimalTimeLength):
             return DecimalTimeLength(other._seconds / self._value)
         return DecimalTimeLength(Decimal(str(other)) / self._value)
 
-    def __itruediv__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeLength":
+    def __itruediv__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeLength":
         if isinstance(other, DecimalTimeStamp):
             self._value /= other._value
         elif isinstance(other, DecimalTimeLength):
@@ -94,7 +110,6 @@ class DecimalTimeStamp:
         else:
             self._value /= Decimal(str(other))
         return DecimalTimeLength(self._value)
-
 
     def __floordiv__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> int:
         if isinstance(other, DecimalTimeStamp):
@@ -119,22 +134,27 @@ class DecimalTimeStamp:
             self._value //= Decimal(str(other))
         return int(self)
 
-
-    def __mul__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeLength":
+    def __mul__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeLength":
         if isinstance(other, DecimalTimeStamp):
             return DecimalTimeLength(self._value * other._value)
         if isinstance(other, DecimalTimeLength):
             return DecimalTimeLength(self._value * other._seconds)
         return DecimalTimeLength(self._value * Decimal(str(other)))
 
-    def __rmul__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeLength":
+    def __rmul__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeLength":
         if isinstance(other, DecimalTimeStamp):
             return DecimalTimeLength(other._value * self._value)
         if isinstance(other, DecimalTimeLength):
             return DecimalTimeLength(other._seconds * self._value)
         return DecimalTimeLength(Decimal(str(other)) * self._value)
 
-    def __imul__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeLength":
+    def __imul__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeLength":
         if isinstance(other, DecimalTimeStamp):
             self._value *= other._value
         elif isinstance(other, DecimalTimeLength):
@@ -142,7 +162,6 @@ class DecimalTimeStamp:
         else:
             self._value *= Decimal(str(other))
         return DecimalTimeLength(self._value)
-
 
     def __mod__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> int:
         if isinstance(other, DecimalTimeStamp):
@@ -166,7 +185,6 @@ class DecimalTimeStamp:
         else:
             self._value %= Decimal(str(other))
         return int(self)
-
 
     def __lt__(self, other: Union["TimeStamp", int, float, Decimal]) -> bool:
         if isinstance(other, DecimalTimeStamp):
@@ -216,18 +234,17 @@ class DecimalTimeStamp:
         return f"DecimalTimeStamp({self._value})"
 
 
-
 class DecimalTimeLength:
     """Implementation of TimeLength using Decimal for precision."""
 
     def __init__(self, seconds: Union[int, float, Decimal, "DecimalTimeLength"]) -> None:
-        self._seconds : Decimal
+        self._seconds: Decimal
         if isinstance(seconds, DecimalTimeLength):
             self._seconds = seconds._seconds
         else:
             self._seconds = Decimal(str(seconds))
 
-    def copy(self) -> 'DecimalTimeLength':
+    def copy(self) -> "DecimalTimeLength":
         """Create a new instance with the same value."""
         return DecimalTimeLength(self._seconds)
 
@@ -247,14 +264,18 @@ class DecimalTimeLength:
             return DecimalTimeStamp(self._seconds + other._value)
         return DecimalTimeLength(self._seconds + Decimal(str(other)))
 
-    def __radd__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> Union["DecimalTimeStamp", "DecimalTimeLength"]:
+    def __radd__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> Union["DecimalTimeStamp", "DecimalTimeLength"]:
         if isinstance(other, DecimalTimeLength):
             return DecimalTimeLength(other._seconds + self._seconds)
         elif isinstance(other, DecimalTimeStamp):
             return DecimalTimeStamp(other._value + self._seconds)
         return DecimalTimeLength(Decimal(str(other)) + self._seconds)
 
-    def __iadd__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> Union["DecimalTimeStamp", "DecimalTimeLength"]:
+    def __iadd__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> Union["DecimalTimeStamp", "DecimalTimeLength"]:
         if isinstance(other, DecimalTimeLength):
             self._seconds += other._seconds
         elif isinstance(other, DecimalTimeStamp):
@@ -263,7 +284,6 @@ class DecimalTimeLength:
         else:
             self._seconds += Decimal(str(other))
         return self
-
 
     def __sub__(
         self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
@@ -274,10 +294,14 @@ class DecimalTimeLength:
             return DecimalTimeStamp(self._seconds - other._value)
         return DecimalTimeLength(self._seconds - Decimal(str(other)))
 
-    def __rsub__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> Union["DecimalTimeStamp", "DecimalTimeLength"]:
+    def __rsub__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> Union["DecimalTimeStamp", "DecimalTimeLength"]:
         return DecimalTimeLength(Decimal(str(other)) - self._seconds)
 
-    def __isub__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> Union["DecimalTimeStamp", "DecimalTimeLength"]:
+    def __isub__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> Union["DecimalTimeStamp", "DecimalTimeLength"]:
         if isinstance(other, DecimalTimeLength):
             self._seconds -= other._seconds
         elif isinstance(other, DecimalTimeStamp):
@@ -287,32 +311,41 @@ class DecimalTimeLength:
             self._seconds -= Decimal(str(other))
         return self
 
-
-    def __mul__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeLength":
+    def __mul__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeLength":
         return DecimalTimeLength(self._seconds * Decimal(str(other)))
 
-    def __rmul__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeLength":
+    def __rmul__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeLength":
         return DecimalTimeLength(Decimal(str(other)) * self._seconds)
 
-    def __imul__(self, other: Union["TimeStamp", "TimeLength",int, float, Decimal]) -> "DecimalTimeLength":
+    def __imul__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeLength":
         self._seconds *= Decimal(str(other))
         return self
-
 
     def __truediv__(
         self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
     ) -> "DecimalTimeLength":
         if isinstance(other, DecimalTimeLength):
-            return DecimalTimeLength(self._seconds / other._seconds)  # Returns ratio between lengths
+            return DecimalTimeLength(
+                self._seconds / other._seconds
+            )  # Returns ratio between lengths
         return DecimalTimeLength(self._seconds / Decimal(str(other)))
 
-    def __rtruediv__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeLength":
+    def __rtruediv__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeLength":
         return DecimalTimeLength(Decimal(str(other)) / self._seconds)
 
-    def __itruediv__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> "DecimalTimeLength":
+    def __itruediv__(
+        self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]
+    ) -> "DecimalTimeLength":
         self._seconds /= Decimal(str(other))
         return self
-
 
     def __floordiv__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> int:
         if isinstance(other, DecimalTimeLength):
@@ -325,7 +358,6 @@ class DecimalTimeLength:
     def __ifloordiv__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> int:
         self._seconds //= Decimal(str(other))
         return int(self)
-
 
     def __mod__(self, other: Union["TimeStamp", "TimeLength", int, float, Decimal]) -> int:
         if isinstance(other, DecimalTimeLength):
@@ -387,12 +419,12 @@ class DecimalTimeLength:
 
     def __repr__(self) -> str:
         return f"DecimalTimeLength({self._seconds})"
-    
+
 
 class TimeRange:
     """Represents a time range with start and end timestamps."""
 
-    def __init__(self, start: "TimeStamp", end:"TimeStamp") -> None:
+    def __init__(self, start: "TimeStamp", end: "TimeStamp") -> None:
         self.start: "TimeStamp" = start
         self.end: "TimeStamp" = end
 
@@ -429,5 +461,3 @@ class TimeRange:
         Example: TimeRange(start=1234.5, end=2345.6)
         """
         return f"TimeRange(start={self.start!r}, end={self.end!r})"
-
-    

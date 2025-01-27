@@ -4,11 +4,14 @@ from .base.time import DecimalTimeLength, DecimalTimeStamp, TimeRange
 from .base.types import (
     ArbitraryArgs,
     ArbitraryKwargs,
+    FilePath,
     IntegerList,
     OptionalInteger,
+    OptionalString,
     OptionalTimeStampList,
     TimeStampList,
     TimezoneOffset,
+    is_file_path,
 )
 from .calendar.protocols import CalendarUnit, TimeUnit, UnitAttributes
 from .calendar.types import (
@@ -38,6 +41,19 @@ from .calendar.types import (
     to_unit_type,
 )
 from .config.protocols import ConfigProtocol
+from .config.types import (
+    ConfigData,
+    ConfigPath,
+    ConfigValue,
+    JsonPrimitive,
+    JsonValue,
+    NestedConfig,
+    ParsedKey,
+    TraverseResult,
+    is_config_value,
+    is_json_primitive,
+    is_json_value,
+)
 from .hy.protocols import ExpressionResolver, LocalsProvider
 from .hy.types import (
     Context,
