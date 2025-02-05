@@ -28,7 +28,8 @@ def print_time(
     timestamp: "Union[datetime, Decimal]",
     config: "Config",
     anchors: Optional[str] = None,
-    breakdowns: Optional[str] = None,
+    # breakdowns: Optional[str] = None,
+    formats: Optional[str] = None,
     plt: bool = False,
 ) -> None:
     """
@@ -53,34 +54,70 @@ def print_time(
         >>> total_seconds = Decimal("1672531200")
         >>> print_time_related_data(total_seconds, config)
     """
-    # If the input is a datetime object, convert it to total seconds
-    if isinstance(timestamp, datetime):
-        total_seconds = Decimal(timestamp.timestamp())
-    else:
-        total_seconds = timestamp
+    # Convert timestamp to total seconds
+    total_seconds = (
+        Decimal(timestamp.timestamp()) if isinstance(timestamp, datetime) 
+        else timestamp
+    )
 
-    if not anchors:
-        anchor_list = config.anchors.get_anchors_by_group("default")
-    else:
-        anchor_list = config.anchors.get_anchors_from_str(anchors)
+    # Get anchor list
+    anchor_list = (
+        config.anchors.get_anchors_by_group("default") if not anchors
+        else config.anchors.get_anchors_from_str(anchors)
+    )
     anchor_list = list(set(anchor_list))
 
-    if breakdowns:
+    # Override formats if specified
+    if formats:
         for anchor in anchor_list:
-            anchor.breakdowns = [segment.split(",") for segment in breakdowns.split(";")]
+            # Parse format specifications from string
+            format_specs = []
+            for format_spec in formats.split(";"):
+                if ":" in format_spec:
+                    # Handle key:value format
+                    key, value = format_spec.split(":")
+                    if key == "units":
+                        format_specs.append({
+                            hy.models.Keyword("units"): value.split(",")
+                        })
+                else:
+                    # Handle predefined formats
+                    format_specs.append(format_spec)
+            anchor._formats = format_specs
 
-    # Iterate over the anchors and print results
+
+    # # Override breakdowns if specified
+    # if breakdowns:
+    #     for anchor in anchor_list:
+    #         anchor.breakdowns = [
+    #             segment.split(",") 
+    #             for segment in breakdowns.split(";")
+    #         ]
+
+
+    # Print results for each anchor
     for anchor in anchor_list:
-        ColorFormatter.cyan(f"{config.anchors.get_label(anchor)}: {anchor.name}")
-        print(anchor.breakdown(total_seconds - anchor.value, config.units))
+        print(ColorFormatter.cyan(f"{config.anchors.get_label(anchor)}: {anchor.name}"))
+        
+        # # Print breakdowns
+        # breakdown_result = anchor.breakdown(total_seconds - anchor.value, config.units)
+        # if breakdown_result:
+        #     print(breakdown_result)
+            
+        # Print formats
+        format_result = anchor.format(total_seconds - anchor.value, config.units)
+        if format_result:
+            print(format_result)
+
+        # Print PLT values if requested
         if plt:
             print(
                 f"    {Fore.GREEN}{Style.BRIGHT}pPLT:{Style.RESET_ALL} "
-                + f"{seconds_to_pplt(total_seconds - anchor.value):.5f}"
+                f"{seconds_to_pplt(total_seconds - anchor.value):.5f}"
             )
             print(
                 f"    {Fore.GREEN}{Style.BRIGHT}hPLT:{Style.RESET_ALL} "
-                + f"{seconds_to_hplt(total_seconds - anchor.value):.5f}"
+                f"{seconds_to_hplt(total_seconds - anchor.value):.5f}"
             )
 
 

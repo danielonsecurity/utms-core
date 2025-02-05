@@ -30,7 +30,7 @@ from decimal import Decimal
 from time_unit_manager import UnitManager
 
 # Initialize the manager
-manager = UnitManager()
+manager = FixedUnitManager()
 
 # Add time units
 manager.add_unit("Second", "s", Decimal("1"))
@@ -46,11 +46,11 @@ manager.print_conversion_table("s", num_columns=2, num_rows=5)
 
 import argparse
 from decimal import Decimal
-from typing import Dict, Iterator, Optional, Union
+from typing import Dict, Iterator, Optional, Union, List
 
 from colorama import Fore, Style
 
-from utms.utms_types import UnitManagerProtocol, UnitProtocol
+from utms.utms_types import FixedUnitManagerProtocol, UnitProtocol
 
 from .plt import seconds_to_hplt, seconds_to_pplt
 
@@ -147,7 +147,7 @@ class Unit(UnitProtocol):
         value (Decimal): The value of the time unit in seconds.
     """
 
-    def __init__(self, name: str, abbreviation: str, value: Decimal) -> None:
+    def __init__(self, name: str, abbreviation: str, value: Decimal, groups) -> None:
         """Initializes a Unit instance.
 
         Args:
@@ -158,10 +158,15 @@ class Unit(UnitProtocol):
         self._name = name
         self._abbreviation = abbreviation
         self._value = value
+        self._groups = groups or []
 
     @property
     def name(self) -> str:
         return self._name
+
+    @property
+    def groups(self) -> str:
+        return self._groups
 
     @property
     def abbreviation(self) -> str:
@@ -177,7 +182,16 @@ class Unit(UnitProtocol):
         Returns:
             str: A string representation of the unit.
         """
-        return f"Unit(name={self.name}, abbreviation={self.abbreviation}, value={self.value})"
+        return f"Unit(name={self.name}, abbreviation={self.abbreviation}, value={self.value}, groups={self.groups})"
+
+    def __str__(self) -> str:
+        """Provides a human-readable string for the unit.
+
+        Returns:
+            str: A string representation of the unit.
+        """
+        groups_str = f", groups=[{', '.join(self.groups)}]" if self.groups else ""
+        return f"{self.name} ({self.abbreviation}): {self.value} seconds{groups_str}"
 
     def __eq__(self, other: object) -> bool:
         """Compares two Unit instances for equality based on value.
@@ -218,23 +232,43 @@ class Unit(UnitProtocol):
         # Conversion formula: value_in_new_unit = value_in_current_unit * (self.value / other.value)
         return value * (self.value / other.value)
 
-    def __str__(self) -> str:
-        """Provides a human-readable string for the unit.
 
-        Returns:
-            str: A string representation of the unit.
-        """
-        return f"{self.name} ({self.abbreviation}): {self.value} seconds"
-
-
-class UnitManager(UnitManagerProtocol):
+class FixedUnitManager(FixedUnitManagerProtocol):
     """A class to manage time units, allowing adding new units, sorting by
     value, and accessing them by abbreviation."""
 
     def __init__(self) -> None:
         self._units: Dict[str, Unit] = {}
 
-    def add_unit(self, name: str, abbreviation: str, value: Decimal) -> None:
+    def get_units_by_group(self, group: str) -> List[Unit]:
+        """Get all units belonging to a specific group."""
+        return [
+            unit for unit in self._units.values() 
+            if group in unit.groups
+        ]
+    
+    def get_units_by_groups(self, groups: List[str], match_all: bool = False) -> List[Unit]:
+        """Get units belonging to multiple groups.
+        
+        Args:
+            groups: List of group names
+            match_all: If True, unit must belong to all groups
+                      If False, unit must belong to any of the groups
+        """
+        if match_all:
+            return [
+                unit for unit in self._units.values()
+                if all(group in unit.groups for group in groups)
+            ]
+        else:
+            return [
+                unit for unit in self._units.values()
+                if any(group in unit.groups for group in groups)
+            ]
+
+
+
+    def add_unit(self, name: str, abbreviation: str, value: Decimal, groups) -> None:
         """Adds a new time unit to the manager and ensures the units are sorted
         by value.
 
@@ -243,7 +277,7 @@ class UnitManager(UnitManagerProtocol):
             abbreviation (str): The abbreviation of the time unit.
             value (Decimal): The value of the unit in seconds.
         """
-        new_unit = Unit(name, abbreviation, value)
+        new_unit = Unit(name, abbreviation, value, groups)
         self._units[abbreviation] = new_unit
         self._sort_units()
 

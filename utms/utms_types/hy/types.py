@@ -3,10 +3,11 @@ from typing import Any, Callable, Dict
 from typing import List as PyList
 from typing import Optional, TypeAlias, TypeGuard, Union
 
-from hy.models import Expression, Integer, Lazy, List, String, Symbol
+from hy.models import Expression, Integer, Lazy, List, String, Symbol, Keyword
 
 HyExpression: TypeAlias = Expression
 HySymbol: TypeAlias = Symbol
+HyKeyword: TypeAlias = Keyword
 HyList: TypeAlias = List
 HyInteger: TypeAlias = Integer
 HyString: TypeAlias = String

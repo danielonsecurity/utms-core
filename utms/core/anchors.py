@@ -64,24 +64,30 @@ for anchor in manager:
 # Get the number of anchors
 print(len(manager))
 """
+import hy
 
+from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, Iterator, List, NamedTuple, Optional, Union
+from typing import Dict, Iterator, List, Optional, Union, Any
 
 from colorama import Fore, Style
 
-from utms.utils import value_to_decimal
-from utms.utms_types import (
+
+
+from ..utils import hy_to_python, value_to_decimal, ColorFormatter
+from ..utms_types import (
     AnchorConfigProtocol,
     AnchorManagerProtocol,
     AnchorProtocol,
-    UnitManagerProtocol,
+    FixedUnitManagerProtocol,
+    is_string,
 )
 
 from . import constants
 
-# from .units import UnitManager
+from .formats import registry as format_registry
+# from .units import FixedUnitManager
 
 
 class AnchorConfig(AnchorConfigProtocol):
@@ -92,17 +98,40 @@ class AnchorConfig(AnchorConfigProtocol):
         label: str,
         name: str,
         value: Union[Decimal, datetime],
-        breakdowns: Optional[List[List[str]]] = None,
+        formats: Optional[List[str]] = ["CALENDAR"],
         groups: Optional[List[str]] = None,
         precision: Optional[Decimal] = None,
     ) -> None:
         self.label = label
         self.name = name
         self.value = value
-        self.breakdowns = breakdowns
         self.groups = groups
         self.precision = precision
+        self.formats = formats
 
+
+@dataclass
+class FormatSpec:
+    units: Optional[List[str]] = None     # For unit-based formats like ["Y", "d"]
+    style: str = "full"                   # Style for unit-based formats
+    format: Optional[str] = None          # For predefined formats like "CALENDAR"
+    options: Dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self):
+        # Validate that we have either units or format, but not both
+        if self.units is None and self.format is None:
+            breakpoint()
+            raise ValueError("Either units or format must be specified")
+        if self.units is not None and self.format is not None:
+            raise ValueError("Cannot specify both units and format")
+
+
+# @dataclass
+# class FormatSpec:
+#     units: List[str]
+#     style: str = "full"
+#     format: Optional[str] = None
+#     options: Dict[str, Any] = field(default_factory=dict)
 
 class Anchor(AnchorProtocol):
     """Represents a single time anchor with a full name, value, precision, and
@@ -122,7 +151,7 @@ class Anchor(AnchorProtocol):
                                       abbreviations (e.g., [["h", "m", "s"]]).
 
     Methods:
-        breakdown(total_seconds: Decimal, units: UnitManager) -> str:
+        breakdown(total_seconds: Decimal, units: FixedUnitManager) -> str:
             Breaks down a given total duration (in seconds) into the configured units and returns a
             formatted string representing the breakdown.
 
@@ -132,7 +161,7 @@ class Anchor(AnchorProtocol):
         _format_breakdown_entry(count: Union[int, Decimal], unit: str) -> str:
             Formats a single breakdown entry, ensuring proper string formatting and color styling.
 
-        _calculate_breakdown(total_seconds: Decimal, breakdown_units: List[str], units: UnitManager)
+        _calculate_breakdown(total_seconds: Decimal, breakdown_units: List[str], units: FixedUnitManager)
         -> List[str]:
             Calculates the breakdown for a given set of units based on the total duration and
             precision.
@@ -144,8 +173,47 @@ class Anchor(AnchorProtocol):
         self._name = anchor_config.name
         self._value = value_to_decimal(anchor_config.value)
         self._precision = anchor_config.precision or constants.STANDARD_PRECISION
-        self._breakdowns = anchor_config.breakdowns or constants.STANDARD_BREAKDOWN
+        # self._breakdowns = anchor_config.breakdowns or constants.STANDARD_BREAKDOWN
+        self._formats = []
         self._groups = anchor_config.groups or []
+        # Handle formats
+        for format_spec in anchor_config.formats or []:
+            if is_string(format_spec):
+                # Direct format string like "CALENDAR"
+                self._formats.append(FormatSpec(format=hy_to_python(format_spec)))
+            elif isinstance(format_spec, (dict, hy.models.Dict)):
+                if hy.models.Keyword("units") in format_spec:
+                    units = [hy_to_python(u) for u in format_spec[1:]]
+                    self._formats.append(FormatSpec(
+                        units=units,
+                        style="full",
+                    ))
+                elif hy.models.Keyword("format") in format_spec:
+                    breakpoint()
+                    format_name=hy_to_python(format_spec[1])
+                    self._formats.append(FormatSpec(
+                        format=format_name,
+                        options={},
+                    ))
+
+
+        # for format_spec in anchor_config.formats or []:
+        #     if is_string(format_spec):
+        #         self._formats.append(FormatSpec(format=format_spec))
+        #     if isinstance(format_spec, FormatSpec):
+        #         self._formats.append(format_spec)
+
+
+
+            # else:
+            #     # If it's a string like "CALENDAR", treat as predefined format
+            #     if is_string(format_spec):
+            #         self._formats.append(FormatSpec(format=str(format_spec)))
+            #     # If it's a Hy expression with :units
+            #     elif str(format_spec[0]) == ":units":
+            #         units = hy_to_python(format_spec[1:])[0]
+            #         self._formats.append(FormatSpec(units=units, style="full", options={}))
+
 
     # Read-only properties
     @property
@@ -160,9 +228,13 @@ class Anchor(AnchorProtocol):
     def value(self) -> Decimal:
         return self._value
 
+    # @property
+    # def breakdowns(self) -> List[List[str]]:
+    #     return self._breakdowns
+
     @property
-    def breakdowns(self) -> List[List[str]]:
-        return self._breakdowns
+    def formats(self) -> List[List[str]]:
+        return self._formats
 
     @property
     def groups(self) -> List[str]:
@@ -171,6 +243,74 @@ class Anchor(AnchorProtocol):
     @property
     def precision(self) -> Decimal:
         return self._precision
+
+    def format(self, total_seconds: Decimal, units: "FixedUnitManagerProtocol") -> str:
+        """New method to handle format specifications"""
+        output = []
+        
+        for format_spec in self._formats:
+            if format_spec.format:
+                result = format_registry.format(format_spec.format, total_seconds, units, self.precision)
+                output.append(result)
+            elif format_spec.units:
+                result = {}
+                remaining = abs(total_seconds)
+                if total_seconds > 0:
+                    prefix = ColorFormatter.green("  + ")
+                else:
+                    prefix = ColorFormatter.red("  - ")
+
+                for unit_label in format_spec.units:
+                    unit = units.get_unit(unit_label)
+                    if not unit:
+                        continue
+
+                    unit_value = Decimal(unit.value)
+                    if unit_label == format_spec.units[-1]:
+                        count = remaining / unit_value
+                    else:
+                        count = remaining // unit_value
+                        remaining %= unit_value
+                    result[unit_label] = count
+
+
+
+                # Format according to style
+                if format_spec.style == "full":
+                    parts = []
+                    for i, unit in enumerate(format_spec.units):
+                        unit_info = units.get_unit(unit)
+                        value = result[unit]
+
+                        # Only last unit gets decimal places
+                        if i == len(format_spec.units) - 1:
+                            formatted_value = f"{value:.2f}"
+                        else:
+                            formatted_value = f"{int(value)}"
+
+                        parts.append(f"{formatted_value} {ColorFormatter.green(unit_info.name + 's')}")
+
+                    formatted = prefix + ", ".join(parts)
+                    output.append(formatted)
+        return "\n".join(output)
+
+    def display(self, total_seconds: Decimal, units: "FixedUnitManagerProtocol") -> str:
+        """Combines both breakdown and format outputs"""
+        parts = []
+        
+        # Add traditional breakdowns
+        breakdown_result = self.breakdown(total_seconds, units)
+        if breakdown_result:
+            parts.append(breakdown_result)
+            
+        # Add new format outputs
+        format_result = self.format(total_seconds, units)
+        if format_result:
+            parts.append(format_result)
+            
+        return "\n".join(parts)
+
+
 
     def _format_breakdown_entry(self, count: Union[int, Decimal], unit: str) -> str:
         """Formats a single breakdown entry."""
@@ -185,7 +325,7 @@ class Anchor(AnchorProtocol):
         return f"{formatted_count} {apply_blue_color(unit)}".ljust(25)
 
     def _calculate_breakdown(
-        self, total_seconds: Decimal, breakdown_units: List[str], units: "UnitManagerProtocol"
+        self, total_seconds: Decimal, breakdown_units: List[str], units: "FixedUnitManagerProtocol"
     ) -> List[str]:
         """Calculates the breakdown for a given list of units."""
         remaining_seconds = Decimal(total_seconds)
@@ -222,17 +362,17 @@ class Anchor(AnchorProtocol):
         print(f"{apply_green_color('Value')}: {self.value:.3f}")
         print(f"{apply_green_color('Groups')}: {', '.join(self.groups)}")
         print(f"{apply_green_color('Precision')}: {self.precision:.3e}")
-        print(f"{apply_green_color('Breakdowns')}:")
-        for breakdown in self.breakdowns:
-            print(f"  - {', '.join(breakdown)}")
+        print(f"{apply_green_color('Formats')}:")
+        for format in self.formats:
+            print(f"  - {format}")
         print("-" * 50)
 
-    def breakdown(self, total_seconds: Decimal, units: "UnitManagerProtocol") -> str:
+    def breakdown(self, total_seconds: Decimal, units: "FixedUnitManagerProtocol") -> str:
         """Breaks down a duration in seconds into multiple unit formats.
 
         Args:
             total_seconds (Decimal): Total duration in seconds.
-            units (UnitManager): UnitManager instance for unit details.
+            units (UnitManager): FixedUnitManager instance for unit details.
 
         Returns:
             str: A formatted string representing the breakdown.
@@ -264,13 +404,13 @@ class AnchorManager(AnchorManagerProtocol):
     """A class to manage time anchors, allowing adding new anchors, sorting by
     value, and accessing them by abbreviation."""
 
-    def __init__(self, units: UnitManagerProtocol) -> None:
+    def __init__(self, units: FixedUnitManagerProtocol) -> None:
         """Create the AnchorManager object with Anchor objects inside."""
         self._anchors: Dict[str, Anchor] = {}
         self._units = units
 
     @property
-    def units(self) -> UnitManagerProtocol:
+    def units(self) -> FixedUnitManagerProtocol:
         return self._units
 
     def add_anchor(self, anchor_config: AnchorConfig) -> None:
@@ -285,15 +425,12 @@ class AnchorManager(AnchorManagerProtocol):
                 label=anchor_config.label,
                 name=anchor_config.name,
                 value=decimal_value,
-                breakdowns=anchor_config.breakdowns,
+                # breakdowns=anchor_config.breakdowns,
+                formats=anchor_config.formats,
                 groups=anchor_config.groups,
                 precision=anchor_config.precision,
             )
         )
-        # decimal_anchor = anchor_config._replace(value=value_to_decimal(anchor_config.value))
-
-        # # Add the anchor to the dictionary
-        # self._anchors[anchor_config.label] = Anchor(decimal_anchor)
 
     def delete_anchor(self, label: str) -> None:
         """Deletes an anchor by its label.

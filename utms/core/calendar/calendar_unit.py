@@ -36,7 +36,7 @@ _resolver = CalendarResolver()
 logger = get_logger("core.calendar.calendar_unit")
 
 
-class BaseCalendarUnit(CalendarUnitProtocol):
+class CalendarUnit(CalendarUnitProtocol):
     class Attributes(UnitAttributes):
         def __init__(self, name: str, kwargs: UnitKwargs):
             self.name = name
@@ -260,10 +260,10 @@ class BaseCalendarUnit(CalendarUnitProtocol):
                         values.append(f"{k}={v}")
 
             if values:
-                return f"BaseCalendarUnit({self.name}, {', '.join(values)})"
-            return f"BaseCalendarUnit({self.name})"
+                return f"CalendarUnit({self.name}, {', '.join(values)})"
+            return f"CalendarUnit({self.name})"
         except (AttributeError, KeyError) as e:
-            return f"BaseCalendarUnit({self.name}, error='{e.__class__.__name__}: {str(e)}')"
+            return f"CalendarUnit({self.name}, error='{e.__class__.__name__}: {str(e)}')"
 
     def __repr__(self) -> str:
         """Detailed representation of the calendar unit."""
@@ -284,9 +284,9 @@ class BaseCalendarUnit(CalendarUnitProtocol):
                 if k not in ("name", "units", "_attrs"):
                     attrs.append(f"{k}={repr(v)}")
 
-            return f"BaseCalendarUnit({', '.join(attrs)})"
+            return f"CalendarUnit({', '.join(attrs)})"
         except (AttributeError, KeyError) as e:
-            return f"BaseCalendarUnit({self.name}, error='{e.__class__.__name__}: {str(e)}')"
+            return f"CalendarUnit({self.name}, error='{e.__class__.__name__}: {str(e)}')"
 
     @property
     def length(self) -> PropertyValue:

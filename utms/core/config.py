@@ -32,7 +32,7 @@ from typing import Any, List, Optional, Tuple, Union
 import appdirs
 import ntplib
 
-from utms.utms_types import (
+from ..utms_types import (
     AnchorManagerProtocol,
     ConfigData,
     ConfigPath,
@@ -40,50 +40,26 @@ from utms.utms_types import (
     ConfigValue,
     NestedConfig,
     OptionalString,
-    UnitManagerProtocol,
+    FixedUnitManagerProtocol,
+    is_expression,
 )
-from utms.utils import hy_to_python, format_hy_value
 
 from . import constants
 from .anchors import AnchorConfig, AnchorManager
-from .units import UnitManager
-from ..resolvers import ConfigResolver, evaluate_hy_file
+from .units import FixedUnitManager
+from ..resolvers import ConfigResolver, VariableResolver, evaluate_hy_file, FixedUnitResolver, AnchorResolver
 
-from .config_loader import get_logger, is_hy_compound, parse_config_definitions, resolve_config_values
+from ..utils import get_logger, hy_to_python, format_hy_value, get_ntp_date, set_log_level
+
+from ..loaders.unit_loader import parse_calendar_definitions, parse_unit_definitions, initialize_units, resolve_unit_properties
+from ..loaders.anchor_loader import parse_anchor_definitions, initialize_anchors
+from ..loaders.variable_loader import process_variables
 
 logger = get_logger("core.config")
 
-def get_ntp_date() -> datetime:
-    """Retrieves the current date in datetime format using an NTP (Network Time
-    Protocol) server.
-
-    This function queries an NTP server (default is "pool.ntp.org") to
-    get the accurate current time. The NTP timestamp is converted to a
-    UTC `datetime` object and formatted as a date string. If the NTP
-    request fails (due to network issues or other errors), the function
-    falls back to the system time.
-
-    Returns:
-        str: The current date in 'YYYY-MM-DD' format, either from the
-        NTP server or the system clock as a fallback.
-
-    Exceptions:
-        - If the NTP request fails, the system time is used instead.
-    """
-    client = ntplib.NTPClient()
-    try:
-        # Query the NTP server
-        response = client.request("pool.ntp.org", version=3)
-        ntp_timestamp = float(response.tx_time)
-    except (ntplib.NTPException, socket.error, OSError) as e:
-        print(f"Error fetching NTP time: {e}", file=sys.stderr)
-        ntp_timestamp = float(time())  # Fallback to system time
-
-    # Convert the timestamp to a UTC datetime and format as 'YYYY-MM-DD'
-    current_date = datetime.fromtimestamp(ntp_timestamp, timezone.utc)
-    return current_date
 
 
+ 
 class Config(ConfigProtocol):
     """Configuration class that manages units and anchors for time and datetime
     references.
@@ -105,16 +81,23 @@ class Config(ConfigProtocol):
         # Ensure the config directory exists
         os.makedirs(self.utms_dir, exist_ok=True)
         self.init_resources()
-        self._data: NestedConfig = {}# = self.load()
-        self._units: UnitManagerProtocol = UnitManager()
-        self._anchors: AnchorManagerProtocol = AnchorManager(self.units)
-        self.load_units()
-        self.populate_dynamic_anchors()
-        self.load_anchors()
+        self._data: NestedConfig = {}  # = self.load()
 
         self.resolver = ConfigResolver()
+        self._variable_resolver = VariableResolver
+        self._variables = {}
+        self._load_variables()
         self._load_hy_config()
-    
+        set_log_level(self.loglevel)
+        self._fixed_units: FixedUnitManagerProtocol = FixedUnitManager()
+        self._calendar_units = {}
+        self._calendars = {}
+        self._anchors: AnchorManagerProtocol = AnchorManager(self.units)
+        self._load_fixed_units()
+        self._load_calendar_units()
+        self.populate_dynamic_anchors()
+        self._load_anchors()
+
 
     def _load_hy_config(self) -> None:
         config_hy = os.path.join(self.utms_dir, "config.hy")
@@ -126,8 +109,6 @@ class Config(ConfigProtocol):
                     self._data = config
             except Exception as e:
                 logger.error("Error loading Hy config: %s", e)
-
-
 
     def _save_hy_config(self) -> None:
         """Save current configuration to config.hy."""
@@ -142,12 +123,11 @@ class Config(ConfigProtocol):
             ";; This file is managed by UTMS - do not edit manually",
             "(custom-set-config",
             *sorted(settings),
-            ")"
+            ")",
         ]
 
-        with open(config_hy, 'w') as f:
-            f.write('\n'.join(content))
-
+        with open(config_hy, "w") as f:
+            f.write("\n".join(content))
 
     def get_value(self, key: ConfigPath, pretty: bool = False) -> ConfigValue:
         """Get value from configuration."""
@@ -158,7 +138,7 @@ class Config(ConfigProtocol):
 
         if pretty and value is not None:
             return json.dumps(value, indent=4, sort_keys=True)
-        
+
         return value
 
     def has_value(self, key: ConfigPath) -> bool:
@@ -169,28 +149,6 @@ class Config(ConfigProtocol):
         self._save_hy_config()
 
     def print(self, filter_key: OptionalString = None) -> None:
-        """
-        Print the configuration in a formatted JSON style.
-
-        Optionally filters the output to display the value of a specific key path.
-
-        Parameters
-        ----------
-        filter_key : str, optional
-            A dot-separated key path to filter the config output (e.g., 'gemini.api_key').
-            If provided, only the value of the specified key will be printed. If the key
-            points to a nested dictionary or list, its content is displayed in a
-            formatted manner.
-
-        Returns
-        -------
-        None
-
-        Raises
-        ------
-        KeyError
-            If the provided key path is invalid or does not exist in the configuration.
-        """
         if filter_key:
             try:
                 pretty_result = self.get_value(filter_key, pretty=True)
@@ -200,11 +158,24 @@ class Config(ConfigProtocol):
         else:
             print(json.dumps(self.data, indent=4, sort_keys=True))
 
+    def _load_variables(self) -> None:
+        variables_hy = os.path.join(self.utms_dir, "variables.hy")
+        if os.path.exists(variables_hy):
+            expressions = evaluate_hy_file(variables_hy)
+            if expressions:
+                self._variables = process_variables(expressions)
 
     def init_resources(self) -> None:
         """Copy resources to the user config directory if they do not already
         exist."""
-        resources = ["system_prompt.txt", "config.json", "anchors.json", "units.json"]
+        resources = [
+            "system_prompt.txt",
+            "config.json",
+            "anchors.json",
+            "units.json",
+            "calendar_units.hy",
+            "fixed_units.hy",
+        ]
         for item in resources:
             source_file = importlib.resources.files("utms.resources") / item
             destination_file = os.path.join(self.utms_dir, item)
@@ -213,6 +184,15 @@ class Config(ConfigProtocol):
             if not os.path.exists(destination_file):
                 shutil.copy(str(source_file), destination_file)
 
+    def _load_anchors(self) -> None:
+        anchors_file = os.path.join(self.utms_dir, "anchors.hy")
+        if os.path.exists(anchors_file):
+            anchor_expressions = evaluate_hy_file(anchors_file)
+            if anchor_expressions:
+                parsed_anchor_defs = parse_anchor_definitions(anchor_expressions)
+                anchor_instances = initialize_anchors(parsed_anchor_defs, self._variables)
+                for anchor in anchor_instances.values():
+                    self._anchors.add_anchor(anchor)
 
     def load_anchors(self) -> None:
         """Loads anchors from the 'anchors.json' file and populates the anchors
@@ -233,7 +213,7 @@ class Config(ConfigProtocol):
                 timestamp = anchor.get("timestamp")
                 groups = anchor.get("groups")
                 precision = anchor.get("precision")
-                breakdowns = anchor.get("breakdowns")
+                formats = anchor.get("formats")
                 # Add anchor using the details loaded from the JSON
                 anchor_config = AnchorConfig(
                     label=key,
@@ -241,7 +221,8 @@ class Config(ConfigProtocol):
                     value=Decimal(timestamp),
                     groups=groups,
                     precision=Decimal(precision) if precision else None,
-                    breakdowns=breakdowns,
+                    # breakdowns=breakdowns,
+                    formats=formats if formats else ["CALENDAR"],
                 )
                 self.anchors.add_anchor(anchor_config)
 
@@ -278,122 +259,142 @@ class Config(ConfigProtocol):
         except json.JSONDecodeError as e:
             print(f"Error serializing data to JSON: {e}")
 
-    def load_units(self) -> None:
-        """Loads time units from the 'units.json' file and populates the units
-        dynamically.
+    def _load_fixed_units(self) -> None:
+        units_hy = os.path.join(self.utms_dir, "fixed_units.hy")
+        
+        if os.path.exists(units_hy):
+            try:
 
-        This method reads the `units.json` file, parses its content, and uses the `UnitManager`
-        to add each unit to the configuration.
-        """
-        units_file = os.path.join(self.utms_dir, "units.json")
+                resolver = FixedUnitResolver()
+                expressions = evaluate_hy_file(units_hy)
+                
+                # Process each unit definition
+                for expr in expressions:
+                    if expr:  # Skip empty lines
+                        unit_data = resolver.resolve(expr)
 
-        if os.path.exists(units_file):
-            with open(units_file, "r", encoding="utf-8") as f:
-                units_data = json.load(f)
+                        if unit_data:
+                            for label, unit in unit_data.items():
+                                self.units.add_unit(
+                                    unit['name'],
+                                    label,
+                                    Decimal(unit['value']),
+                                    unit.get('groups', [])
+                                )
+                
+                logger.info("Loaded fixed units from Hy file")
+            except Exception as e:
+                logger.error("Error loading fixed units: %s", e)
 
-            # Iterate through the units data and add each unit
-            for key, unit in units_data.items():
-                name = unit.get("name")
-                value = unit.get("value")
-                # Add unit using the details loaded from the JSON
-                self.units.add_unit(name, key, Decimal(value))
+    def _load_calendar_units(self) -> None:
+        units_hy = os.path.join(self.utms_dir, "calendar_units.hy")
+        
+        if os.path.exists(units_hy):
+            try:
+                expressions = evaluate_hy_file(units_hy)
+                parsed_calendar_units = parse_unit_definitions(expressions)
+                calendar_units = initialize_units(parsed_calendar_units)
+                calendars = parse_calendar_definitions(expressions)
+                resolve_unit_properties(calendar_units)
+                self._calendar_units = calendar_units
+                self._calendars = calendars
+                logger.info("Loaded calendar units from Hy file")
+            except Exception as e:
+                logger.error("Error loading calendar units: %s", e)
 
-        else:
-            print(f"Error: '{units_file}' not found.")
 
     def save_units(self) -> None:
-        """Saves the current time units to the 'units.json' file.
+        """Saves the current time units to fixed_units.hy."""
+        units_hy = os.path.join(self.utms_dir, "fixed_units.hy")
 
-        This method serializes the time units stored in the `self.units` instance
-        and writes them to the `units.json` file.
-        """
-        units_file = os.path.join(self.utms_dir, "units.json")
-        units_data = {}
+        content = [
+            ";; Fixed Time Units",
+            ";; This file is managed by UTMS - do not edit manually",
+            ""
+        ]
 
-        # Iterate through each unit and prepare data for saving
+        # Iterate through each unit and format for Hy
         for unit_abbreviation in self.units:
             unit = self.units[unit_abbreviation]
-            units_data[unit_abbreviation] = {
-                "name": unit.name,
-                "symbol": unit_abbreviation,  # or another property if you have one
-                "value": str(unit.value),
-            }
-        # Write the serialized units data to the file
+            content.append(f"""(def-fixed-unit {unit_abbreviation}
+      :name "{unit.name}"
+      :value "{unit.value}")""")
+            content.append("")  # Empty line between units
+
         try:
-            with open(units_file, "w", encoding="utf-8") as f:
-                json.dump(units_data, f, ensure_ascii=False, indent=4)
-            print(f"Units successfully saved to '{units_file}'")
+            with open(units_hy, 'w', encoding='utf-8') as f:
+                f.write("\n".join(content))
+            logger.info("Units successfully saved to '%s'", units_hy)
         except (FileNotFoundError, PermissionError, OSError) as e:
-            print(f"Error saving units: {e}")
-        except json.JSONDecodeError as e:
-            print(f"Error serializing data to JSON: {e}")
+            logger.error("Error saving units: %s", e)
 
-    def populate_dynamic_anchors(self) -> None:
-        """Populates the `AnchorManager` instance with predefined datetime
-        anchors.
 
-        This method adds various datetime anchors such as Unix Time, CE Time, and Big Bang Time,
-        using the `add_datetime_anchor` and `add_decimal_anchor` methods of the `AnchorManager`
-        instance.  Each anchor is added with its name, symbol, and corresponding datetime value.
-        """
+    # def populate_dynamic_anchors(self) -> None:
+    #     """Populates the `AnchorManager` instance with predefined datetime
+    #     anchors.
 
-        self.anchors.add_anchor(
-            AnchorConfig(
-                label="NT",
-                name=f"Now Time ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})",
-                value=get_ntp_date(),
-                groups=["default", "dynamic", "modern"],
-            )
-        )
-        self.anchors.add_anchor(
-            AnchorConfig(
-                label="DT",
-                name=f"Day Time ({datetime.now().strftime('%Y-%m-%d 00:00:00')})",
-                value=datetime(
-                    datetime.now().year,
-                    datetime.now().month,
-                    datetime.now().day,
-                    tzinfo=datetime.now().astimezone().tzinfo,
-                ),
-                breakdowns=[["dd", "cd", "s", "ms"], ["h", "m", "s", "ms"], ["KS", "s", "ms"]],
-                groups=["dynamic", "modern"],
-            )
-        )
-        self.anchors.add_anchor(
-            AnchorConfig(
-                label="MT",
-                name=f"Month Time ({datetime.now().strftime('%Y-%m-01 00:00:00')})",
-                value=datetime(
-                    datetime.now().year,
-                    datetime.now().month,
-                    1,
-                    tzinfo=datetime.now().astimezone().tzinfo,
-                ),
-                breakdowns=[
-                    ["d", "dd", "cd", "s", "ms"],
-                    ["w", "d", "dd", "cd", "s", "ms"],
-                    ["MS", "KS", "s", "ms"],
-                ],
-                groups=["dynamic", "modern"],
-            )
-        )
+    #     This method adds various datetime anchors such as Unix Time, CE Time, and Big Bang Time,
+    #     using the `add_datetime_anchor` and `add_decimal_anchor` methods of the `AnchorManager`
+    #     instance.  Each anchor is added with its name, symbol, and corresponding datetime value.
+    #     """
 
-        self.anchors.add_anchor(
-            AnchorConfig(
-                label="YT",
-                name=f"Year Time ({datetime.now().strftime('%Y-01-01 00:00:00')})",
-                value=datetime(
-                    datetime.now().year, 1, 1, tzinfo=datetime.now().astimezone().tzinfo
-                ),
-                breakdowns=[
-                    ["d", "dd", "cd", "s", "ms"],
-                    ["w", "d", "dd", "cd", "s", "ms"],
-                    ["M", "d", "dd", "cd", "s", "ms"],
-                    ["MS", "KS", "s", "ms"],
-                ],
-                groups=["dynamic", "modern"],
-            )
-        )
+    #     self.anchors.add_anchor(
+    #         AnchorConfig(
+    #             label="NT",
+    #             name=f"Now Time ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})",
+    #             value=get_ntp_date(),
+    #             groups=["default", "dynamic", "modern"],
+    #         )
+    #     )
+    #     self.anchors.add_anchor(
+    #         AnchorConfig(
+    #             label="DT",
+    #             name=f"Day Time ({datetime.now().strftime('%Y-%m-%d 00:00:00')})",
+    #             value=datetime(
+    #                 datetime.now().year,
+    #                 datetime.now().month,
+    #                 datetime.now().day,
+    #                 tzinfo=datetime.now().astimezone().tzinfo,
+    #             ),
+    #             breakdowns=[["dd", "cd", "s", "ms"], ["h", "m", "s", "ms"], ["KS", "s", "ms"]],
+    #             groups=["dynamic", "modern"],
+    #         )
+    #     )
+    #     self.anchors.add_anchor(
+    #         AnchorConfig(
+    #             label="MT",
+    #             name=f"Month Time ({datetime.now().strftime('%Y-%m-01 00:00:00')})",
+    #             value=datetime(
+    #                 datetime.now().year,
+    #                 datetime.now().month,
+    #                 1,
+    #                 tzinfo=datetime.now().astimezone().tzinfo,
+    #             ),
+    #             breakdowns=[
+    #                 ["d", "dd", "cd", "s", "ms"],
+    #                 ["w", "d", "dd", "cd", "s", "ms"],
+    #                 ["MS", "KS", "s", "ms"],
+    #             ],
+    #             groups=["dynamic", "modern"],
+    #         )
+    #     )
+
+    #     self.anchors.add_anchor(
+    #         AnchorConfig(
+    #             label="YT",
+    #             name=f"Year Time ({datetime.now().strftime('%Y-01-01 00:00:00')})",
+    #             value=datetime(
+    #                 datetime.now().year, 1, 1, tzinfo=datetime.now().astimezone().tzinfo
+    #             ),
+    #             breakdowns=[
+    #                 ["d", "dd", "cd", "s", "ms"],
+    #                 ["w", "d", "dd", "cd", "s", "ms"],
+    #                 ["M", "d", "dd", "cd", "s", "ms"],
+    #                 ["MS", "KS", "s", "ms"],
+    #             ],
+    #             groups=["dynamic", "modern"],
+    #         )
+    #     )
 
     @property
     def utms_dir(self) -> str:
@@ -404,9 +405,13 @@ class Config(ConfigProtocol):
         return self._data
 
     @property
-    def units(self) -> UnitManagerProtocol:
-        return self._units
+    def units(self) -> FixedUnitManagerProtocol:
+        return self._fixed_units
 
     @property
     def anchors(self) -> AnchorManagerProtocol:
         return self._anchors
+
+    @property
+    def loglevel(self):
+        return self.get_value("loglevel")

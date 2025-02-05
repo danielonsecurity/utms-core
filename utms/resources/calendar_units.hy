@@ -1,4 +1,4 @@
-(defunit day
+(def-calendar-unit day
   (length (fn [[_ None]] (* 1 86400)))  ; Duration of a day in seconds
   (timezone (fn [[_ None]] 3600))  ; UTC+1 timezone
   ;; (timezone 0)  ; UTC+1 timezone
@@ -12,7 +12,7 @@
 
 
 
-(defunit week7
+(def-calendar-unit week7
   (length (* 7 (day.length)))
   ;; offsets for week start:
   ;; 0 - Thursday (1970-01-01 was thursday)
@@ -41,7 +41,7 @@
   )
 
 
-(defunit week7sunday
+(def-calendar-unit week7sunday
   (length (* 7 (day.length)))
   (timezone day.timezone)
   ;; offsets for week start:
@@ -64,7 +64,7 @@
   )
 
 
-(defunit week10
+(def-calendar-unit week10
   (length (* 10 (day.length)))
   (timezone day.timezone)
   (offset 3)
@@ -78,7 +78,7 @@
   (names ["Firstday" "Secondday" "Thirdday" "Fourthday" "Fifthtday" "Sixthday" "Sevenday" "Eigthday" "Nineday" "Tenday"])
   )
 
-(defunit month
+(def-calendar-unit month
   (timezone day.timezone)
   (length
     (fn [ts #* _ ]
@@ -113,7 +113,7 @@
 
 
 
-(defunit year
+(def-calendar-unit year
   (timezone day.timezone)
   (length
     (fn [ts]
@@ -145,7 +145,7 @@
          )
   )
 
-(defcalendar gregorian
+(def-calendar gregorian
   (day day)
   (week week7)
   (month month)
@@ -163,20 +163,20 @@
   )
 
 
-(defcalendar gregorian-sunday
+(def-calendar gregorian-sunday
   (day day)
   (week week7sunday)
   (month month)
   (year year))
 
-(defcalendar week10
+(def-calendar week10
   (day day)
   (week week10)
   (month month)
   (year year))
 
 
-(defunit week7fixed
+(def-calendar-unit week7fixed
   (length (* 7 (day.length)))
   (offset 4)
   (timezone day.timezone)
@@ -208,7 +208,7 @@
 
 
 
-(defunit monthfixed
+(def-calendar-unit monthfixed
   (timezone day.timezone)
   (length
     (fn [ts [month-index None]]
@@ -291,7 +291,7 @@
 
 
 
-(defunit yearfixed
+(def-calendar-unit yearfixed
   (timezone day.timezone)
   (length
     (fn [ts]
@@ -348,7 +348,7 @@
   )
 
 
-(defcalendar ifc
+(def-calendar ifc
   (day day)
   (week week7fixed)
   (month monthfixed)

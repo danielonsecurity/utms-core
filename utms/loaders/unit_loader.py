@@ -1,6 +1,6 @@
-from utms.resolvers import CalendarResolver
-from utms.utils import get_logger
-from utms.utms_types import (
+from ..resolvers import CalendarResolver
+from ..utils import get_logger
+from ..utms_types import (
     CalendarDefinitions,
     ExpressionList,
     OptionalHyExpression,
@@ -15,7 +15,7 @@ from utms.utms_types import (
     to_unit_type,
 )
 
-from .calendar_unit import BaseCalendarUnit
+from ..core.calendar.calendar_unit import CalendarUnit
 
 logger = get_logger("core.calendar.unit_loader")
 
@@ -32,7 +32,7 @@ def parse_unit_definitions(units_data: ExpressionList) -> UnitDefinitions:
             logger.debug("Skipping non-Expression: %s", unit_def_expr)
             continue
 
-        if str(unit_def_expr[0]) != "defunit":
+        if str(unit_def_expr[0]) != "def-calendar-unit":
             logger.debug("Skipping non-defunit expression: %s", unit_def_expr[0])
             continue
 
@@ -74,7 +74,7 @@ def parse_calendar_definitions(units_data: ExpressionList) -> CalendarDefinition
         if not is_expression(expr):
             continue
 
-        if str(expr[0]) != "defcalendar":
+        if str(expr[0]) != "def-calendar":
             continue
 
         _, cal_name_sym, *properties = expr
@@ -105,11 +105,11 @@ def parse_calendar_definitions(units_data: ExpressionList) -> CalendarDefinition
 
 
 def initialize_units(parsed_units: UnitDefinitions) -> UnitsDict:
-    """Create BaseCalendarUnit instances from parsed definitions."""
+    """Create CalendarUnit instances from parsed definitions."""
     units: UnitsDict = {}
     for unit_name, unit_info in parsed_units.items():
         unit_kwargs = unit_info["kwargs"]
-        units[unit_name] = BaseCalendarUnit(unit_name, units, unit_kwargs)
+        units[unit_name] = CalendarUnit(unit_name, units, unit_kwargs)
     return units
 
 

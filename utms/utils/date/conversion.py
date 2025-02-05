@@ -38,6 +38,8 @@ def value_to_decimal(value: Union[Decimal, datetime]) -> Decimal:
     """
     if isinstance(value, Decimal):
         return value
+    elif isinstance(value, (int, float)):
+        return Decimal(value)
     # Convert datetime to Decimal (timestamp)
     if value >= datetime(1, 1, 2, 0, 0, tzinfo=timezone.utc):
         value_as_decimal = Decimal(value.timestamp())

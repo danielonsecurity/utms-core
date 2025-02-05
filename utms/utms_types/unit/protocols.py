@@ -28,10 +28,10 @@ class UnitProtocol(Protocol):
     def __repr__(self) -> str: ...
 
 
-class UnitManagerProtocol(Protocol):
+class FixedUnitManagerProtocol(Protocol):
     """Protocol defining the interface for UnitManager class."""
 
-    def add_unit(self, name: str, abbreviation: str, value: Decimal) -> None:
+    def add_unit(self, name: str, abbreviation: str, value: Decimal, groups) -> None:
         """Add a new time unit."""
         ...
 

@@ -1,4 +1,5 @@
 from .anchor.protocols import AnchorConfigProtocol, AnchorManagerProtocol, AnchorProtocol
+from .anchor.types import AnchorKwargs
 from .base.protocols import TimeLength, TimeStamp
 from .base.time import DecimalTimeLength, DecimalTimeStamp, TimeRange
 from .base.types import (
@@ -66,6 +67,7 @@ from .hy.types import (
     HyString,
     HySymbol,
     HyValue,
+    HyKeyword,
     LocalsDict,
     PropertyDict,
     ResolvedValue,
@@ -76,4 +78,4 @@ from .hy.types import (
     is_string,
     is_symbol,
 )
-from .unit.protocols import UnitManagerProtocol, UnitProtocol
+from .unit.protocols import FixedUnitManagerProtocol, UnitProtocol

@@ -1,7 +1,7 @@
 from typing import Any, List, Optional, Protocol, Union
 
 from ..anchor.protocols import AnchorManagerProtocol
-from ..unit.protocols import UnitManagerProtocol
+from ..unit.protocols import FixedUnitManagerProtocol
 
 
 class ConfigProtocol(Protocol):
@@ -14,7 +14,7 @@ class ConfigProtocol(Protocol):
     def data(self) -> Any: ...
 
     @property
-    def units(self) -> UnitManagerProtocol: ...
+    def units(self) -> FixedUnitManagerProtocol: ...
 
     @property
     def anchors(self) -> AnchorManagerProtocol: ...

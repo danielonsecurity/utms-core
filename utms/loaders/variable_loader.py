@@ -1,0 +1,53 @@
+import os
+from typing import Dict, Optional, Any
+from ..utils import get_logger
+from ..utms_types import ExpressionList, is_expression, HyExpression, ResolvedValue, LocalsDict, AnchorKwargs
+from ..resolvers import VariableResolver, evaluate_hy_file
+from ..core.anchors import AnchorConfig, Anchor
+
+logger = get_logger("core.anchor.variable_loader")
+
+_resolver = VariableResolver()
+
+def parse_variable_definitions(variable_data: ExpressionList) -> Dict[str, dict]:
+    """Parse Hy variable definitions into a dictionary."""
+    variables = {}
+    logger.debug("Starting to parse variable definitions")
+
+    for var_def_expr in variable_data:
+        if not is_expression(var_def_expr):
+            logger.debug("Skipping non-Expression: %s", var_def_expr)
+            continue
+
+        if str(var_def_expr[0]) != "def-var":
+            logger.debug("Skipping non-def-var expression: %s", var_def_expr[0])
+            continue
+
+        _, var_name_sym, var_value = var_def_expr
+        var_name = str(var_name_sym)
+        logger.debug("Processing variable: %s", var_name)
+
+        variables[var_name] = {
+            "name": var_name,
+            "value": var_value
+        }
+        
+    return variables
+
+def initialize_variables(parsed_vars: Dict[str, dict]) -> Dict[str, Any]:
+    """Create resolved variables from parsed definitions."""
+    variables = {}
+    for var_name, var_info in parsed_vars.items():
+        resolved_value = _resolver.resolve(var_info["value"])
+        variables[var_name] = resolved_value
+        _resolver._resolved_vars[var_name] = resolved_value
+    return variables
+
+def process_variables(variable_data: ExpressionList) -> Dict[str, Any]:
+    """Process Hy variable definitions into resolved variables."""
+    logger.debug("Starting process_variables")
+    parsed_vars = parse_variable_definitions(variable_data)
+    logger.debug("Parsed variables: %s", list(parsed_vars.keys()))
+    variables = initialize_variables(parsed_vars)
+    logger.debug("Initialized variables: %s", list(variables.keys()))
+    return variables

@@ -24,7 +24,7 @@ from utms.core.calendar.unit_loader import parse_calendar_definitions
 def main():
     set_log_level("WARN")
     # set_log_level("WARNING")
-    hy_file_path = "resources/units.hy"
+    hy_file_path = "resources/calendar_units.hy"
     units_data = evaluate_hy_file(hy_file_path)
 
     # # timestamp = time.time()

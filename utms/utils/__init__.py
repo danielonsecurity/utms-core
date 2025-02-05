@@ -1,5 +1,5 @@
 # utms/utils/__init__.py
-from .date import get_seconds_since_midnight, resolve_date_dateparser, value_to_decimal
+from .date import get_seconds_since_midnight, resolve_date_dateparser, value_to_decimal, get_ntp_date
 from .display import ColorFormatter, generate_time_table, print_row, print_time
 from .logger import get_logger, set_log_level
 from .time import (

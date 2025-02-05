@@ -1,1 +1,1 @@
-from .protocols import UnitManagerProtocol, UnitProtocol
+from .protocols import FixedUnitManagerProtocol, UnitProtocol

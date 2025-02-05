@@ -1,6 +1,6 @@
 import datetime
 import time
-from types import FunctionType  # pylint: disable=no-name-in-module
+from types import FunctionType, ModuleType  # pylint: disable=no-name-in-module
 
 from ..utils import get_day_of_week, get_logger
 from ..utms_types import (
@@ -11,6 +11,7 @@ from ..utms_types import (
     HyExpression,
     HyList,
     HySymbol,
+    HyKeyword,
     HyValue,
     LocalsDict,
     LocalsProvider,
@@ -32,17 +33,28 @@ class HyResolver(ExpressionResolver, LocalsProvider):
         self, expr: HyValue, context: Context = None, local_names: LocalsDict = None
     ) -> ResolvedValue:
         """Main resolution method"""
-        if is_number(expr):
-            return expr
-        if is_string(expr):
-            return str(expr)
+        logger.debug("Resolving expression: %s", expr)
+        # or if you want to catch it in any form:
         if is_symbol(expr):
-            return self._resolve_symbol(expr, context, local_names)
-        if is_list(expr):
-            return self._resolve_list(expr, context, local_names)
-        if is_expression(expr):
-            return self._resolve_expression(expr, context, local_names)
-        return expr
+            symbol_name = str(expr)
+            if local_names and symbol_name in local_names:
+                result = local_names[symbol_name]
+            elif local_names and symbol_name.replace("-", "_") in local_names:
+                result = local_names[symbol_name.replace("-", "_")]
+
+        elif is_number(expr):
+            result = expr
+        elif is_string(expr):
+            result = str(expr)
+        elif is_list(expr):
+            result = self._resolve_list(expr, context, local_names)
+        elif is_expression(expr):
+            result = self._resolve_expression(expr, context, local_names)
+        else:
+            result = expr
+        logger.debug("Resolved expression: %s", result)
+
+        return result
 
     def get_locals_dict(
         self, context: Context, local_names: LocalsDict = None  # pylint: disable=W0613
@@ -54,9 +66,19 @@ class HyResolver(ExpressionResolver, LocalsProvider):
         self, expr: HySymbol, _: Context, local_names: LocalsDict = None
     ) -> ResolvedValue:
         """Base symbol resolution - override in subclasses if needed"""
-        if local_names and str(expr) in local_names:
-            return local_names[str(expr)]
+        symbol_name = str(expr)
+        # Try with hyphen
+        if local_names and symbol_name in local_names:
+            return local_names[symbol_name]
+        # Try with underscore
+        underscore_name = symbol_name.replace("-", "_")
+        if local_names and underscore_name in local_names:
+            return local_names[underscore_name]
         return expr
+
+        # if local_names and str(expr) in local_names:
+        #     return local_names[str(expr)]
+        # return expr
 
     def _resolve_list(
         self, expr: HyList, context: Context, local_names: LocalsDict = None
@@ -74,7 +96,22 @@ class HyResolver(ExpressionResolver, LocalsProvider):
             local_names = {}
 
         self._log_initial_state(expr, context, local_names)
-        resolved_subexprs = self._resolve_subexpressions(expr, context, local_names)
+
+        resolved_subexprs = []
+        for subexpr in expr:
+            if is_symbol(subexpr):
+                symbol_name = str(subexpr)
+                if symbol_name in local_names:
+                    resolved_subexprs.append(local_names[symbol_name])
+                elif symbol_name.replace("-", "_") in local_names:
+                    resolved_subexprs.append(local_names[symbol_name.replace("-", "_")])
+                else:
+                    resolved_subexprs.append(subexpr)
+            elif isinstance(subexpr, HyExpression):
+                resolved_value = self.resolve(subexpr, context, local_names)
+                resolved_subexprs.append(resolved_value)
+            else:
+                resolved_subexprs.append(subexpr)
 
         locals_dict = self.get_locals_dict(context, local_names)
         logger.debug("Final locals dictionary: %s", locals_dict)
@@ -86,7 +123,7 @@ class HyResolver(ExpressionResolver, LocalsProvider):
             return HyExpression(resolved_subexprs)
         except Exception as e:
             logger.error("Error evaluating expression: %s", expr)
-            logger.error("Error details: %s: %s", type(e).__name__, e)
+            logger.error("Error detali[s: %s: %s", type(e).__name__, e)
             raise e
 
     def _log_initial_state(
@@ -127,8 +164,32 @@ class HyResolver(ExpressionResolver, LocalsProvider):
         """Evaluate expression, handling dot operator if present."""
         if self._is_dot_operator(expr):
             obj = self._resolve_dot_operator_object(expr[1], locals_dict)
-            value = self._resolve_dot_operator_property(obj, str(expr[2]))
-            return value
+            method = self._resolve_dot_operator_property(obj, str(expr[2]))
+
+            # If there are additional arguments, call the method with them
+            if len(expr) > 3:
+                args = [self.resolve(arg, None, locals_dict) for arg in expr[3:]]
+                return method(*args)
+            return method
+
+        # If first element is a type/class, call it directly with the resolved arguments
+        if isinstance(resolved_subexprs[0], type):
+            constructor = resolved_subexprs[0]
+            # Separate args and kwargs
+            args = []
+            kwargs = {}
+            for arg in resolved_subexprs[1:]:
+                if isinstance(arg, HyKeyword):
+                    # Remove the leading ':' from keyword name
+                    key = str(arg)[1:]
+                    # Next value is the keyword's value
+                    value = next(iter(resolved_subexprs[resolved_subexprs.index(arg) + 1:]), None)
+                    kwargs[key] = locals_dict.get(str(value), value) if isinstance(value, HySymbol) else value
+                elif not isinstance(arg, HyKeyword) and arg not in kwargs.values():
+                    # Only add to args if it's not a keyword and not already used as a kwarg value
+                    args.append(locals_dict.get(str(arg), arg) if isinstance(arg, HySymbol) else arg)
+
+            return constructor(*args, **kwargs)
 
         result = evaluate_hy_expression(HyExpression(resolved_subexprs), locals_dict)
         logger.debug("Final result: %s", result)
@@ -149,12 +210,19 @@ class HyResolver(ExpressionResolver, LocalsProvider):
                 obj = locals_dict[obj_name]
                 logger.debug("Found object: %s", obj)
                 return obj
+            elif obj_name.replace("-", "_") in locals_dict:
+                obj = locals_dict[obj_name.replace("-", "_")]
+                logger.debug("Found object with underscore: %s", obj)
+                return obj
             logger.debug("Symbol not found in locals")
             raise NameError(f"name '{obj_name}' is not defined")
 
-        obj = evaluate_hy_expression(HyExpression([obj_expr]), locals_dict)
-        logger.debug("Evaluated object: %s", obj)
-        return obj
+        try:
+            obj = evaluate_hy_expression(HyExpression([obj_expr]), locals_dict)
+            logger.debug("Evaluated object: %s", obj)
+            return obj
+        except Exception as e:
+            logger.error("Error evaluating object expression %s", e)
 
     def _resolve_dot_operator_property(
         self,
@@ -165,8 +233,10 @@ class HyResolver(ExpressionResolver, LocalsProvider):
         logger.debug("Accessing property: %s", prop)
         value = getattr(obj, prop)
         logger.debug("Got value: %s", value)
+        if isinstance(value, (type, ModuleType)):
+            return value
 
-        if callable(value):
+        if callable(value) and hasattr(value, "__globals__"):
             return self._create_bound_function(obj, value)
         return value
 
