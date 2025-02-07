@@ -76,3 +76,6 @@ def format_hy_value(v: Any) -> str:
         return f"[{items}]"
     else:
         return str(v)
+
+def list_to_dict(flat_list):
+    return dict(zip(flat_list[::2], flat_list[1::2]))

@@ -55,11 +55,11 @@ def initialize_anchors(parsed_anchors, variables) -> dict:
     """Create Anchor instances from parsed definitions."""
     anchors = {}
     for anchor_label, anchor_info in parsed_anchors.items():
+        logger.debug("Creating anchor %s with formats %s", anchor_label, parsed_anchors.get("formats"))
         kwargs = anchor_info["kwargs"]
         logger.debug("kwargs before resolution %s", kwargs)
         resolved_props = _resolver.resolve_anchor_property(kwargs, variables = variables)
         logger.debug("resolved_props after resolution %s", resolved_props)
-
         kwargs = anchor_info["kwargs"]
         config = AnchorConfig(
             label=anchor_label,
@@ -68,9 +68,12 @@ def initialize_anchors(parsed_anchors, variables) -> dict:
             # breakdowns=hy_to_python(resolved_props.get("breakdowns")),
             formats=resolved_props.get("formats"),
             groups=resolved_props.get("groups"),
-            precision=resolved_props.get("precision")
+            precision=resolved_props.get("precision"),
+            uncertainty=resolved_props.get("uncertainty"),
         )
-        anchors[anchor_label] = Anchor(config)
+        anchor = Anchor(config)
+        logger.debug("Created anchor with formats %s", anchor_label, anchor._formats)
+        anchors[anchor_label] = anchor
     return anchors
 
 def resolve_anchor_properties(anchors: dict) -> None:

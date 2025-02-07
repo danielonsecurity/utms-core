@@ -64,6 +64,8 @@ for anchor in manager:
 # Get the number of anchors
 print(len(manager))
 """
+
+from proto import utils
 import hy
 
 from dataclasses import dataclass, field
@@ -74,20 +76,24 @@ from typing import Dict, Iterator, List, Optional, Union, Any
 from colorama import Fore, Style
 
 
-
-from ..utils import hy_to_python, value_to_decimal, ColorFormatter
+from ..utils import get_logger, hy_to_python, list_to_dict, value_to_decimal, ColorFormatter
 from ..utms_types import (
     AnchorConfigProtocol,
     AnchorManagerProtocol,
     AnchorProtocol,
     FixedUnitManagerProtocol,
     is_string,
+    is_list,
 )
 
 from . import constants
 
 from .formats import registry as format_registry
+from .formats import TimeUncertainty
+
 # from .units import FixedUnitManager
+
+logger = get_logger("core.anchors")
 
 
 class AnchorConfig(AnchorConfigProtocol):
@@ -101,6 +107,7 @@ class AnchorConfig(AnchorConfigProtocol):
         formats: Optional[List[str]] = ["CALENDAR"],
         groups: Optional[List[str]] = None,
         precision: Optional[Decimal] = None,
+        uncertainty: Optional[TimeUncertainty] = None,
     ) -> None:
         self.label = label
         self.name = name
@@ -108,30 +115,31 @@ class AnchorConfig(AnchorConfigProtocol):
         self.groups = groups
         self.precision = precision
         self.formats = formats
+        self.uncertainty = uncertainty
+        if not uncertainty:
+            if isinstance(self.value, datetime):
+                self.uncertainty = TimeUncertainty(absolute=Decimal("1e-9"))
+            else:
+                self.uncertainty = TimeUncertainty()
 
 
 @dataclass
 class FormatSpec:
-    units: Optional[List[str]] = None     # For unit-based formats like ["Y", "d"]
-    style: str = "full"                   # Style for unit-based formats
-    format: Optional[str] = None          # For predefined formats like "CALENDAR"
+    units: Optional[List[str]] = None  # For unit-based formats like ["Y", "d"]
+    style: str = "default"  # Style for unit-based formats
+    format: Optional[str] = None  # For predefined formats like "CALENDAR"
     options: Dict[str, Any] = field(default_factory=dict)
 
+
     def __post_init__(self):
-        # Validate that we have either units or format, but not both
-        if self.units is None and self.format is None:
-            breakpoint()
-            raise ValueError("Either units or format must be specified")
-        if self.units is not None and self.format is not None:
-            raise ValueError("Cannot specify both units and format")
+        # Only default to "UNITS" if no format was specified
+        if self.units and not self.format:
+            self.format = "UNITS"
+        
+        # Always ensure units are in options if present
+        if self.units and "units" not in self.options:
+            self.options["units"] = self.units
 
-
-# @dataclass
-# class FormatSpec:
-#     units: List[str]
-#     style: str = "full"
-#     format: Optional[str] = None
-#     options: Dict[str, Any] = field(default_factory=dict)
 
 class Anchor(AnchorProtocol):
     """Represents a single time anchor with a full name, value, precision, and
@@ -170,50 +178,106 @@ class Anchor(AnchorProtocol):
     def __init__(self, anchor_config: AnchorConfig) -> None:
         """Create the Anchor object with its parameters inside."""
         self._label = anchor_config.label
+        logger.debug("Initializing anchor %s", self._label)
         self._name = anchor_config.name
         self._value = value_to_decimal(anchor_config.value)
         self._precision = anchor_config.precision or constants.STANDARD_PRECISION
-        # self._breakdowns = anchor_config.breakdowns or constants.STANDARD_BREAKDOWN
+        self._uncertainty = anchor_config.uncertainty
         self._formats = []
         self._groups = anchor_config.groups or []
         # Handle formats
-        for format_spec in anchor_config.formats or []:
-            if is_string(format_spec):
-                # Direct format string like "CALENDAR"
-                self._formats.append(FormatSpec(format=hy_to_python(format_spec)))
-            elif isinstance(format_spec, (dict, hy.models.Dict)):
-                if hy.models.Keyword("units") in format_spec:
-                    units = [hy_to_python(u) for u in format_spec[1:]]
+        if not anchor_config.formats:
+            self._formats.append(FormatSpec(format="CALENDAR"))
+            logger.debug("No formats specified, using default CALENDAR format")
+        else:
+            for format_spec in anchor_config.formats or []:
+                logger.debug("Processing format_spec: %s", format_spec)
+                py_format_spec = list_to_dict(hy_to_python(format_spec))
+                logger.debug("Converted to: %s", py_format_spec)
+                if is_string(format_spec):
+                    logger.debug("Processing as string")
+                    self._formats.append(FormatSpec(format=hy_to_python(format_spec)))
+                elif is_list(format_spec):
+                    units = [hy_to_python(u) for u in format_spec]
                     self._formats.append(FormatSpec(
+                        format="UNITS",
                         units=units,
                         style="full",
-                    ))
-                elif hy.models.Keyword("format") in format_spec:
-                    breakpoint()
-                    format_name=hy_to_python(format_spec[1])
-                    self._formats.append(FormatSpec(
-                        format=format_name,
-                        options={},
-                    ))
+                        options=py_format_spec.get("options", {})))
+                elif isinstance(format_spec, (dict, hy.models.Dict)):
+                    py_format_spec = list_to_dict(hy_to_python(format_spec))
+                    format_name = py_format_spec.get("format")
+
+                    if "units" in py_format_spec:
+                        logger.debug("Processing format with units")
+                        units = py_format_spec["units"]
+                        if isinstance(units[0], list):
+                            units = units[0]
+                        logger.debug("Final units: %s", units)
+                        options = py_format_spec.get("options", {})
+                        if isinstance(options, list):
+                            options = list_to_dict(options)
+
+                        # Use specified format or default to "UNITS"
+                        self._formats.append(
+                            FormatSpec(
+                                format=format_name or "UNITS",  # Use specified format
+                                units=units,
+                                style=py_format_spec.get("style", "full"),
+                                options=options,
+                            )
+                        )
+
+                    elif format_name:  # If format is specified without units
+                        logger.debug("Processing as format")
+                        options = {}
+                        if "options" in py_format_spec:
+                            options = list_to_dict(py_format_spec["options"])
+                        logger.debug("Format name: %s, options: %s", format_name, options)
+                        self._formats.append(
+                            FormatSpec(
+                                format=format_name,
+                                options=options,
+                            )
+                        )
+                        logger.debug("Created format spec: %s", self._formats[-1])
 
 
-        # for format_spec in anchor_config.formats or []:
-        #     if is_string(format_spec):
-        #         self._formats.append(FormatSpec(format=format_spec))
-        #     if isinstance(format_spec, FormatSpec):
-        #         self._formats.append(format_spec)
 
+                # elif isinstance(format_spec, (dict, hy.models.Dict)):
+                #     if "units" in py_format_spec:
+                #         logger.debug("Processing as units")
+                #         units = py_format_spec["units"]
+                #         if isinstance(units[0], list):
+                #             units = units[0]
+                #         logger.debug("Final units: %s", units)
+                #         options = py_format_spec.get("options", {})
+                #         if isinstance(options, list):
+                #             options = list_to_dict(options)
+                #         self._formats.append(
+                #             FormatSpec(
+                #                 format="UNITS",
+                #                 units=units,
+                #                 style=py_format_spec.get("style", "full"),
+                #                 options=options,
+                #             )
+                #         )
+                #     elif "format" in py_format_spec:
+                #         logger.debug("Processing as format")
+                #         format_name = py_format_spec["format"]
+                #         options = {}
+                #         if "options" in py_format_spec:
+                #             options = list_to_dict(py_format_spec["options"])
+                #         logger.debug("Format name: %s, options: %s", format_name, options)
+                #         self._formats.append(
+                #             FormatSpec(
+                #                 format=format_name,
+                #                 options=options,
+                #             )
+                #         )
+                #         logger.debug("Created format spec: %s", self._formats[-1])
 
-
-            # else:
-            #     # If it's a string like "CALENDAR", treat as predefined format
-            #     if is_string(format_spec):
-            #         self._formats.append(FormatSpec(format=str(format_spec)))
-            #     # If it's a Hy expression with :units
-            #     elif str(format_spec[0]) == ":units":
-            #         units = hy_to_python(format_spec[1:])[0]
-            #         self._formats.append(FormatSpec(units=units, style="full", options={}))
-
+            logger.debug("Initializing anchor %s", self._label)
 
     # Read-only properties
     @property
@@ -228,10 +292,6 @@ class Anchor(AnchorProtocol):
     def value(self) -> Decimal:
         return self._value
 
-    # @property
-    # def breakdowns(self) -> List[List[str]]:
-    #     return self._breakdowns
-
     @property
     def formats(self) -> List[List[str]]:
         return self._formats
@@ -244,17 +304,26 @@ class Anchor(AnchorProtocol):
     def precision(self) -> Decimal:
         return self._precision
 
+    @property
+    def uncertainty(self) -> Decimal:
+        return self._uncertainty
+
     def format(self, total_seconds: Decimal, units: "FixedUnitManagerProtocol") -> str:
-        """New method to handle format specifications"""
         output = []
-        
+        logger.debug("Processing formats: %s", self._formats)
+
         for format_spec in self._formats:
+            logger.debug("Processing format spec: %s", format_spec)
             if format_spec.format:
-                result = format_registry.format(format_spec.format, total_seconds, units, self.precision)
+                logger.debug("Using format: %s with options %s", format_spec.format, format_spec.options)
+                result = format_registry.format(
+                    format_spec.format, total_seconds, units, self.uncertainty, format_spec.options
+                )
                 output.append(result)
             elif format_spec.units:
                 result = {}
                 remaining = abs(total_seconds)
+                logger.debug("Format spec units: %s", format_spec.units)
                 if total_seconds > 0:
                     prefix = ColorFormatter.green("  + ")
                 else:
@@ -262,6 +331,9 @@ class Anchor(AnchorProtocol):
 
                 for unit_label in format_spec.units:
                     unit = units.get_unit(unit_label)
+                    logger.debug(
+                        "Processing unit_label: %s, type: %s", unit_label, type(unit_label)
+                    )
                     if not unit:
                         continue
 
@@ -273,10 +345,8 @@ class Anchor(AnchorProtocol):
                         remaining %= unit_value
                     result[unit_label] = count
 
-
-
                 # Format according to style
-                if format_spec.style == "full":
+                if format_spec.style == "default":
                     parts = []
                     for i, unit in enumerate(format_spec.units):
                         unit_info = units.get_unit(unit)
@@ -288,7 +358,9 @@ class Anchor(AnchorProtocol):
                         else:
                             formatted_value = f"{int(value)}"
 
-                        parts.append(f"{formatted_value} {ColorFormatter.green(unit_info.name + 's')}")
+                        parts.append(
+                            f"{formatted_value} {ColorFormatter.green(unit_info.name + 's')}"
+                        )
 
                     formatted = prefix + ", ".join(parts)
                     output.append(formatted)
@@ -297,20 +369,18 @@ class Anchor(AnchorProtocol):
     def display(self, total_seconds: Decimal, units: "FixedUnitManagerProtocol") -> str:
         """Combines both breakdown and format outputs"""
         parts = []
-        
+
         # Add traditional breakdowns
         breakdown_result = self.breakdown(total_seconds, units)
         if breakdown_result:
             parts.append(breakdown_result)
-            
+
         # Add new format outputs
         format_result = self.format(total_seconds, units)
         if format_result:
             parts.append(format_result)
-            
+
         return "\n".join(parts)
-
-
 
     def _format_breakdown_entry(self, count: Union[int, Decimal], unit: str) -> str:
         """Formats a single breakdown entry."""
@@ -413,7 +483,10 @@ class AnchorManager(AnchorManagerProtocol):
     def units(self) -> FixedUnitManagerProtocol:
         return self._units
 
-    def add_anchor(self, anchor_config: AnchorConfig) -> None:
+    def add_anchor(self, anchor: Anchor) -> None:
+        self._anchors[anchor._label] = anchor
+
+    def create_anchor(self, anchor_config: Anchor) -> None:
         """Adds a new anchor using the given configuration object.
 
         Args:

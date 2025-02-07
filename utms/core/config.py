@@ -190,44 +190,48 @@ class Config(ConfigProtocol):
             anchor_expressions = evaluate_hy_file(anchors_file)
             if anchor_expressions:
                 parsed_anchor_defs = parse_anchor_definitions(anchor_expressions)
+                logger.debug("Parsed anchor definitions %s", parsed_anchor_defs)
                 anchor_instances = initialize_anchors(parsed_anchor_defs, self._variables)
+                logger.debug("Created anchor instances %s", anchor_instances)
                 for anchor in anchor_instances.values():
+                    logger.debug("Adding anchor %s (id: %s) with formats: %s", anchor._label, id(anchor), anchor._formats)
                     self._anchors.add_anchor(anchor)
+                    logger.debug("After adding formats: %s", self._anchors[anchor._label]._formats)
 
-    def load_anchors(self) -> None:
-        """Loads anchors from the 'anchors.json' file and populates the anchors
-        dynamically.
+    # def load_anchors(self) -> None:
+    #     """Loads anchors from the 'anchors.json' file and populates the anchors
+    #     dynamically.
 
-        This method reads the `anchors.json` file, parses its content, and uses the `AnchorManager`
-        to add each anchor to the configuration.
-        """
-        anchors_file = os.path.join(self.utms_dir, "anchors.json")
+    #     This method reads the `anchors.json` file, parses its content, and uses the `AnchorManager`
+    #     to add each anchor to the configuration.
+    #     """
+    #     anchors_file = os.path.join(self.utms_dir, "anchors.json")
 
-        if os.path.exists(anchors_file):
-            with open(anchors_file, "r", encoding="utf-8") as f:
-                anchors_data = json.load(f)
+    #     if os.path.exists(anchors_file):
+    #         with open(anchors_file, "r", encoding="utf-8") as f:
+    #             anchors_data = json.load(f)
 
-            # Iterate through the anchors data and add each anchor
-            for key, anchor in anchors_data.items():
-                name = anchor.get("name")
-                timestamp = anchor.get("timestamp")
-                groups = anchor.get("groups")
-                precision = anchor.get("precision")
-                formats = anchor.get("formats")
-                # Add anchor using the details loaded from the JSON
-                anchor_config = AnchorConfig(
-                    label=key,
-                    name=name,
-                    value=Decimal(timestamp),
-                    groups=groups,
-                    precision=Decimal(precision) if precision else None,
-                    # breakdowns=breakdowns,
-                    formats=formats if formats else ["CALENDAR"],
-                )
-                self.anchors.add_anchor(anchor_config)
+    #         # Iterate through the anchors data and add each anchor
+    #         for key, anchor in anchors_data.items():
+    #             name = anchor.get("name")
+    #             timestamp = anchor.get("timestamp")
+    #             groups = anchor.get("groups")
+    #             precision = anchor.get("precision")
+    #             formats = anchor.get("formats")
+    #             # Add anchor using the details loaded from the JSON
+    #             anchor_config = AnchorConfig(
+    #                 label=key,
+    #                 name=name,
+    #                 value=Decimal(timestamp),
+    #                 groups=groups,
+    #                 precision=Decimal(precision) if precision else None,
+    #                 # breakdowns=breakdowns,
+    #                 formats=formats if formats else ["CALENDAR"],
+    #             )
+    #             self.anchors.create_anchor(anchor_config)
 
-        else:
-            print(f"Error: '{anchors_file}' not found.")
+    #     else:
+    #         print(f"Error: '{anchors_file}' not found.")
 
     def save_anchors(self) -> None:
         """Saves the current anchors to the 'anchors.json' file.

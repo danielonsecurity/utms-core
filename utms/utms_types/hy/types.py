@@ -1,14 +1,15 @@
 from decimal import Decimal
 from typing import Any, Callable, Dict
-from typing import List as PyList
+from typing import List as PyList, Dict as PyDict
 from typing import Optional, TypeAlias, TypeGuard, Union
 
-from hy.models import Expression, Integer, Lazy, List, String, Symbol, Keyword
+from hy.models import Expression, Integer, Lazy, List, String, Symbol, Keyword, Dict
 
 HyExpression: TypeAlias = Expression
 HySymbol: TypeAlias = Symbol
 HyKeyword: TypeAlias = Keyword
 HyList: TypeAlias = List
+HyDict: TypeAlias = Dict
 HyInteger: TypeAlias = Integer
 HyString: TypeAlias = String
 HyCompound: TypeAlias = Union[Expression, Symbol, List]
@@ -65,6 +66,8 @@ def is_string(obj: Any) -> TypeGuard[String]:
 def is_list(obj: Any) -> TypeGuard[List]:
     return isinstance(obj, (List, PyList))
 
+def is_dict(obj: Any) -> TypeGuard[Dict]:
+    return isinstance(obj, (Dict, PyDict))
 
 def is_expression(obj: Any) -> TypeGuard[Expression]:
     return isinstance(obj, Expression)

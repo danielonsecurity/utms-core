@@ -28,7 +28,6 @@ def print_time(
     timestamp: "Union[datetime, Decimal]",
     config: "Config",
     anchors: Optional[str] = None,
-    # breakdowns: Optional[str] = None,
     formats: Optional[str] = None,
     plt: bool = False,
 ) -> None:

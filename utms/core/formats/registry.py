@@ -4,7 +4,9 @@ from typing import Dict, Type
 from utms.utms_types import FixedUnitManagerProtocol
 from .base import FormatterProtocol
 from .calendar import CalendarFormatter
-from .decimal import DecimalFormatter
+from .scientific import ScientificFormatter
+from .config import TimeUncertainty
+from .units import UnitsFormatter
 
 class FormatRegistry:
     """Central registry for different format types."""
@@ -15,7 +17,8 @@ class FormatRegistry:
 
     def _setup_default_formatters(self) -> None:
         self.register("CALENDAR", CalendarFormatter())
-        self.register("DECIMAL", DecimalFormatter())
+        self.register("UNITS", UnitsFormatter())
+        self.register("SCIENTIFIC", ScientificFormatter())
 
     def register(self, name: str, formatter: FormatterProtocol) -> None:
         """Register a new formatter."""
@@ -27,10 +30,10 @@ class FormatRegistry:
             raise ValueError(f"Unknown format: {name}")
         return self._formatters[name]
 
-    def format(self, format_name: str, total_seconds: Decimal, units: FixedUnitManagerProtocol, precision: Decimal) -> str:
+    def format(self, format_name: str, total_seconds: Decimal, units: FixedUnitManagerProtocol, uncertainty: TimeUncertainty, options) -> str:
         """Format using the specified formatter."""
         formatter = self.get_formatter(format_name)
-        return formatter.format(total_seconds, units, precision)
+        return formatter.format(total_seconds, units, uncertainty, options)
 
     @property
     def available_formats(self) -> list[str]:
