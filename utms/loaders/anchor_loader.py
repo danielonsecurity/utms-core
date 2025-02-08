@@ -1,53 +1,44 @@
 import os
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Any
 from ..utils import get_logger, hy_to_python
 from ..utms_types import ExpressionList, is_expression, HyExpression, ResolvedValue, LocalsDict, AnchorKwargs
-from ..resolvers import AnchorResolver, evaluate_hy_file
+from ..resolvers import AnchorResolver, evaluate_hy_file, HyNode
 from ..core.anchors import AnchorConfig, Anchor
 
 logger = get_logger("core.anchor.anchor_loader")
 
 _resolver = AnchorResolver()
 
-def parse_anchor_definitions(anchor_data: ExpressionList) -> Dict[str, dict]:
-    """Parse Hy anchor definitions into a dictionary of anchor specifications."""
+
+def parse_anchor_definitions(nodes: List[HyNode]) -> Dict[str, dict]:
+    """Parse AST nodes into anchor specifications."""
     anchors = {}
     logger.debug("Starting to parse anchor definitions")
 
-    for anchor_def_expr in anchor_data:
-        if not is_expression(anchor_def_expr):
-            logger.debug("Skipping non-Expression: %s", anchor_def_expr)
+    for node in nodes:
+        if node.type != 'def-anchor':
+            logger.debug(f"Skipping non-anchor node: {node.type}")
             continue
 
-        if str(anchor_def_expr[0]) != "def-anchor":
-            logger.debug("Skipping non-def-anchor expression: %s", anchor_def_expr[0])
-            continue
-
-        _, anchor_label_sym, *anchor_properties = anchor_def_expr
-        anchor_label = str(anchor_label_sym)
-        logger.debug("Processing anchor: %s", anchor_label)
+        anchor_label = node.value
+        logger.debug(f"Processing anchor: {anchor_label}")
 
         anchor_kwargs_dict = {}
-        for prop_expr in anchor_properties:
-            if is_expression(prop_expr):
-                prop_name = str(prop_expr[0])
-                prop_value = prop_expr[1]
-                anchor_kwargs_dict[prop_name] = prop_value
-            else:
-                logger.error("Unexpected item type in anchor properties %s", type(prop_expr))
-                raise ValueError(f"Unexpected item type in anchor properties {type(prop_expr)}")
-        # anchor_kwargs = AnchorKwargs(
-        #     name=anchor_kwargs_dict.get("name"),
-        #     value=anchor_kwargs_dict.get("value"),
-        #     groups=anchor_kwargs_dict.get("groups"),
-        #     precision=anchor_kwargs_dict.get("precision"),
-        #     breakdowns=anchor_kwargs_dict.get("breakdowns"),
-        # )
+        for prop in node.children:
+            if prop.type == 'property':
+                prop_name = prop.value
+                # Get the value from the first (and should be only) child
+                if prop.children:
+                    prop_value = prop.children[0].value
+                    anchor_kwargs_dict[prop_name] = prop_value
+                    logger.debug(f"Added property {prop_name}: {prop_value}")
+
         anchors[anchor_label] = {
             "label": anchor_label,
             "kwargs": anchor_kwargs_dict
         }
-        logger.info("Added anchor %s", anchor_label)
+        logger.info(f"Added anchor {anchor_label}")
+
     logger.debug("Finished parsing anchors")
     return anchors
 

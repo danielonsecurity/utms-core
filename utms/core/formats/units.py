@@ -8,7 +8,7 @@ from .base import FormatterProtocol
 
 from typing import Optional, List, Dict
 
-from .config import FormatterConfig, TimeUncertainty
+from .config import TimeUncertainty
 
 from enum import Enum, auto
 from decimal import Decimal
@@ -118,17 +118,24 @@ class UnitsFormatter(FormatterProtocol):
                      opts: FormattingOptions) -> str:
         parts = []
         style = opts.style
+        started = False
+
         for unit_abbrev, count in result.items():
-            unit = units.get_unit(unit_abbrev)
-            
+            # Skip leading zeros
+            if not started and count == 0:
+                continue
+
+            # Mark that we've found our first non-zero value
+            started = True
+
             # Format the count
             if isinstance(count, Decimal) and count % 1 != 0:
                 value_str = f"{count:.2f}"
             else:
                 value_str = f"{int(count)}"
-            
+
             if style == 'full':
-                unit_name = unit.name + ('s' if count != 1 else '')
+                unit_name = units.get_unit(unit_abbrev).name + ('s' if count != 1 else '')
                 unit_str = unit_name if opts.raw else ColorFormatter.green(unit_name)
                 parts.append(f"{value_str} {unit_str}")
             elif style == 'short':
@@ -138,12 +145,52 @@ class UnitsFormatter(FormatterProtocol):
                 unit_str = unit_abbrev if opts.raw else ColorFormatter.green(unit_abbrev)
                 parts.append(f"{value_str}{unit_str}")
 
+        if not parts:  # If all values were zero
+            unit = units.get_unit(next(iter(result)))  # Get first unit
+            if style == 'full':
+                unit_str = unit.name if opts.raw else ColorFormatter.green(unit.name)
+                return f"0 {unit_str}s"
+            else:
+                unit_str = unit.abbreviation if opts.raw else ColorFormatter.green(unit.abbreviation)
+                return f"0{unit_str}"
+
         if style == 'compact':
             return "".join(parts)
         elif style == 'full':
             return ", ".join(parts)
         else:  # short
             return " ".join(parts)
+
+
+        # for unit_abbrev, count in result.items():
+        #     if not started and count == 0:
+        #         continue
+        #     started = True
+        #     unit = units.get_unit(unit_abbrev)
+            
+        #     # Format the count
+        #     if isinstance(count, Decimal) and count % 1 != 0:
+        #         value_str = f"{count:.2f}"
+        #     else:
+        #         value_str = f"{int(count)}"
+            
+        #     if style == 'full':
+        #         unit_name = unit.name + ('s' if count != 1 else '')
+        #         unit_str = unit_name if opts.raw else ColorFormatter.green(unit_name)
+        #         parts.append(f"{value_str} {unit_str}")
+        #     elif style == 'short':
+        #         unit_str = unit_abbrev if opts.raw else ColorFormatter.green(unit_abbrev)
+        #         parts.append(f"{value_str}{unit_str}")
+        #     elif style == 'compact':
+        #         unit_str = unit_abbrev if opts.raw else ColorFormatter.green(unit_abbrev)
+        #         parts.append(f"{value_str}{unit_str}")
+
+        # if style == 'compact':
+        #     return "".join(parts)
+        # elif style == 'full':
+        #     return ", ".join(parts)
+        # else:  # short
+        #     return " ".join(parts)
 
 
     def _get_meaningful_units(self, total_seconds: Decimal, 

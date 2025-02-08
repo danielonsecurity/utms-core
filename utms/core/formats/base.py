@@ -3,7 +3,8 @@ from decimal import Decimal
 from typing import Protocol, Optional, Dict, Any, List
 from enum import Enum
 
-from utms.utms_types import FixedUnitManagerProtocol
+from ...utms_types import FixedUnitManagerProtocol
+from ...utils import ColorFormatter
 from .config import TimeUncertainty
 
 class FormatterProtocol(Protocol):
@@ -30,8 +31,15 @@ class FormattingOptions:
     separator: str = " + "
     plural: bool = True
     indented: bool = True
+    significant_digits: int = 3
     notation: NotationType = NotationType.STANDARD
     units: Optional[List[str]] = None
+    currency: str = "€"
+    position_right: bool = True
+    base_unit: str = "h"
+    rate: Decimal = Decimal(0)
+    show_rate: bool = False
+    format_string: str = "%Y-%M-%dT%h:%m:%s"
 
     def __post_init__(self):
         if isinstance(self.notation, str):
@@ -49,3 +57,102 @@ class FormattingOptions:
             if isinstance(value, str):
                 setattr(self, attr, value.lower() == "true")
         
+class DateTimeFormatterBase(FormatterProtocol):
+    def _format_with_style(self, result: Dict[str, int], unit_labels: Dict[str, str], 
+                          total_seconds: Decimal, style: str, raw: bool) -> str:
+        """Common formatting logic for calendar/clock formatters."""
+        # Filter out zero values
+        non_zero_results = {
+            unit: count for unit, count in result.items() 
+            if count > 0
+        }
+        
+        # If all values are zero, show zero with the smallest unit
+        if not non_zero_results and result:
+            smallest_unit = list(result.keys())[-1]
+            non_zero_results = {smallest_unit: 0}
+
+        if style == 'full':
+            if raw:
+                prefix = "+" if total_seconds > 0 else "-"
+                parts = [f"{count:02d} {unit_labels[unit]}" 
+                        for unit, count in non_zero_results.items()]
+                return f"{prefix}{', '.join(parts)}"
+            else:
+                prefix = ColorFormatter.green("  + ") if total_seconds > 0 else ColorFormatter.red("  - ")
+                parts = [f"{count:02d} {ColorFormatter.green(unit_labels[unit])}" 
+                        for unit, count in non_zero_results.items()]
+                return f"{prefix}{', '.join(parts)}"
+
+        elif style == 'short':
+            if raw:
+                formatted = " ".join(f"{count:02d} '{unit}'" 
+                                   for unit, count in non_zero_results.items())
+                prefix = "+" if total_seconds > 0 else "-"
+                return prefix + formatted
+            else:
+                formatted = " ".join(f"{count:02d} {ColorFormatter.green(unit)}" 
+                                   for unit, count in non_zero_results.items())
+                prefix = ColorFormatter.green("  + ") if total_seconds > 0 else ColorFormatter.red("  - ")
+                return prefix + formatted
+
+        elif style == 'compact':
+            if raw:
+                formatted = "".join(f"{count:02d}{unit}" 
+                                  for unit, count in non_zero_results.items())
+                prefix = "+" if total_seconds > 0 else "-"
+                return prefix + formatted
+            else:
+                formatted = "".join(f"{count:02d}{ColorFormatter.green(unit)}" 
+                                  for unit, count in non_zero_results.items())
+                prefix = ColorFormatter.green("  + ") if total_seconds > 0 else ColorFormatter.red("  - ")
+                return prefix + formatted
+
+
+# class DateTimeFormatterBase(FormatterProtocol):
+#     def _format_with_style(self, result: Dict[str, int], unit_labels: Dict[str, str], 
+#                           total_seconds: Decimal, style: str, raw: bool) -> str:
+#         """Common formatting logic for calendar/clock formatters.
+        
+#         Args:
+#             result: Dictionary of unit values
+#             unit_labels: Dictionary mapping unit codes to their labels/names
+#             total_seconds: Original value for sign
+#             style: Formatting style ('full', 'short', 'compact')
+#             raw: Whether to use raw formatting
+#         """
+#         if style == 'full':
+#             if raw:
+#                 prefix = "+" if total_seconds > 0 else "-"
+#                 parts = [f"{count:02d} {unit_labels[unit]}" 
+#                         for unit, count in result.items()]
+#                 return f"{prefix}{', '.join(parts)}"
+#             else:
+#                 prefix = ColorFormatter.green("  + ") if total_seconds > 0 else ColorFormatter.red("  - ")
+#                 parts = [f"{count:02d} {ColorFormatter.green(unit_labels[unit])}" 
+#                         for unit, count in result.items()]
+#                 return f"{prefix}{', '.join(parts)}"
+
+#         elif style == 'short':
+#             if raw:
+#                 formatted = " ".join(f"{count:02d} '{unit}'" 
+#                                    for unit, count in result.items())
+#                 prefix = "+" if total_seconds > 0 else "-"
+#                 return prefix + formatted
+#             else:
+#                 formatted = " ".join(f"{count:02d} {ColorFormatter.green(unit)}" 
+#                                    for unit, count in result.items())
+#                 prefix = ColorFormatter.green("  + ") if total_seconds > 0 else ColorFormatter.red("  - ")
+#                 return prefix + formatted
+
+#         elif style == 'compact':
+#             if raw:
+#                 formatted = "".join(f"{count:02d}{unit}" 
+#                                   for unit, count in result.items())
+#                 prefix = "+" if total_seconds > 0 else "-"
+#                 return prefix + formatted
+#             else:
+#                 formatted = "".join(f"{count:02d}{ColorFormatter.green(unit)}" 
+#                                   for unit, count in result.items())
+#                 prefix = ColorFormatter.green("  + ") if total_seconds > 0 else ColorFormatter.red("  - ")
+#                 return prefix + formatted

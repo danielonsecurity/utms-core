@@ -58,7 +58,7 @@ class AnchorResolver(HyResolver):
     def _create_uncertainty(self, resolved_value: dict) -> TimeUncertainty:
         absolute = Decimal('1')  # default
         relative = Decimal('0')  # default
-        confidence = None
+        confidence_95 = None
 
         py_resolved_value = hy_to_python(resolved_value)
 
@@ -69,14 +69,14 @@ class AnchorResolver(HyResolver):
             if 'relative' in py_resolved_value:
                 index = py_resolved_value.index('relative')
                 relative = Decimal(py_resolved_value[index + 1])
-            if 'confidence' in py_resolved_value:
-                index = py_resolved_value.index('confidence')
+            if 'confidence_95' in py_resolved_value:
+                index = py_resolved_value.index('confidence_95')
                 conf = py_resolved_value[index + 1]
                 if isinstance(conf, (list, tuple)) and len(conf) == 2:
-                    confidence = (Decimal(str(conf[0])), Decimal(str(conf[1])))
+                    confidence_95 = (Decimal(str(conf[0])), Decimal(str(conf[1])))
 
         return TimeUncertainty(
             absolute=absolute,
             relative=relative,
-            confidence_95=confidence
+            confidence_95=confidence_95
         )        

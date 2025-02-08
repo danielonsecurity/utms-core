@@ -1,5 +1,6 @@
 
 from typing import Any
+from decimal import Decimal
 import hy
 
 
@@ -38,25 +39,6 @@ def hy_to_python(data: Any) -> Any:
 
 
 
-    # if isinstance(value, hy.models.String):
-    #     return str(value)
-    # elif isinstance(value, hy.models.Integer):
-    #     return int(value)
-    # elif isinstance(value, hy.models.Float):
-    #     return float(value)
-    # elif isinstance(value, hy.models.List):
-    #     return [hy_to_python(item) for item in value]
-    # elif isinstance(value, list):
-    #     return [hy_to_python(item) for item in value]
-    # elif isinstance(value, hy.models.Dict):
-    #     # Handle Hy dicts which are stored as [k1, v1, k2, v2, ...]
-    #     result = {}
-    #     for k, v in zip(value[::2], value[1::2]):
-    #         key = str(k).replace(':', '')  # Remove ':' from keywords
-    #         result[key] = hy_to_python(v)
-    #     return result
-    # return value
-
 
 def format_hy_value(v: Any) -> str:
     """Format a value for Hy syntax."""
@@ -79,3 +61,27 @@ def format_hy_value(v: Any) -> str:
 
 def list_to_dict(flat_list):
     return dict(zip(flat_list[::2], flat_list[1::2]))
+
+def python_to_hy(value: Any) -> str:
+    """Format a Python value as a Hy expression."""
+    if value is None:
+        return "None"
+    elif isinstance(value, bool):
+        return "true" if value else "false"
+    elif isinstance(value, (int, Decimal)):
+        return str(value)
+    elif isinstance(value, str):
+        return f'"{value}"'
+    elif isinstance(value, list):
+        items = " ".join(python_to_hy(item) for item in value)
+        return f"[{items}]"
+    elif isinstance(value, dict):
+        if not value:
+            return "{}"
+        items = []
+        for k, v in value.items():
+            # Format key as a keyword
+            key = f":{k}" if not k.startswith(':') else k
+            items.append(f"  {key} {python_to_hy(v)}")
+        return "{\n" + "\n".join(items) + "\n}"
+    return str(value)

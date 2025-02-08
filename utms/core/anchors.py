@@ -91,6 +91,7 @@ from . import constants
 from .formats import registry as format_registry
 from .formats import TimeUncertainty
 
+from ..resolvers import HyNode, HyAST
 # from .units import FixedUnitManager
 
 logger = get_logger("core.anchors")
@@ -241,41 +242,6 @@ class Anchor(AnchorProtocol):
                             )
                         )
                         logger.debug("Created format spec: %s", self._formats[-1])
-
-
-
-                # elif isinstance(format_spec, (dict, hy.models.Dict)):
-                #     if "units" in py_format_spec:
-                #         logger.debug("Processing as units")
-                #         units = py_format_spec["units"]
-                #         if isinstance(units[0], list):
-                #             units = units[0]
-                #         logger.debug("Final units: %s", units)
-                #         options = py_format_spec.get("options", {})
-                #         if isinstance(options, list):
-                #             options = list_to_dict(options)
-                #         self._formats.append(
-                #             FormatSpec(
-                #                 format="UNITS",
-                #                 units=units,
-                #                 style=py_format_spec.get("style", "full"),
-                #                 options=options,
-                #             )
-                #         )
-                #     elif "format" in py_format_spec:
-                #         logger.debug("Processing as format")
-                #         format_name = py_format_spec["format"]
-                #         options = {}
-                #         if "options" in py_format_spec:
-                #             options = list_to_dict(py_format_spec["options"])
-                #         logger.debug("Format name: %s, options: %s", format_name, options)
-                #         self._formats.append(
-                #             FormatSpec(
-                #                 format=format_name,
-                #                 options=options,
-                #             )
-                #         )
-                #         logger.debug("Created format spec: %s", self._formats[-1])
 
             logger.debug("Initializing anchor %s", self._label)
 
@@ -469,6 +435,63 @@ class Anchor(AnchorProtocol):
 
         return "\n".join(f"{prefix}{line}" for line in output)
 
+    def to_hy(self) -> str:
+        """Convert anchor to Hy format."""
+        from ..utils import python_to_hy
+        
+        lines = [f"(def-anchor {self._label}"]
+        
+        # Basic properties
+        if self._name:
+            lines.append(f'  (name {python_to_hy(self._name)})')
+        if self._value is not None:
+            lines.append(f'  (value {python_to_hy(self._value)})')
+        if self._groups:
+            lines.append(f'  (groups {python_to_hy(self._groups)})')
+        
+        # Uncertainty
+        if self._uncertainty:
+            uncert_dict = {
+                'absolute': str(self._uncertainty.absolute),
+                'relative': str(self._uncertainty.relative)
+            }
+            if self._uncertainty.confidence_95:
+                uncert_dict['confidence_95'] = [
+                    str(self._uncertainty.confidence_95[0]),
+                    str(self._uncertainty.confidence_95[1])
+                ]
+            lines.append(f'  (uncertainty {python_to_hy(uncert_dict)})')
+        
+        # Formats
+        if self._formats:
+            format_list = []
+            for fmt in self._formats:
+                if fmt.format and not fmt.units:
+                    # Simple format string
+                    format_list.append(fmt.format)
+                else:
+                    # Complex format specification
+                    format_dict = {}
+                    if fmt.format:
+                        format_dict['format'] = fmt.format
+                    if fmt.units:
+                        format_dict['units'] = fmt.units
+                    if fmt.options:
+                        # Only include non-redundant options
+                        cleaned_options = {k: v for k, v in fmt.options.items()
+                                        if k != 'units' or v != fmt.units}
+                        if cleaned_options:
+                            format_dict['options'] = cleaned_options
+                    format_list.append(format_dict)
+
+            lines.append('  (formats')
+            lines.append('    [')
+            for fmt in format_list:
+                lines.append(f'     {python_to_hy(fmt)}')
+            lines.append('    ])')        
+        lines.append(")")
+        return "\n".join(lines)
+
 
 class AnchorManager(AnchorManagerProtocol):
     """A class to manage time anchors, allowing adding new anchors, sorting by
@@ -632,3 +655,64 @@ class AnchorManager(AnchorManagerProtocol):
             # If no label is provided, print all anchors
             for anchor in self._anchors.values():
                 anchor.print()
+
+
+    def save(self, filename: str) -> None:
+        """Save all anchors to a Hy file."""
+        ast_manager = HyAST()
+        nodes = []
+        
+        # Convert each anchor to an AST node
+        for anchor in sorted(self._anchors.values(), key=lambda a: a._label):
+            properties = []
+            
+            # Basic properties
+            if anchor._name:
+                properties.append(HyNode(
+                    type='property',
+                    value='name',
+                    children=[HyNode(type='value', value=anchor._name)]
+                ))
+            
+            if anchor._value is not None:
+                properties.append(HyNode(
+                    type='property',
+                    value='value',
+                    children=[HyNode(type='value', value=anchor._value)]
+                ))
+                
+            if anchor._uncertainty:
+                uncert_dict = {
+                    'absolute': anchor._uncertainty.absolute,
+                    'relative': anchor._uncertainty.relative
+                }
+                properties.append(HyNode(
+                    type='property',
+                    value='uncertainty',
+                    children=[HyNode(type='value', value=uncert_dict)]
+                ))
+                
+            if anchor._groups:
+                properties.append(HyNode(
+                    type='property',
+                    value='groups',
+                    children=[HyNode(type='value', value=anchor._groups)]
+                ))
+                
+            if anchor._formats:
+                properties.append(HyNode(
+                    type='property',
+                    value='formats',
+                    children=[HyNode(type='value', value=anchor._formats)]
+                ))
+            
+            nodes.append(HyNode(
+                type='def-anchor',
+                value=anchor._label,
+                children=properties
+            ))
+        
+        # Write to file
+        with open(filename, 'w') as f:
+            f.write(ast_manager.to_hy(nodes))
+                

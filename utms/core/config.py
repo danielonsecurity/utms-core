@@ -47,13 +47,16 @@ from ..utms_types import (
 from . import constants
 from .anchors import AnchorConfig, AnchorManager
 from .units import FixedUnitManager
-from ..resolvers import ConfigResolver, VariableResolver, evaluate_hy_file, FixedUnitResolver, AnchorResolver
+from ..resolvers import ConfigResolver, VariableResolver, evaluate_hy_file, FixedUnitResolver, AnchorResolver, HyAST
 
 from ..utils import get_logger, hy_to_python, format_hy_value, get_ntp_date, set_log_level
 
 from ..loaders.unit_loader import parse_calendar_definitions, parse_unit_definitions, initialize_units, resolve_unit_properties
 from ..loaders.anchor_loader import parse_anchor_definitions, initialize_anchors
 from ..loaders.variable_loader import process_variables
+from ..loaders.event_loader import parse_event_definitions, initialize_events
+
+from .events import EventManager
 
 logger = get_logger("core.config")
 
@@ -95,8 +98,11 @@ class Config(ConfigProtocol):
         self._anchors: AnchorManagerProtocol = AnchorManager(self.units)
         self._load_fixed_units()
         self._load_calendar_units()
-        self.populate_dynamic_anchors()
+        self._ast_manager = HyAST()
         self._load_anchors()
+        self._event_manager = EventManager()
+        self._load_events()
+        breakpoint()
 
 
     def _load_hy_config(self) -> None:
@@ -165,6 +171,22 @@ class Config(ConfigProtocol):
             if expressions:
                 self._variables = process_variables(expressions)
 
+    def _load_events(self) -> None:
+        events_file = os.path.join(self.utms_dir, "events.hy")
+        if os.path.exists(events_file):
+            try:
+                event_expressions = evaluate_hy_file(events_file)
+                if event_expressions:
+                    parsed_event_defs = parse_event_definitions(event_expressions)
+                    logger.debug("Parsed event definitions %s", parsed_event_defs)
+                    event_instances = initialize_events(parsed_event_defs, self._variables)
+                    logger.debug("Created event instances %s", event_instances)
+                    for event in event_instances.values():
+                        logger.debug("Adding event %s", event.name)
+                        self._event_manager.add_event(event)
+            except Exception as e:
+                logger.error("Error loading events: %s", e)
+
     def init_resources(self) -> None:
         """Copy resources to the user config directory if they do not already
         exist."""
@@ -175,6 +197,7 @@ class Config(ConfigProtocol):
             "units.json",
             "calendar_units.hy",
             "fixed_units.hy",
+            "events.hy"
         ]
         for item in resources:
             source_file = importlib.resources.files("utms.resources") / item
@@ -187,81 +210,35 @@ class Config(ConfigProtocol):
     def _load_anchors(self) -> None:
         anchors_file = os.path.join(self.utms_dir, "anchors.hy")
         if os.path.exists(anchors_file):
-            anchor_expressions = evaluate_hy_file(anchors_file)
-            if anchor_expressions:
-                parsed_anchor_defs = parse_anchor_definitions(anchor_expressions)
-                logger.debug("Parsed anchor definitions %s", parsed_anchor_defs)
+            try:
+                # Parse file into AST
+                nodes = self._ast_manager.parse_file(anchors_file)
+
+                # Continue with your existing flow
+                parsed_anchor_defs = parse_anchor_definitions(nodes)
                 anchor_instances = initialize_anchors(parsed_anchor_defs, self._variables)
-                logger.debug("Created anchor instances %s", anchor_instances)
+
                 for anchor in anchor_instances.values():
-                    logger.debug("Adding anchor %s (id: %s) with formats: %s", anchor._label, id(anchor), anchor._formats)
                     self._anchors.add_anchor(anchor)
-                    logger.debug("After adding formats: %s", self._anchors[anchor._label]._formats)
 
-    # def load_anchors(self) -> None:
-    #     """Loads anchors from the 'anchors.json' file and populates the anchors
-    #     dynamically.
-
-    #     This method reads the `anchors.json` file, parses its content, and uses the `AnchorManager`
-    #     to add each anchor to the configuration.
-    #     """
-    #     anchors_file = os.path.join(self.utms_dir, "anchors.json")
-
-    #     if os.path.exists(anchors_file):
-    #         with open(anchors_file, "r", encoding="utf-8") as f:
-    #             anchors_data = json.load(f)
-
-    #         # Iterate through the anchors data and add each anchor
-    #         for key, anchor in anchors_data.items():
-    #             name = anchor.get("name")
-    #             timestamp = anchor.get("timestamp")
-    #             groups = anchor.get("groups")
-    #             precision = anchor.get("precision")
-    #             formats = anchor.get("formats")
-    #             # Add anchor using the details loaded from the JSON
-    #             anchor_config = AnchorConfig(
-    #                 label=key,
-    #                 name=name,
-    #                 value=Decimal(timestamp),
-    #                 groups=groups,
-    #                 precision=Decimal(precision) if precision else None,
-    #                 # breakdowns=breakdowns,
-    #                 formats=formats if formats else ["CALENDAR"],
-    #             )
-    #             self.anchors.create_anchor(anchor_config)
-
-    #     else:
-    #         print(f"Error: '{anchors_file}' not found.")
+            except Exception as e:
+                logger.error(f"Error loading anchors: {e}")
+                raise
 
     def save_anchors(self) -> None:
-        """Saves the current anchors to the 'anchors.json' file.
-
-        This method serializes the anchors stored in the `self.anchors` set
-        and writes them to the `anchors.json` file.
-        """
-        anchors_file = os.path.join(self.utms_dir, "anchors.json")
-        anchors_data = {}
-
-        # Iterate through each anchor and prepare data for saving
-        for anchor in self.anchors:
-            anchor_info = {
-                "name": anchor.name,
-                "timestamp": float(anchor.value),
-                "groups": anchor.groups,
-                "precision": float(anchor.precision) if anchor.precision else None,
-                "breakdowns": anchor.breakdowns,
-            }
-            anchors_data[anchor.label] = anchor_info
-
-        # Write the serialized anchors data to the file
-        try:
-            with open(anchors_file, "w", encoding="utf-8") as f:
-                json.dump(anchors_data, f, ensure_ascii=False, indent=4)
-            print(f"Anchors successfully saved to '{anchors_file}'")
-        except (FileNotFoundError, PermissionError, OSError) as e:
-            print(f"Error saving anchors: {e}")
-        except json.JSONDecodeError as e:
-            print(f"Error serializing data to JSON: {e}")
+        """Save anchors to file."""
+        anchors_file = os.path.join(self.utms_dir, "anchors1.hy")
+        self._anchors.save(anchors_file)
+            # anchor_expressions = evaluate_hy_file(anchors_file)
+            # if anchor_expressions:
+            #     parsed_anchor_defs = parse_anchor_definitions(anchor_expressions)
+            #     logger.debug("Parsed anchor definitions %s", parsed_anchor_defs)
+            #     anchor_instances = initialize_anchors(parsed_anchor_defs, self._variables)
+            #     logger.debug("Created anchor instances %s", anchor_instances)
+            #     for anchor in anchor_instances.values():
+            #         logger.debug("Adding anchor %s (id: %s) with formats: %s", anchor._label, id(anchor), anchor._formats)
+            #         self._anchors.add_anchor(anchor)
+            #         logger.debug("After adding formats: %s", self._anchors[anchor._label]._formats)
 
     def _load_fixed_units(self) -> None:
         units_hy = os.path.join(self.utms_dir, "fixed_units.hy")
@@ -307,99 +284,6 @@ class Config(ConfigProtocol):
                 logger.error("Error loading calendar units: %s", e)
 
 
-    def save_units(self) -> None:
-        """Saves the current time units to fixed_units.hy."""
-        units_hy = os.path.join(self.utms_dir, "fixed_units.hy")
-
-        content = [
-            ";; Fixed Time Units",
-            ";; This file is managed by UTMS - do not edit manually",
-            ""
-        ]
-
-        # Iterate through each unit and format for Hy
-        for unit_abbreviation in self.units:
-            unit = self.units[unit_abbreviation]
-            content.append(f"""(def-fixed-unit {unit_abbreviation}
-      :name "{unit.name}"
-      :value "{unit.value}")""")
-            content.append("")  # Empty line between units
-
-        try:
-            with open(units_hy, 'w', encoding='utf-8') as f:
-                f.write("\n".join(content))
-            logger.info("Units successfully saved to '%s'", units_hy)
-        except (FileNotFoundError, PermissionError, OSError) as e:
-            logger.error("Error saving units: %s", e)
-
-
-    # def populate_dynamic_anchors(self) -> None:
-    #     """Populates the `AnchorManager` instance with predefined datetime
-    #     anchors.
-
-    #     This method adds various datetime anchors such as Unix Time, CE Time, and Big Bang Time,
-    #     using the `add_datetime_anchor` and `add_decimal_anchor` methods of the `AnchorManager`
-    #     instance.  Each anchor is added with its name, symbol, and corresponding datetime value.
-    #     """
-
-    #     self.anchors.add_anchor(
-    #         AnchorConfig(
-    #             label="NT",
-    #             name=f"Now Time ({datetime.now().strftime('%Y-%m-%d %H:%M:%S')})",
-    #             value=get_ntp_date(),
-    #             groups=["default", "dynamic", "modern"],
-    #         )
-    #     )
-    #     self.anchors.add_anchor(
-    #         AnchorConfig(
-    #             label="DT",
-    #             name=f"Day Time ({datetime.now().strftime('%Y-%m-%d 00:00:00')})",
-    #             value=datetime(
-    #                 datetime.now().year,
-    #                 datetime.now().month,
-    #                 datetime.now().day,
-    #                 tzinfo=datetime.now().astimezone().tzinfo,
-    #             ),
-    #             breakdowns=[["dd", "cd", "s", "ms"], ["h", "m", "s", "ms"], ["KS", "s", "ms"]],
-    #             groups=["dynamic", "modern"],
-    #         )
-    #     )
-    #     self.anchors.add_anchor(
-    #         AnchorConfig(
-    #             label="MT",
-    #             name=f"Month Time ({datetime.now().strftime('%Y-%m-01 00:00:00')})",
-    #             value=datetime(
-    #                 datetime.now().year,
-    #                 datetime.now().month,
-    #                 1,
-    #                 tzinfo=datetime.now().astimezone().tzinfo,
-    #             ),
-    #             breakdowns=[
-    #                 ["d", "dd", "cd", "s", "ms"],
-    #                 ["w", "d", "dd", "cd", "s", "ms"],
-    #                 ["MS", "KS", "s", "ms"],
-    #             ],
-    #             groups=["dynamic", "modern"],
-    #         )
-    #     )
-
-    #     self.anchors.add_anchor(
-    #         AnchorConfig(
-    #             label="YT",
-    #             name=f"Year Time ({datetime.now().strftime('%Y-01-01 00:00:00')})",
-    #             value=datetime(
-    #                 datetime.now().year, 1, 1, tzinfo=datetime.now().astimezone().tzinfo
-    #             ),
-    #             breakdowns=[
-    #                 ["d", "dd", "cd", "s", "ms"],
-    #                 ["w", "d", "dd", "cd", "s", "ms"],
-    #                 ["M", "d", "dd", "cd", "s", "ms"],
-    #                 ["MS", "KS", "s", "ms"],
-    #             ],
-    #             groups=["dynamic", "modern"],
-    #         )
-    #     )
-
     @property
     def utms_dir(self) -> str:
         return str(self._utms_dir)
@@ -419,3 +303,7 @@ class Config(ConfigProtocol):
     @property
     def loglevel(self):
         return self.get_value("loglevel")
+
+    @property
+    def events(self) -> EventManager:
+        return self._event_manager

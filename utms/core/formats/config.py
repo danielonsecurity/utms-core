@@ -10,14 +10,6 @@ class UncertaintyDisplay(Enum):
     BOTH = auto()          # Value ± uncertainty (95% CI: range)
 
 @dataclass
-class FormatterConfig:
-    uncertainty_display: UncertaintyDisplay = UncertaintyDisplay.NONE
-    confidence_level: Decimal = Decimal("0.95")  # 95% confidence interval
-    show_percentage: bool = False                # Show uncertainty as percentage
-    color_uncertainty: bool = True               # Use colors for uncertainty values
-    significant_digits: int = 2                  # Number of digits for uncertainty
-
-@dataclass
 class TimeUncertainty:
     absolute: Decimal = Decimal("1")   # smallest meaningful unit, i.e. 1e-9 for nanoseconds, default to second level precision
     relative: Decimal = Decimal("0")   # relative uncairtainty (0.02 for 2%), default to absolute
@@ -37,3 +29,10 @@ class TimeUncertainty:
             raise ValueError("No uncertainty specified")
             
         return max(uncertainties)
+
+    def get_confidence_interval(self, value: Decimal) -> tuple[Decimal, Decimal]:
+        """Calculate 95% confidence interval."""
+        effective = self.get_effective_uncertainty(value)
+        # For 95% confidence, multiply by 1.96 (assuming normal distribution)
+        # interval = effective * Decimal("1.96")
+        return (value - effective, value + effective)    

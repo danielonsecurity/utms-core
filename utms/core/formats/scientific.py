@@ -1,13 +1,14 @@
 from decimal import Decimal
 from dataclasses import dataclass
 
+from utms.utils.display.colors import color_scientific_format
 from utms.utms_types import FixedUnitManagerProtocol
 from ...utils import ColorFormatter, get_logger
 from .base import FormatterProtocol
 
 from typing import Optional, List, Dict
 
-from .config import FormatterConfig, TimeUncertainty
+from .config import TimeUncertainty
 
 from enum import Enum, auto
 from decimal import Decimal
@@ -18,9 +19,6 @@ logger = get_logger("core.formats.scientific")
 
 
 class ScientificFormatter(FormatterProtocol):
-    def __init__(self, config: Optional[FormatterConfig] = None):
-        self.config = config or FormatterConfig()
-
     def format(self, total_seconds: Decimal, units: FixedUnitManagerProtocol, 
                uncertainty: TimeUncertainty, options: dict) -> str:
         opts = FormattingOptions(**options)
@@ -57,55 +55,151 @@ class ScientificFormatter(FormatterProtocol):
             if not opts.raw:
                 unit_text = ColorFormatter.green(unit_text)
             space = "" if opts.compact else " "
-            formatted_number = self._format_number(remaining, uncertainty, opts)
+            formatted_number = self._format_number(total_seconds, remaining, uncertainty, opts)
             result.append(f"{formatted_number}{space}{unit_text}")
-        
-        formatted = opts.separator.join(result)
+
+        separator = opts.separator
+        if not opts.raw:
+            separator = ColorFormatter.yellow(separator)
+        formatted = separator.join(result)
         return self._add_prefix(formatted, total_seconds, opts)
 
-    def _format_number(self, value: Decimal, uncertainty: TimeUncertainty, opts: FormattingOptions) -> str:
+    def _format_number(self, total_seconds: Decimal, value: Decimal, uncertainty: TimeUncertainty, opts: FormattingOptions) -> str:
         """Format a number according to the specified notation."""
         abs_value = abs(value)
+        uncert = uncertainty.get_effective_uncertainty(total_seconds)
+        significant_digits = opts.significant_digits
         if opts.notation == NotationType.STANDARD:
-            return f"{abs_value:.2f}"
+            if opts.show_uncertainty:
+                separator = "±" if opts.compact else " ± "
+                uncert_str = f"{uncert:.{significant_digits}e}"
+                if not opts.raw:
+                    separator = ColorFormatter.red(separator)
+                    uncert_str = color_scientific_format(uncert_str)
+                return f"{abs_value:.{significant_digits}f}{separator}{uncert_str}" 
+            return f"{abs_value:.{significant_digits}f}"
 
         elif opts.notation == NotationType.SCIENTIFIC:
-            return f"{abs_value:.3e}"  # 1.739e9
+            abs_value_str = f"{abs_value:.{significant_digits}e}"
+            if opts.show_uncertainty:
+                separator = "±" if opts.compact else " ± "
+                uncert_str = f"{uncert:.{significant_digits}e}"
+                if not opts.raw:
+                    separator = ColorFormatter.red(separator)
+                    abs_value_str = color_scientific_format(abs_value_str)
+                    uncert_str = color_scientific_format(uncert_str)
+                return abs_value_str + separator + uncert_str
+            if not opts.raw:
+                abs_value_str = color_scientific_format(abs_value_str)
+            return abs_value_str
 
         elif opts.notation == NotationType.ENGINEERING:
+            exp = abs_value.adjusted()
+            eng_exp = (exp // 3) * 3
+            mantissa = abs_value / Decimal(10) ** eng_exp
+            mantissa_str = f"{mantissa:.{significant_digits}f}"
+            if opts.show_uncertainty:
+                separator = "±" if opts.compact else " ± "
+                uncert_str = f"{uncert:.{significant_digits}e}"
+                if not opts.raw:
+                    separator = ColorFormatter.red(separator)
+                    uncert_str = color_scientific_format(uncert_str)
+                result = mantissa_str
+                result += "×" if opts.raw else ColorFormatter.red("×")
+                result += "10"
+                result += self._superscript(eng_exp)
+                result += separator
+                result += uncert_str
+                
+                return result
+            result = mantissa_str
+            result += "×" if opts.raw else ColorFormatter.red("×")
+            result += "10"
+            result += self._superscript(eng_exp)
+            return result
+
+        elif opts.notation == NotationType.MEASUREMENT:
+            # Get effective uncertainty
+            uncert = uncertainty.get_effective_uncertainty(total_seconds)
+
             # Convert to engineering notation (powers of 3)
             exp = abs_value.adjusted()
             eng_exp = (exp // 3) * 3
             mantissa = abs_value / Decimal(10) ** eng_exp
-            return f"{mantissa:.3f}×10{self._superscript(eng_exp)}"  # 1.739×10⁹
+            uncert_mantissa = uncert / Decimal(10) ** eng_exp
+
+            # Calculate significant figures based on uncertainty
+            if uncert_mantissa > 0:
+                if opts.significant_digits:
+                    sig_figs = opts.significant_digits
+                else:
+                    sig_figs = -uncert_mantissa.adjusted()
+                    if sig_figs < 0:
+                        sig_figs = 0
+
+                # Format the uncertainty digits
+                uncert_scaled = uncert_mantissa * Decimal(10) ** sig_figs
+                uncert_digits = int(round(uncert_scaled))
+
+                # Format the mantissa with correct precision
+                mantissa_str = f"{mantissa:.{sig_figs}f}"
+
+                logger.debug(f"Value: {abs_value}")
+                logger.debug(f"Uncertainty: {uncert}")
+                logger.debug(f"Engineering exponent: {eng_exp}")
+                logger.debug(f"Mantissa: {mantissa}")
+                logger.debug(f"Uncertainty mantissa: {uncert_mantissa}")
+                logger.debug(f"Significant figures: {sig_figs}")
+                logger.debug(f"Uncertainty digits: {uncert_digits}")
+                
+                result = f"{mantissa_str}"
+                if not opts.raw:
+                    result += ColorFormatter.magenta("(")
+                else:
+                    result += "("
+
+                result += str(uncert_digits)
+                if not opts.raw:
+                    result += ColorFormatter.magenta(")")
+                else:
+                    result += ")"
+
+                result += "×" if opts.raw else ColorFormatter.red("×")
+                result += f"10{self._superscript(eng_exp)}"
+                if opts.show_uncertainty:
+                    uncert = uncertainty.get_effective_uncertainty(total_seconds)
+                    separator = "±" if opts.compact else " ± "
+                    if not opts.raw:
+                        separator = ColorFormatter.red(separator)
+                    result += separator
+                    uncert_str = f"{uncert:.{sig_figs}e}"
+                    if not opts.raw:
+                        uncert_str = color_scientific_format(uncert_str)
+                    result += uncert_str
+
+                if opts.show_confidence:
+                    low, high = uncertainty.get_confidence_interval(abs_value)
+                    low_mantissa = low / Decimal(10) ** eng_exp
+                    high_mantissa = high / Decimal(10) ** eng_exp
+                    ci_format = " "
+                    ci_format += "[" if opts.raw else ColorFormatter.magenta("[")
+                    ci_format += "95% CI: "
+                    ci_format += f"{low_mantissa:.{sig_figs}f}"
+                    ci_format += "-" if opts.raw else ColorFormatter.red("-")
+                    ci_format += f"{high_mantissa:.{sig_figs}f}"
+                    ci_format += "×" if opts.raw else ColorFormatter.red("×")
+                    ci_format += "10"
+                    ci_format += self._superscript(eng_exp)
+                    ci_format += "]" if opts.raw else ColorFormatter.magenta("]")
+                    result += ci_format
 
 
+                return result
 
-        elif opts.notation == NotationType.MEASUREMENT:
-            exp = abs_value.adjusted()
-            eng_exp = (exp // 3) * 3
-            mantissa = abs_value / Decimal(10) ** eng_exp
-            if opts.show_uncertainty:
-                uncert = uncertainty.get_effective_uncertainty(value)
-                uncert_mantissa = uncert / Decimal(10) ** eng_exp
-                logger.debug("Value: %s", value)
-                logger.debug("Effective uncertainty: %s", uncert)
-                logger.debug("Scaled uncertainty mantissa: %s", uncert_mantissa)
-                logger.debug("Mantissa: %s", mantissa)
-                logger.debug("eng_exp: %s", eng_exp)
+            # Fallback if uncertainty is 0
+            return f"{mantissa:.3f}×10{self._superscript(eng_exp)}"
 
-                # Calculate decimal places based on relative magnitude
-                if uncert_mantissa > 0:
-                    decimal_places = -uncert_mantissa.adjusted()
-                    uncertainty_digits = int(round(uncert_mantissa * Decimal(10) ** decimal_places))
-
-                logger.debug(f"Decimal places: {decimal_places}")
-                logger.debug(f"Uncertainty digits: {uncertainty_digits}")
-
-                return f"{mantissa:.{decimal_places}f}({uncertainty_digits})×10{self._superscript(eng_exp)}"
-
-        return f"{abs_value:.3e}"  # fallback to scientific
-
+        return f"{abs_value:.3e}"  # fallback
 
 
     def _superscript(self, n: int) -> str:

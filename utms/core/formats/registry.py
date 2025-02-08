@@ -4,9 +4,13 @@ from typing import Dict, Type
 from utms.utms_types import FixedUnitManagerProtocol
 from .base import FormatterProtocol
 from .calendar import CalendarFormatter
+from .clock import ClockFormatter
+from .datetime import DateTimeFormatter
 from .scientific import ScientificFormatter
 from .config import TimeUncertainty
 from .units import UnitsFormatter
+from .money import MoneyFormatter
+from .custom import CustomFormatter
 
 class FormatRegistry:
     """Central registry for different format types."""
@@ -17,8 +21,12 @@ class FormatRegistry:
 
     def _setup_default_formatters(self) -> None:
         self.register("CALENDAR", CalendarFormatter())
+        self.register("CLOCK", ClockFormatter())
+        self.register("DATETIME", DateTimeFormatter())
         self.register("UNITS", UnitsFormatter())
         self.register("SCIENTIFIC", ScientificFormatter())
+        self.register("MONEY", MoneyFormatter())
+        self.register("CUSTOM", CustomFormatter())
 
     def register(self, name: str, formatter: FormatterProtocol) -> None:
         """Register a new formatter."""
