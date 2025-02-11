@@ -160,25 +160,20 @@ class ColorFormatter:
     def format_if(text: str, condition: bool, *colors: ColorCode) -> str:
         return ColorFormatter.format(text, *colors) if condition else text
 
+
 def color_scientific_format(number_str: str) -> str:
     """Format scientific notation string with colored 'e' and '+/-' symbols."""
     # Split the string at 'e'
-    parts = number_str.split('e')
+    parts = number_str.split("e")
     if len(parts) != 2:
         return number_str  # Return unchanged if not in scientific notation
-    
+
     base, exponent = parts
     # Handle the sign in the exponent
-    sign = ''
-    if exponent.startswith('+') or exponent.startswith('-'):
+    sign = ""
+    if exponent.startswith("+") or exponent.startswith("-"):
         sign = exponent[0]
         exponent = exponent[1:]
-    
+
     # Construct the colored string
-    return (
-        f"{base}"
-        f"{ColorFormatter.magenta('e')}"
-        f"{ColorFormatter.red(sign)}"
-        f"{exponent}"
-    )
-    
+    return f"{base}" f"{ColorFormatter.magenta('e')}" f"{ColorFormatter.red(sign)}" f"{exponent}"

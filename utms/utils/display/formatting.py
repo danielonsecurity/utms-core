@@ -54,14 +54,12 @@ def print_time(
         >>> print_time_related_data(total_seconds, config)
     """
     # Convert timestamp to total seconds
-    total_seconds = (
-        Decimal(timestamp.timestamp()) if isinstance(timestamp, datetime) 
-        else timestamp
-    )
+    total_seconds = Decimal(timestamp.timestamp()) if isinstance(timestamp, datetime) else timestamp
 
     # Get anchor list
     anchor_list = (
-        config.anchors.get_anchors_by_group("default") if not anchors
+        config.anchors.get_anchors_by_group("default")
+        if not anchors
         else config.anchors.get_anchors_from_str(anchors)
     )
     anchor_list = list(set(anchor_list))
@@ -76,33 +74,29 @@ def print_time(
                     # Handle key:value format
                     key, value = format_spec.split(":")
                     if key == "units":
-                        format_specs.append({
-                            hy.models.Keyword("units"): value.split(",")
-                        })
+                        format_specs.append({hy.models.Keyword("units"): value.split(",")})
                 else:
                     # Handle predefined formats
                     format_specs.append(format_spec)
             anchor._formats = format_specs
 
-
     # # Override breakdowns if specified
     # if breakdowns:
     #     for anchor in anchor_list:
     #         anchor.breakdowns = [
-    #             segment.split(",") 
+    #             segment.split(",")
     #             for segment in breakdowns.split(";")
     #         ]
-
 
     # Print results for each anchor
     for anchor in anchor_list:
         print(ColorFormatter.cyan(f"{config.anchors.get_label(anchor)}: {anchor.name}"))
-        
+
         # # Print breakdowns
         # breakdown_result = anchor.breakdown(total_seconds - anchor.value, config.units)
         # if breakdown_result:
         #     print(breakdown_result)
-            
+
         # Print formats
         format_result = anchor.format(total_seconds - anchor.value, config.units)
         if format_result:

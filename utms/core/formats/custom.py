@@ -1,26 +1,32 @@
-from decimal import Decimal
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from decimal import Decimal
+from typing import Any, Dict, Optional
 
 from utms.core.formats.base import FormattingOptions
 from utms.utms_types import FixedUnitManagerProtocol
+
 from ...utils import ColorFormatter
 from .base import FormatterProtocol
 from .config import TimeUncertainty
 
 
 class CustomFormatter(FormatterProtocol):
-    def format(self, total_seconds: Decimal, units: FixedUnitManagerProtocol, 
-               uncertainty: TimeUncertainty, options: dict) -> str:
+    def format(
+        self,
+        total_seconds: Decimal,
+        units: FixedUnitManagerProtocol,
+        uncertainty: TimeUncertainty,
+        options: dict,
+    ) -> str:
         opts = FormattingOptions(**options)
         format_string = opts.format_string
         raw = opts.raw
         signed = opts.signed
-        
+
         # Extract unit abbreviations from format string
         format_units = []
         for i, char in enumerate(format_string):
-            if char == '%' and i + 1 < len(format_string):
+            if char == "%" and i + 1 < len(format_string):
                 unit_abbrev = format_string[i + 1]
                 format_units.append(unit_abbrev)
 
@@ -35,13 +41,13 @@ class CustomFormatter(FormatterProtocol):
         # Calculate values for each unit
         remaining = abs(total_seconds)
         values = {}
-        
+
         for unit in unit_info:
             unit_value = Decimal(unit.value)
             count = remaining // unit_value
             remaining %= unit_value
             values[f"%{unit.abbreviation}"] = int(count)
-        
+
         # Replace each unit placeholder with its value
         result = format_string
         for unit_key, value in values.items():
@@ -54,7 +60,7 @@ class CustomFormatter(FormatterProtocol):
             if not raw:
                 value_str = ColorFormatter.green(value_str)
             result = result.replace(unit_key, value_str)
-        
+
         prefix = ""
         if opts.indented:
             prefix = "  "
@@ -70,7 +76,7 @@ class CustomFormatter(FormatterProtocol):
         # Add indentation if not raw
         # if not opts.raw:
         #     prefix += " "
-            
+
         return prefix + result
 
         # # Add sign and color if needed

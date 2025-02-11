@@ -2,19 +2,21 @@ from decimal import Decimal
 from typing import Dict, Type
 
 from utms.utms_types import FixedUnitManagerProtocol
+
 from .base import FormatterProtocol
 from .calendar import CalendarFormatter
 from .clock import ClockFormatter
-from .datetime import DateTimeFormatter
-from .scientific import ScientificFormatter
 from .config import TimeUncertainty
-from .units import UnitsFormatter
-from .money import MoneyFormatter
 from .custom import CustomFormatter
+from .datetime import DateTimeFormatter
+from .money import MoneyFormatter
+from .scientific import ScientificFormatter
+from .units import UnitsFormatter
+
 
 class FormatRegistry:
     """Central registry for different format types."""
-    
+
     def __init__(self):
         self._formatters: Dict[str, FormatterProtocol] = {}
         self._setup_default_formatters()
@@ -38,7 +40,14 @@ class FormatRegistry:
             raise ValueError(f"Unknown format: {name}")
         return self._formatters[name]
 
-    def format(self, format_name: str, total_seconds: Decimal, units: FixedUnitManagerProtocol, uncertainty: TimeUncertainty, options) -> str:
+    def format(
+        self,
+        format_name: str,
+        total_seconds: Decimal,
+        units: FixedUnitManagerProtocol,
+        uncertainty: TimeUncertainty,
+        options,
+    ) -> str:
         """Format using the specified formatter."""
         formatter = self.get_formatter(format_name)
         return formatter.format(total_seconds, units, uncertainty, options)
@@ -48,4 +57,5 @@ class FormatRegistry:
         """List all registered format names."""
         return list(self._formatters.keys())
 
-registry = FormatRegistry()    
+
+registry = FormatRegistry()

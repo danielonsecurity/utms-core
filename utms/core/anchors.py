@@ -65,36 +65,51 @@ for anchor in manager:
 print(len(manager))
 """
 
-from proto import utils
-import hy
-
 from dataclasses import dataclass, field
 from datetime import datetime
 from decimal import Decimal
-from typing import Dict, Iterator, List, Optional, Union, Any
+from typing import Any, Dict, Iterator, List, Optional, Union
 
+import hy
 from colorama import Fore, Style
+from proto import utils
 
-
-from ..utils import get_logger, hy_to_python, list_to_dict, value_to_decimal, ColorFormatter
+from ..resolvers import HyAST, HyNode
+from ..utils import (
+    ColorFormatter,
+    get_logger,
+    hy_to_python,
+    list_to_dict,
+    python_to_hy,
+    value_to_decimal,
+)
 from ..utms_types import (
     AnchorConfigProtocol,
     AnchorManagerProtocol,
     AnchorProtocol,
     FixedUnitManagerProtocol,
-    is_string,
+    HyProperty,
     is_list,
+    is_string,
 )
-
 from . import constants
-
-from .formats import registry as format_registry
 from .formats import TimeUncertainty
+from .formats import registry as format_registry
 
-from ..resolvers import HyNode, HyAST
 # from .units import FixedUnitManager
 
 logger = get_logger("core.anchors")
+
+
+def evaluate_with_variables(expr, variables):
+    """Evaluate expression with variables, returning original if evaluation fails."""
+    try:
+        if isinstance(expr, (hy.models.Expression, hy.models.Symbol)):
+            return hy.eval(expr, locals=variables)
+        return expr
+    except Exception as e:
+        logger.debug(f"Could not evaluate {expr}: {e}")
+        return expr
 
 
 class AnchorConfig(AnchorConfigProtocol):
@@ -107,21 +122,46 @@ class AnchorConfig(AnchorConfigProtocol):
         value: Union[Decimal, datetime],
         formats: Optional[List[str]] = ["CALENDAR"],
         groups: Optional[List[str]] = None,
-        precision: Optional[Decimal] = None,
         uncertainty: Optional[TimeUncertainty] = None,
     ) -> None:
         self.label = label
+        self._properties = {}
+
+        # Store all properties with their original expressions
+
+        for key, item_value in locals().items():
+            if key in ["self", "label", "_properties"]:
+                continue
+            if isinstance(value, (hy.models.Expression, hy.models.Symbol)):
+                self._properties[key] = HyProperty(
+                    value=evaluate_with_variables(item_value, {}), original=hy.repr(item_value)
+                )
+            else:
+                self._properties[key] = HyProperty(value=item_value)
+
         self.name = name
         self.value = value
         self.groups = groups
-        self.precision = precision
         self.formats = formats
-        self.uncertainty = uncertainty
-        if not uncertainty:
-            if isinstance(self.value, datetime):
-                self.uncertainty = TimeUncertainty(absolute=Decimal("1e-9"))
-            else:
-                self.uncertainty = TimeUncertainty()
+        if uncertainty:
+            uncertainty = list_to_dict(hy_to_python(uncertainty))
+            self.uncertainty = TimeUncertainty(
+                absolute=uncertainty.get("absolute", Decimal("1e-9")),
+                relative=uncertainty.get("relative", Decimal("1e-9")),
+                confidence_95=uncertainty.get("confidence_95", None),
+            )
+        else:
+            self.uncertainty = TimeUncertainty(absolute=Decimal("1e-9"))
+
+    def get_value(self, key: str) -> Any:
+        """Get the evaluated value of a property."""
+        prop = self._properties.get(key)
+        return prop.value if prop else None
+
+    def get_original(self, key: str) -> Optional[Any]:
+        """Get the original expression of a property."""
+        prop = self._properties.get(key)
+        return prop.original if prop else None
 
 
 @dataclass
@@ -131,15 +171,38 @@ class FormatSpec:
     format: Optional[str] = None  # For predefined formats like "CALENDAR"
     options: Dict[str, Any] = field(default_factory=dict)
 
-
     def __post_init__(self):
         # Only default to "UNITS" if no format was specified
         if self.units and not self.format:
             self.format = "UNITS"
-        
+
         # Always ensure units are in options if present
         if self.units and "units" not in self.options:
             self.options["units"] = self.units
+
+    def to_hy(self) -> Any:
+        """Convert FormatSpec to Hy-compatible format."""
+        if hasattr(self, "original_expr"):
+            return self.original_expr
+
+        if self.format and not self.units:
+            return self.format
+
+        if self.units and not self.options:
+            return self.units
+
+        result = {}
+        if self.format:
+            result["format"] = self.format
+        if self.units:
+            result["units"] = self.units
+        if self.options:
+            cleaned_options = {
+                k: v for k, v in self.options.items() if k != "units" or v != self.units
+            }
+            if cleaned_options:
+                result["options"] = cleaned_options
+        return result
 
 
 class Anchor(AnchorProtocol):
@@ -181,8 +244,8 @@ class Anchor(AnchorProtocol):
         self._label = anchor_config.label
         logger.debug("Initializing anchor %s", self._label)
         self._name = anchor_config.name
+        self._properties = anchor_config._properties
         self._value = value_to_decimal(anchor_config.value)
-        self._precision = anchor_config.precision or constants.STANDARD_PRECISION
         self._uncertainty = anchor_config.uncertainty
         self._formats = []
         self._groups = anchor_config.groups or []
@@ -200,11 +263,14 @@ class Anchor(AnchorProtocol):
                     self._formats.append(FormatSpec(format=hy_to_python(format_spec)))
                 elif is_list(format_spec):
                     units = [hy_to_python(u) for u in format_spec]
-                    self._formats.append(FormatSpec(
-                        format="UNITS",
-                        units=units,
-                        style="full",
-                        options=py_format_spec.get("options", {})))
+                    self._formats.append(
+                        FormatSpec(
+                            format="UNITS",
+                            units=units,
+                            style="full",
+                            options=py_format_spec.get("options", {}),
+                        )
+                    )
                 elif isinstance(format_spec, (dict, hy.models.Dict)):
                     py_format_spec = list_to_dict(hy_to_python(format_spec))
                     format_name = py_format_spec.get("format")
@@ -267,10 +333,6 @@ class Anchor(AnchorProtocol):
         return self._groups
 
     @property
-    def precision(self) -> Decimal:
-        return self._precision
-
-    @property
     def uncertainty(self) -> Decimal:
         return self._uncertainty
 
@@ -281,7 +343,9 @@ class Anchor(AnchorProtocol):
         for format_spec in self._formats:
             logger.debug("Processing format spec: %s", format_spec)
             if format_spec.format:
-                logger.debug("Using format: %s with options %s", format_spec.format, format_spec.options)
+                logger.debug(
+                    "Using format: %s with options %s", format_spec.format, format_spec.options
+                )
                 result = format_registry.format(
                     format_spec.format, total_seconds, units, self.uncertainty, format_spec.options
                 )
@@ -397,7 +461,6 @@ class Anchor(AnchorProtocol):
         print(f"{apply_green_color('Name')}: {self.name}")
         print(f"{apply_green_color('Value')}: {self.value:.3f}")
         print(f"{apply_green_color('Groups')}: {', '.join(self.groups)}")
-        print(f"{apply_green_color('Precision')}: {self.precision:.3e}")
         print(f"{apply_green_color('Formats')}:")
         for format in self.formats:
             print(f"  - {format}")
@@ -424,8 +487,7 @@ class Anchor(AnchorProtocol):
 
         for breakdown_units in self.breakdowns:
             if not any(
-                (unit := units.get_unit(unit_abbreviation)) is not None  # Check if unit is not None
-                and Decimal(unit.value) >= self.precision
+                units.get_unit(unit_abbreviation) is not None  # Check if unit is not None
                 for unit_abbreviation in breakdown_units
             ):
                 continue
@@ -435,62 +497,46 @@ class Anchor(AnchorProtocol):
 
         return "\n".join(f"{prefix}{line}" for line in output)
 
-    def to_hy(self) -> str:
-        """Convert anchor to Hy format."""
-        from ..utils import python_to_hy
-        
-        lines = [f"(def-anchor {self._label}"]
-        
-        # Basic properties
-        if self._name:
-            lines.append(f'  (name {python_to_hy(self._name)})')
-        if self._value is not None:
-            lines.append(f'  (value {python_to_hy(self._value)})')
-        if self._groups:
-            lines.append(f'  (groups {python_to_hy(self._groups)})')
-        
-        # Uncertainty
-        if self._uncertainty:
-            uncert_dict = {
-                'absolute': str(self._uncertainty.absolute),
-                'relative': str(self._uncertainty.relative)
-            }
-            if self._uncertainty.confidence_95:
-                uncert_dict['confidence_95'] = [
-                    str(self._uncertainty.confidence_95[0]),
-                    str(self._uncertainty.confidence_95[1])
-                ]
-            lines.append(f'  (uncertainty {python_to_hy(uncert_dict)})')
-        
-        # Formats
-        if self._formats:
-            format_list = []
-            for fmt in self._formats:
-                if fmt.format and not fmt.units:
-                    # Simple format string
-                    format_list.append(fmt.format)
-                else:
-                    # Complex format specification
-                    format_dict = {}
-                    if fmt.format:
-                        format_dict['format'] = fmt.format
-                    if fmt.units:
-                        format_dict['units'] = fmt.units
-                    if fmt.options:
-                        # Only include non-redundant options
-                        cleaned_options = {k: v for k, v in fmt.options.items()
-                                        if k != 'units' or v != fmt.units}
-                        if cleaned_options:
-                            format_dict['options'] = cleaned_options
-                    format_list.append(format_dict)
+    def to_hy(self) -> HyNode:
+        """Convert anchor to AST node."""
+        properties = []
 
-            lines.append('  (formats')
-            lines.append('    [')
-            for fmt in format_list:
-                lines.append(f'     {python_to_hy(fmt)}')
-            lines.append('    ])')        
-        lines.append(")")
-        return "\n".join(lines)
+        # Convert each property to a node
+        for key, prop in self._properties.items():
+            if prop.value is not None:
+                if key in ['name', 'value']:  # Only debug fields we care about
+                    print(f"\nProcessing anchor property: {key}")
+                    print(f"Value: {prop.value}")
+                    print(f"Type: {type(prop.value)}")
+
+                # print(f"Key: {key}")
+                # print(f"Property value: {prop.value}")
+                # print(f"Property original: {prop.original}")
+                if (
+                    isinstance(prop.value, (hy.models.Expression, hy.models.Symbol))
+                    or prop.original
+                ):
+                    value = prop.original or prop.value
+                else:
+                    value = prop.value
+
+                properties.append(
+                    HyNode(
+                        type="property",
+                        value=key,
+                        children=[
+                            HyNode(
+                                type="value",
+                                value=value,
+                                original=prop.original,
+                                is_dynamic=bool(prop.original),
+                            )
+                        ],
+                    )
+                )
+
+        return HyNode(type="def-anchor", value=self._label, children=properties)
+
 
 
 class AnchorManager(AnchorManagerProtocol):
@@ -524,7 +570,6 @@ class AnchorManager(AnchorManagerProtocol):
                 # breakdowns=anchor_config.breakdowns,
                 formats=anchor_config.formats,
                 groups=anchor_config.groups,
-                precision=anchor_config.precision,
             )
         )
 
@@ -656,63 +701,12 @@ class AnchorManager(AnchorManagerProtocol):
             for anchor in self._anchors.values():
                 anchor.print()
 
-
     def save(self, filename: str) -> None:
         """Save all anchors to a Hy file."""
         ast_manager = HyAST()
-        nodes = []
-        
-        # Convert each anchor to an AST node
-        for anchor in sorted(self._anchors.values(), key=lambda a: a._label):
-            properties = []
-            
-            # Basic properties
-            if anchor._name:
-                properties.append(HyNode(
-                    type='property',
-                    value='name',
-                    children=[HyNode(type='value', value=anchor._name)]
-                ))
-            
-            if anchor._value is not None:
-                properties.append(HyNode(
-                    type='property',
-                    value='value',
-                    children=[HyNode(type='value', value=anchor._value)]
-                ))
-                
-            if anchor._uncertainty:
-                uncert_dict = {
-                    'absolute': anchor._uncertainty.absolute,
-                    'relative': anchor._uncertainty.relative
-                }
-                properties.append(HyNode(
-                    type='property',
-                    value='uncertainty',
-                    children=[HyNode(type='value', value=uncert_dict)]
-                ))
-                
-            if anchor._groups:
-                properties.append(HyNode(
-                    type='property',
-                    value='groups',
-                    children=[HyNode(type='value', value=anchor._groups)]
-                ))
-                
-            if anchor._formats:
-                properties.append(HyNode(
-                    type='property',
-                    value='formats',
-                    children=[HyNode(type='value', value=anchor._formats)]
-                ))
-            
-            nodes.append(HyNode(
-                type='def-anchor',
-                value=anchor._label,
-                children=properties
-            ))
-        
+        nodes = [
+            anchor.to_hy() for anchor in sorted(self._anchors.values(), key=lambda a: a._value)
+        ]
         # Write to file
-        with open(filename, 'w') as f:
+        with open(filename, "w") as f:
             f.write(ast_manager.to_hy(nodes))
-                

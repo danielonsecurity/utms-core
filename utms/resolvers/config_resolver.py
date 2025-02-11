@@ -1,8 +1,9 @@
+from ..utils import get_logger, hy_to_python
 from ..utms_types import Context, HyExpression, LocalsDict, ResolvedValue, is_expression
 from .hy_resolver import HyResolver
-from ..utils import get_logger
 
 logger = get_logger("resolvers.config_resolver")
+
 
 class ConfigResolver(HyResolver):
     def __init__(self) -> None:
@@ -32,10 +33,10 @@ class ConfigResolver(HyResolver):
                         value = quoted_pair[1]
                         result[key] = value
             return result
-        
-        return super()._resolve_expression(expr, context, local_names)
 
+        return super()._resolve_expression(expr, context, local_names)
 
     def resolve_config_property(self, expr: HyExpression, config=None) -> ResolvedValue:
         """Config-specific resolution method"""
-        return self.resolve(expr, config)
+        config = self.resolve(expr, config)
+        return {k: hy_to_python(v) for k, v in config.items()}

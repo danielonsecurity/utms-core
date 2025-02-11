@@ -1,9 +1,10 @@
-from datetime import datetime, timezone
-
-import ntplib
 import socket
 import sys
+from datetime import datetime, timezone
 from time import time
+
+import ntplib
+
 
 def get_ntp_date() -> datetime:
     """Retrieves the current date in datetime format using an NTP (Network Time

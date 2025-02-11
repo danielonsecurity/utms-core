@@ -1,9 +1,12 @@
+from dataclasses import dataclass
 from decimal import Decimal
-from typing import Any, Callable, Dict
-from typing import List as PyList, Dict as PyDict
+from typing import Any, Callable
+from typing import Dict
+from typing import Dict as PyDict
+from typing import List as PyList
 from typing import Optional, TypeAlias, TypeGuard, Union
 
-from hy.models import Expression, Integer, Lazy, List, String, Symbol, Keyword, Dict
+from hy.models import Dict, Expression, Integer, Keyword, Lazy, List, String, Symbol
 
 HyExpression: TypeAlias = Expression
 HySymbol: TypeAlias = Symbol
@@ -39,6 +42,14 @@ ResolvedValue: TypeAlias = Union[
 Context: TypeAlias = Optional[Any]
 
 
+@dataclass
+class HyProperty:
+    """Represents a property that can have both evaluated and original form."""
+
+    value: Any
+    original: Optional[Any] = None
+
+
 ExpressionList: TypeAlias = PyList[HyExpression]
 
 LocalsDict: TypeAlias = Optional[Dict[str, Any]]
@@ -66,8 +77,10 @@ def is_string(obj: Any) -> TypeGuard[String]:
 def is_list(obj: Any) -> TypeGuard[List]:
     return isinstance(obj, (List, PyList))
 
+
 def is_dict(obj: Any) -> TypeGuard[Dict]:
     return isinstance(obj, (Dict, PyDict))
+
 
 def is_expression(obj: Any) -> TypeGuard[Expression]:
     return isinstance(obj, Expression)

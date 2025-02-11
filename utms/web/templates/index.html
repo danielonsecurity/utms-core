@@ -1,0 +1,53 @@
+<!-- templates/index.html -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>UTMS Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', path='/images/favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  </head>
+  <body>
+    <div class="container">
+      <nav class="sidebar">
+        <div class="sidebar-header">
+	  <img src="{{ url_for('static', path='/images/logo.png') }}" alt="UTMS Logo" class="logo">
+          <h2>UTMS</h2>
+        </div>
+        <ul class="nav-links">
+          <li class="nav-item {% if active_page == 'dashboard' %}active{% endif %}">
+            <a href="/"><i class="material-icons">dashboard</i>Dashboard</a>
+          </li>
+          <li class="nav-item {% if active_page == 'config' %}active{% endif %}">
+            <a href="/config"><i class="material-icons">settings</i>Configuration</a>
+          </li>
+          <li class="nav-item {% if active_page == 'units' %}active{% endif %}">
+            <a href="/units"><i class="material-icons">straighten</i>Units</a>
+          </li>
+          <li class="nav-item {% if active_page == 'anchors' %}active{% endif %}">
+            <a href="/anchors"><i class="material-icons">anchor</i>Anchors</a>
+          </li>
+          <li class="nav-item {% if active_page == 'events' %}active{% endif %}">
+            <a href="/events"><i class="material-icons">event</i>Events</a>
+          </li>
+          <li class="nav-item {% if active_page == 'analytics' %}active{% endif %}">
+            <a href="/analytics"><i class="material-icons">analytics</i>Analytics</a>
+          </li>
+        </ul>
+      </nav>
+        
+        <main class="content">
+            <header class="content-header">
+                <h1>{% block page_title %}{% endblock %}</h1>
+            </header>
+            
+            <div class="content-body">
+              {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/decimal.js/10.4.3/decimal.min.js"></script>
+    <script src="{{ url_for('static', path='/script.js') }}"></script>
+</body>
+</html>

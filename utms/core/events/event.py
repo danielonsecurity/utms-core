@@ -1,17 +1,19 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List, Dict
 from decimal import Decimal
+from typing import Dict, List, Optional
+
 
 @dataclass
 class EventConfig:
     """Configuration for an Event."""
+
     label: str
     name: Optional[str] = None
     state: str = ""
-    schedule: Optional[Decimal] = None      # When event is scheduled
-    deadline: Optional[Decimal] = None      # When event is due
-    timestamp: Optional[Decimal] = None     # Point in time
+    schedule: Optional[Decimal] = None  # When event is scheduled
+    deadline: Optional[Decimal] = None  # When event is due
+    timestamp: Optional[Decimal] = None  # Point in time
     timerange: Optional[Dict[str, Decimal]] = None  # {'start': timestamp, 'end': timestamp}
     tags: List[str] = None
     properties: Dict[str, str] = None
@@ -30,9 +32,11 @@ class EventConfig:
         self.tags = self.tags or []
         self.properties = self.properties or {}
 
+
 @dataclass
 class Event:
     """Represents an event with various time specifications."""
+
     _config: EventConfig
     _created: datetime = None
     _closed: Optional[datetime] = None

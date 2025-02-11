@@ -1,17 +1,24 @@
 # money.py
-from decimal import Decimal
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from decimal import Decimal
+from typing import Any, Dict, Optional
 
 from utms.core.formats.base import FormattingOptions
 from utms.utms_types import FixedUnitManagerProtocol
+
 from ...utils import ColorFormatter
 from .base import FormatterProtocol
 from .config import TimeUncertainty
 
+
 class MoneyFormatter(FormatterProtocol):
-    def format(self, total_seconds: Decimal, units: FixedUnitManagerProtocol, 
-               uncertainty: TimeUncertainty, options: dict) -> str:
+    def format(
+        self,
+        total_seconds: Decimal,
+        units: FixedUnitManagerProtocol,
+        uncertainty: TimeUncertainty,
+        options: dict,
+    ) -> str:
         # Get options
         opts = FormattingOptions(**options)
         currency = opts.currency
@@ -32,19 +39,19 @@ class MoneyFormatter(FormatterProtocol):
         # Calculate conversion to base unit
         base_unit_value = Decimal(unit_info.value)
         base_units = total_seconds / base_unit_value
-        
+
         # Calculate money amount
         amount = base_units * rate
 
         # Format currency symbol
         symbol = currency if raw else ColorFormatter.green(currency)
-        
+
         # Format the amount
         amount_str = f"{abs(amount):,.2f}"
-        
+
         # Space between amount and currency based on compact
         space = "" if compact else " "
-        
+
         # Combine amount and currency based on position
         if position_right:
             value_str = f"{amount_str}{space}{symbol}"
@@ -56,7 +63,9 @@ class MoneyFormatter(FormatterProtocol):
             rate_str = f"{rate}{space}"
             rate_str += currency if raw else ColorFormatter.green(currency)
             rate_str += "/" if raw else ColorFormatter.magenta("/")
-            rate_str += unit_info.abbreviation if raw else ColorFormatter.green(unit_info.abbreviation)
+            rate_str += (
+                unit_info.abbreviation if raw else ColorFormatter.green(unit_info.abbreviation)
+            )
             value_str += f"{space}@{space}{rate_str}"
 
         # Add sign and indentation

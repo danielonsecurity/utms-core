@@ -9,9 +9,9 @@ from ..utms_types import (
     ExpressionList,
     ExpressionResolver,
     HyExpression,
+    HyKeyword,
     HyList,
     HySymbol,
-    HyKeyword,
     HyValue,
     LocalsDict,
     LocalsProvider,
@@ -183,11 +183,15 @@ class HyResolver(ExpressionResolver, LocalsProvider):
                     # Remove the leading ':' from keyword name
                     key = str(arg)[1:]
                     # Next value is the keyword's value
-                    value = next(iter(resolved_subexprs[resolved_subexprs.index(arg) + 1:]), None)
-                    kwargs[key] = locals_dict.get(str(value), value) if isinstance(value, HySymbol) else value
+                    value = next(iter(resolved_subexprs[resolved_subexprs.index(arg) + 1 :]), None)
+                    kwargs[key] = (
+                        locals_dict.get(str(value), value) if isinstance(value, HySymbol) else value
+                    )
                 elif not isinstance(arg, HyKeyword) and arg not in kwargs.values():
                     # Only add to args if it's not a keyword and not already used as a kwarg value
-                    args.append(locals_dict.get(str(arg), arg) if isinstance(arg, HySymbol) else arg)
+                    args.append(
+                        locals_dict.get(str(arg), arg) if isinstance(arg, HySymbol) else arg
+                    )
 
             return constructor(*args, **kwargs)
 

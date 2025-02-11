@@ -32,37 +32,44 @@ from typing import Any, List, Optional, Tuple, Union
 import appdirs
 import ntplib
 
+from ..loaders.anchor_loader import initialize_anchors, parse_anchor_definitions, process_anchors
+from ..loaders.event_loader import initialize_events, parse_event_definitions
+from ..loaders.unit_loader import (
+    initialize_units,
+    parse_calendar_definitions,
+    parse_unit_definitions,
+    resolve_unit_properties,
+)
+from ..loaders.fixed_unit_loader import parse_fixed_unit_definitions, initialize_fixed_units, process_fixed_units
+from ..loaders.variable_loader import process_variables
+from ..resolvers import (
+    AnchorResolver,
+    ConfigResolver,
+    FixedUnitResolver,
+    HyAST,
+    VariableResolver,
+    evaluate_hy_file,
+)
+from ..utils import format_hy_value, get_logger, get_ntp_date, hy_to_python, set_log_level
 from ..utms_types import (
     AnchorManagerProtocol,
     ConfigData,
     ConfigPath,
     ConfigProtocol,
     ConfigValue,
+    FixedUnitManagerProtocol,
     NestedConfig,
     OptionalString,
-    FixedUnitManagerProtocol,
     is_expression,
 )
-
 from . import constants
 from .anchors import AnchorConfig, AnchorManager
-from .units import FixedUnitManager
-from ..resolvers import ConfigResolver, VariableResolver, evaluate_hy_file, FixedUnitResolver, AnchorResolver, HyAST
-
-from ..utils import get_logger, hy_to_python, format_hy_value, get_ntp_date, set_log_level
-
-from ..loaders.unit_loader import parse_calendar_definitions, parse_unit_definitions, initialize_units, resolve_unit_properties
-from ..loaders.anchor_loader import parse_anchor_definitions, initialize_anchors
-from ..loaders.variable_loader import process_variables
-from ..loaders.event_loader import parse_event_definitions, initialize_events
-
 from .events import EventManager
+from .units import FixedUnitManager
 
 logger = get_logger("core.config")
 
 
-
- 
 class Config(ConfigProtocol):
     """Configuration class that manages units and anchors for time and datetime
     references.
@@ -84,6 +91,7 @@ class Config(ConfigProtocol):
         # Ensure the config directory exists
         os.makedirs(self.utms_dir, exist_ok=True)
         self.init_resources()
+        self._ast_manager = HyAST()
         self._data: NestedConfig = {}  # = self.load()
 
         self.resolver = ConfigResolver()
@@ -98,12 +106,9 @@ class Config(ConfigProtocol):
         self._anchors: AnchorManagerProtocol = AnchorManager(self.units)
         self._load_fixed_units()
         self._load_calendar_units()
-        self._ast_manager = HyAST()
         self._load_anchors()
         self._event_manager = EventManager()
         self._load_events()
-        breakpoint()
-
 
     def _load_hy_config(self) -> None:
         config_hy = os.path.join(self.utms_dir, "config.hy")
@@ -192,12 +197,9 @@ class Config(ConfigProtocol):
         exist."""
         resources = [
             "system_prompt.txt",
-            "config.json",
-            "anchors.json",
-            "units.json",
             "calendar_units.hy",
             "fixed_units.hy",
-            "events.hy"
+            "events.hy",
         ]
         for item in resources:
             source_file = importlib.resources.files("utms.resources") / item
@@ -211,65 +213,40 @@ class Config(ConfigProtocol):
         anchors_file = os.path.join(self.utms_dir, "anchors.hy")
         if os.path.exists(anchors_file):
             try:
-                # Parse file into AST
                 nodes = self._ast_manager.parse_file(anchors_file)
-
-                # Continue with your existing flow
-                parsed_anchor_defs = parse_anchor_definitions(nodes)
-                anchor_instances = initialize_anchors(parsed_anchor_defs, self._variables)
-
+                anchor_instances = process_anchors(nodes, self._variables)
                 for anchor in anchor_instances.values():
                     self._anchors.add_anchor(anchor)
-
             except Exception as e:
                 logger.error(f"Error loading anchors: {e}")
                 raise
 
     def save_anchors(self) -> None:
         """Save anchors to file."""
-        anchors_file = os.path.join(self.utms_dir, "anchors1.hy")
+        anchors_file = os.path.join(self.utms_dir, "anchors.hy")
         self._anchors.save(anchors_file)
-            # anchor_expressions = evaluate_hy_file(anchors_file)
-            # if anchor_expressions:
-            #     parsed_anchor_defs = parse_anchor_definitions(anchor_expressions)
-            #     logger.debug("Parsed anchor definitions %s", parsed_anchor_defs)
-            #     anchor_instances = initialize_anchors(parsed_anchor_defs, self._variables)
-            #     logger.debug("Created anchor instances %s", anchor_instances)
-            #     for anchor in anchor_instances.values():
-            #         logger.debug("Adding anchor %s (id: %s) with formats: %s", anchor._label, id(anchor), anchor._formats)
-            #         self._anchors.add_anchor(anchor)
-            #         logger.debug("After adding formats: %s", self._anchors[anchor._label]._formats)
 
     def _load_fixed_units(self) -> None:
-        units_hy = os.path.join(self.utms_dir, "fixed_units.hy")
-        
-        if os.path.exists(units_hy):
+        units_file = os.path.join(self.utms_dir, "fixed_units.hy")
+        if os.path.exists(units_file):
             try:
+                nodes = self._ast_manager.parse_file(units_file)
+                unit_instances = process_fixed_units(nodes)
+                for unit in unit_instances.values():
+                    self.units.add_unit(unit)
 
-                resolver = FixedUnitResolver()
-                expressions = evaluate_hy_file(units_hy)
-                
-                # Process each unit definition
-                for expr in expressions:
-                    if expr:  # Skip empty lines
-                        unit_data = resolver.resolve(expr)
-
-                        if unit_data:
-                            for label, unit in unit_data.items():
-                                self.units.add_unit(
-                                    unit['name'],
-                                    label,
-                                    Decimal(unit['value']),
-                                    unit.get('groups', [])
-                                )
-                
-                logger.info("Loaded fixed units from Hy file")
             except Exception as e:
-                logger.error("Error loading fixed units: %s", e)
+                logger.error(f"Error loading anchors: {e}")
+                raise
+
+    def save_fixed_units(self):
+        units_file = os.path.join(self.utms_dir, "fixed_units.hy")
+        self.units.save(units_file)
+        
 
     def _load_calendar_units(self) -> None:
         units_hy = os.path.join(self.utms_dir, "calendar_units.hy")
-        
+
         if os.path.exists(units_hy):
             try:
                 expressions = evaluate_hy_file(units_hy)
@@ -282,7 +259,6 @@ class Config(ConfigProtocol):
                 logger.info("Loaded calendar units from Hy file")
             except Exception as e:
                 logger.error("Error loading calendar units: %s", e)
-
 
     @property
     def utms_dir(self) -> str:

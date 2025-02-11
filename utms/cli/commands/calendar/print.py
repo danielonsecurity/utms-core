@@ -1,8 +1,9 @@
 from time import time
 
+from ....core import Calendar
 from ....core.calendar.registry import CalendarRegistry
 from ..core import Command, CommandManager
-from ....core import Calendar
+
 
 def print_calendar(config):
     timestamp = time()

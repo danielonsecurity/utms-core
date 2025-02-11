@@ -1,13 +1,15 @@
 import os
 from typing import Dict, Optional
+
+from ..core.events import Event, EventConfig
+from ..resolvers import EventResolver, evaluate_hy_file
 from ..utils import get_logger, hy_to_python
 from ..utms_types import ExpressionList, is_expression
-from ..resolvers import EventResolver, evaluate_hy_file
-from ..core.events import Event, EventConfig
 
 logger = get_logger("core.events.event_loader")
 
 _resolver = EventResolver()
+
 
 def parse_event_definitions(event_data: ExpressionList) -> Dict[str, dict]:
     """Parse Hy event definitions into a dictionary of event specifications."""
@@ -32,13 +34,11 @@ def parse_event_definitions(event_data: ExpressionList) -> Dict[str, dict]:
                 prop_value = prop_expr[1]
                 event_kwargs_dict[prop_name] = prop_value
 
-        events[event_label] = {
-            "label": event_label,
-            "kwargs": event_kwargs_dict
-        }
+        events[event_label] = {"label": event_label, "kwargs": event_kwargs_dict}
         logger.info("Added event %s", event_label)
-    
+
     return events
+
 
 def initialize_events(parsed_events, variables) -> dict:
     """Create Event instances from parsed definitions."""
@@ -46,7 +46,7 @@ def initialize_events(parsed_events, variables) -> dict:
     for event_label, event_info in parsed_events.items():
         kwargs = event_info["kwargs"]
         resolved_props = _resolver.resolve_event_property(kwargs, variables=variables)
-        
+
         config = EventConfig(
             label=event_label,
             name=resolved_props.get("name"),
@@ -56,9 +56,9 @@ def initialize_events(parsed_events, variables) -> dict:
             timestamp=resolved_props.get("timestamp"),
             timerange=resolved_props.get("timerange"),
             tags=resolved_props.get("tags", []),
-            properties=resolved_props.get("properties", {})
+            properties=resolved_props.get("properties", {}),
         )
         event = Event(config)
         events[event_label] = event
-    
+
     return events

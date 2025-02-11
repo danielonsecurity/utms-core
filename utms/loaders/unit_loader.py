@@ -1,3 +1,4 @@
+from ..core.calendar.calendar_unit import CalendarUnit
 from ..resolvers import CalendarResolver
 from ..utils import get_logger
 from ..utms_types import (
@@ -14,8 +15,6 @@ from ..utms_types import (
     is_hy_compound,
     to_unit_type,
 )
-
-from ..core.calendar.calendar_unit import CalendarUnit
 
 logger = get_logger("core.calendar.unit_loader")
 

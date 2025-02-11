@@ -1,56 +1,14 @@
-"""
-Unit Management Module
-===========================
-
-This module provides a class, `UnitManager`, for managing time units. It allows users to
-add, retrieve, and sort time units by their values (in seconds), as well as print the units
-and generate conversion tables for easy comparison.
-
-Classes:
---------
-- `UnitManager`: Handles the addition, management, and retrieval of time units.
-
-Dependencies:
--------------
-- `decimal.Decimal`: For precise arithmetic with time unit values.
-- `utms.utils.format_value`: A utility function for formatting values.
-
-Features:
----------
-1. Add new time units with a full name, abbreviation, and value (in seconds).
-2. Retrieve time unit values or details by their abbreviation.
-3. Retrieve all stored time units in a sorted dictionary.
-4. Print time units and their details.
-5. Generate and print a conversion table centered around a specific time unit.
-
-Usage:
-------
-```python
-from decimal import Decimal
-from time_unit_manager import UnitManager
-
-# Initialize the manager
-manager = FixedUnitManager()
-
-# Add time units
-manager.add_unit("Second", "s", Decimal("1"))
-manager.add_unit("Minute", "m", Decimal("60"))
-manager.add_unit("Hour", "h", Decimal("3600"))
-
-# Print all units
-manager.print_units()
-
-# Print a conversion table centered around seconds
-manager.print_conversion_table("s", num_columns=2, num_rows=5)
-"""
 
 import argparse
+import hy
 from decimal import Decimal
-from typing import Dict, Iterator, Optional, Union, List
+from typing import Dict, Iterator, List, Optional, Union, List
 
 from colorama import Fore, Style
 
-from utms.utms_types import FixedUnitManagerProtocol, UnitProtocol
+from utms.utms_types import FixedUnitManagerProtocol, UnitProtocol, HyProperty, UnitConfig
+from utms.resolvers import HyNode
+from ..resolvers.hy_ast import HyAST
 
 from .plt import seconds_to_hplt, seconds_to_pplt
 
@@ -147,7 +105,7 @@ class Unit(UnitProtocol):
         value (Decimal): The value of the time unit in seconds.
     """
 
-    def __init__(self, name: str, abbreviation: str, value: Decimal, groups) -> None:
+    def __init__(self, config: UnitConfig) -> None:
         """Initializes a Unit instance.
 
         Args:
@@ -155,26 +113,30 @@ class Unit(UnitProtocol):
             abbreviation (str): The abbreviation of the time unit.
             value (Decimal): The value of the time unit in seconds.
         """
-        self._name = name
-        self._abbreviation = abbreviation
-        self._value = value
-        self._groups = groups or []
+        self._label = config.label
+        self._properties = {
+            "name": HyProperty(config.name),
+            "value": HyProperty(Decimal(config.value)),
+            "groups": HyProperty(config.groups or [])}
+
+
+    @property
+    def label(self) -> str:
+        return self._label
 
     @property
     def name(self) -> str:
-        return self._name
+        return self._properties["name"].value
 
     @property
-    def groups(self) -> str:
-        return self._groups
-
-    @property
-    def abbreviation(self) -> str:
-        return self._abbreviation
+    def groups(self) -> List[str]:
+        return self._properties["groups"].value
 
     @property
     def value(self) -> Decimal:
-        return self._value
+        if isinstance(self._properties["value"].value, (str, hy.models.String)):
+            return Decimal(str(self._properties["value"].value))
+        return self._properties["value"].value
 
     def __repr__(self) -> str:
         """Provides a string representation of the Unit instance.
@@ -182,7 +144,7 @@ class Unit(UnitProtocol):
         Returns:
             str: A string representation of the unit.
         """
-        return f"Unit(name={self.name}, abbreviation={self.abbreviation}, value={self.value}, groups={self.groups})"
+        return f"Unit(name={self.name}, label={self.label}, value={self.value}, groups={self.groups})"
 
     def __str__(self) -> str:
         """Provides a human-readable string for the unit.
@@ -191,7 +153,7 @@ class Unit(UnitProtocol):
             str: A string representation of the unit.
         """
         groups_str = f", groups=[{', '.join(self.groups)}]" if self.groups else ""
-        return f"{self.name} ({self.abbreviation}): {self.value} seconds{groups_str}"
+        return f"{self.name} ({self.label}): {self.value} seconds{groups_str}"
 
     def __eq__(self, other: object) -> bool:
         """Compares two Unit instances for equality based on value.
@@ -233,23 +195,50 @@ class Unit(UnitProtocol):
         return value * (self.value / other.value)
 
 
+    def to_hy(self) -> HyNode:
+        """Convert unit to AST node."""
+        properties = []
+
+        # Convert each property to a node
+        for key, prop in self._properties.items():
+            if prop.value is not None:
+                if isinstance(prop.value, (hy.models.Expression, hy.models.Symbol)) or prop.original:
+                    value = prop.original or prop.value
+                else:
+                    value = prop.value
+
+                properties.append(
+                    HyNode(
+                        type="property",
+                        value=key,
+                        children=[
+                            HyNode(
+                                type="value",
+                                value=value,
+                                original=prop.original,
+                                is_dynamic=bool(prop.original),
+                            )
+                        ],
+                    )
+                )
+
+        return HyNode(type="def-fixed-unit", value=self._label, children=properties)                
+
+
 class FixedUnitManager(FixedUnitManagerProtocol):
     """A class to manage time units, allowing adding new units, sorting by
-    value, and accessing them by abbreviation."""
+    value, and accessing them by label."""
 
     def __init__(self) -> None:
         self._units: Dict[str, Unit] = {}
 
     def get_units_by_group(self, group: str) -> List[Unit]:
         """Get all units belonging to a specific group."""
-        return [
-            unit for unit in self._units.values() 
-            if group in unit.groups
-        ]
-    
+        return [unit for unit in self._units.values() if group in unit.groups]
+
     def get_units_by_groups(self, groups: List[str], match_all: bool = False) -> List[Unit]:
         """Get units belonging to multiple groups.
-        
+
         Args:
             groups: List of group names
             match_all: If True, unit must belong to all groups
@@ -257,86 +246,89 @@ class FixedUnitManager(FixedUnitManagerProtocol):
         """
         if match_all:
             return [
-                unit for unit in self._units.values()
+                unit
+                for unit in self._units.values()
                 if all(group in unit.groups for group in groups)
             ]
         else:
             return [
-                unit for unit in self._units.values()
+                unit
+                for unit in self._units.values()
                 if any(group in unit.groups for group in groups)
             ]
 
+    def add_unit(self, unit) -> None:
+        self._units[unit.label] = unit
 
-
-    def add_unit(self, name: str, abbreviation: str, value: Decimal, groups) -> None:
+    def create_unit(self, config: UnitConfig) -> None:
         """Adds a new time unit to the manager and ensures the units are sorted
         by value.
 
         Args:
             name (str): The full name of the time unit.
-            abbreviation (str): The abbreviation of the time unit.
+            label (str): The label of the time unit.
             value (Decimal): The value of the unit in seconds.
         """
-        new_unit = Unit(name, abbreviation, value, groups)
-        self._units[abbreviation] = new_unit
+        new_unit = Unit(config)
+        self._units[config.label] = new_unit
         self._sort_units()
 
     def _sort_units(self) -> None:
         """Sort the units by their value (in seconds)."""
         self._units = dict(sorted(self._units.items(), key=lambda item: item[1].value))
 
-    def get_value(self, abbreviation: str) -> Decimal:
-        """Get a unit value by its abbreviation.
+    def get_value(self, label: str) -> Decimal:
+        """Get a unit value by its label.
 
         Args:
-            abbreviation (str): The abbreviation of the time unit.
+            label (str): The label of the time unit.
 
         Returns:
             value: A Decimal value of the unit
         """
-        unit = self.get_unit(abbreviation)
+        unit = self.get_unit(label)
         if unit:
             return unit.value
-        raise ValueError(f"No unit with abbreviation {unit} defined")
+        raise ValueError(f"No unit with label {unit} defined")
 
-    def get_unit(self, abbreviation: str) -> Optional[Unit]:
-        """Get a time unit by its abbreviation.
+    def get_unit(self, label: str) -> Optional[Unit]:
+        """Get a time unit by its label.
 
         Args:
-            abbreviation (str): The abbreviation of the time unit.
+            label (str): The label of the time unit.
 
         Returns:
             dict: A dictionary containing 'name' and 'value' of the time unit.
         """
-        return self._units.get(abbreviation)
+        return self._units.get(label)
 
     def get_all_units(self) -> Dict[str, Unit]:
         """Get all the time units stored in the manager.
 
         Returns:
-            dict: A dictionary with abbreviations as keys and unit information as values.
+            dict: A dictionary with labels as keys and unit information as values.
         """
         return self._units
 
     def __iter__(self) -> Iterator[str]:
-        """Returns an iterator over the abbreviations of all time units.
+        """Returns an iterator over the labels of all time units.
 
-        :return: An iterator of unit abbreviations.
+        :return: An iterator of unit labels.
         """
         return iter(self._units)
 
     def __getitem__(self, index: Union[int, str]) -> Unit:
-        """Makes the class subscriptable by allowing access via abbreviation or
+        """Makes the class subscriptable by allowing access via label or
         index.
 
         Args:
-            index (int or str): The abbreviation or index of the unit.
+            index (int or str): The label or index of the unit.
 
         Returns:
             dict: A dictionary containing 'name' and 'value' of the time unit.
 
         Raises:
-            KeyError: If the abbreviation does not exist.
+            KeyError: If the label does not exist.
             IndexError: If the index is out of range.
         """
         if isinstance(index, int):  # Index-based access
@@ -347,7 +339,7 @@ class FixedUnitManager(FixedUnitManagerProtocol):
         else:
             if index in self._units:
                 return self._units[index]
-            raise KeyError(f"Unit with abbreviation '{index}' not found.")
+            raise KeyError(f"Unit with label '{index}' not found.")
 
     def __len__(self) -> int:
         """Returns the number of time units in the manager.
@@ -371,14 +363,14 @@ class FixedUnitManager(FixedUnitManagerProtocol):
         for unit in self._units.values():
             if plt:
                 print(
-                    f"{unit.name} ({unit.abbreviation}):".ljust(25)
+                    f"{unit.name} ({unit.label}):".ljust(25)
                     + f"{format_value(unit.value)}"
                     + f"{seconds_to_hplt(unit.value):.5f}".ljust(20)
                     + f"{seconds_to_pplt(unit.value):.5f}".ljust(20)
                 )
             else:
                 print(
-                    f"{unit.name} ({unit.abbreviation}):".ljust(25) + f"{format_value(unit.value)}"
+                    f"{unit.name} ({unit.label}):".ljust(25) + f"{format_value(unit.value)}"
                 )
 
     def print_conversion_table(
@@ -388,7 +380,7 @@ class FixedUnitManager(FixedUnitManagerProtocol):
         unit.
 
         Args:
-            center_unit (str): The abbreviation of the unit around
+            center_unit (str): The label of the unit around
                 which the table will be centered.
             num_units (int): The number of units to display on either
                 side of the center unit. Defaults to 5.
@@ -397,7 +389,7 @@ class FixedUnitManager(FixedUnitManagerProtocol):
             manager.print_conversion_table("s", 3)
             This will print a table centered around "s", showing 3 units to the left and right.
         """
-        # Get all unit abbreviations
+        # Get all unit labels
         unit_keys = list(self._units.keys())
 
         if center_unit not in unit_keys:
@@ -445,7 +437,7 @@ class FixedUnitManager(FixedUnitManagerProtocol):
 
         Args:
             value (Decimal): The value to be converted.
-            input_unit (str): The abbreviation of the unit of the input value.
+            input_unit (str): The label of the unit of the input value.
 
         Raises:
             ValueError: If the input unit is not found in the manager.
@@ -483,3 +475,10 @@ class FixedUnitManager(FixedUnitManagerProtocol):
                     f"{self._units[args.target_unit].name} ({args.target_unit}):".ljust(25)
                     + f"{format_value(converted_value)}"
                 )
+
+    def save(self, filename:str):
+        ast_manager = HyAST()
+        nodes = [unit.to_hy() for unit in sorted(self._units.values(), key=lambda u: u.value)]
+
+        with open(filename, "w") as f:
+            f.write(ast_manager.to_hy(nodes))

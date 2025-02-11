@@ -1,13 +1,22 @@
 import os
-from typing import Dict, Optional, Any
-from ..utils import get_logger
-from ..utms_types import ExpressionList, is_expression, HyExpression, ResolvedValue, LocalsDict, AnchorKwargs
+from typing import Any, Dict, Optional
+
+from ..core.anchors import Anchor, AnchorConfig
 from ..resolvers import VariableResolver, evaluate_hy_file
-from ..core.anchors import AnchorConfig, Anchor
+from ..utils import get_logger
+from ..utms_types import (
+    AnchorKwargs,
+    ExpressionList,
+    HyExpression,
+    LocalsDict,
+    ResolvedValue,
+    is_expression,
+)
 
 logger = get_logger("core.anchor.variable_loader")
 
 _resolver = VariableResolver()
+
 
 def parse_variable_definitions(variable_data: ExpressionList) -> Dict[str, dict]:
     """Parse Hy variable definitions into a dictionary."""
@@ -27,12 +36,10 @@ def parse_variable_definitions(variable_data: ExpressionList) -> Dict[str, dict]
         var_name = str(var_name_sym)
         logger.debug("Processing variable: %s", var_name)
 
-        variables[var_name] = {
-            "name": var_name,
-            "value": var_value
-        }
-        
+        variables[var_name] = {"name": var_name, "value": var_value}
+
     return variables
+
 
 def initialize_variables(parsed_vars: Dict[str, dict]) -> Dict[str, Any]:
     """Create resolved variables from parsed definitions."""
@@ -42,6 +49,7 @@ def initialize_variables(parsed_vars: Dict[str, dict]) -> Dict[str, Any]:
         variables[var_name] = resolved_value
         _resolver._resolved_vars[var_name] = resolved_value
     return variables
+
 
 def process_variables(variable_data: ExpressionList) -> Dict[str, Any]:
     """Process Hy variable definitions into resolved variables."""

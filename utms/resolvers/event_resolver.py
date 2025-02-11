@@ -1,20 +1,22 @@
-from .hy_resolver import HyResolver
+from typing import Any, Optional
+
 from ..utils import get_logger, hy_to_python
-from ..utms_types import HyExpression, Context, HySymbol, LocalsDict
-from typing import Optional, Any
+from ..utms_types import Context, HyExpression, HySymbol, LocalsDict
+from .hy_resolver import HyResolver
 
 logger = get_logger("resolvers.event_resolver")
+
 
 class EventResolver(HyResolver):
     def get_locals_dict(self, context: Context, local_names: LocalsDict = None) -> LocalsDict:
         locals_dict = {}
-        
+
         if context:
             locals_dict["self"] = context
-            
+
         if local_names:
             locals_dict.update(local_names)
-            
+
         return locals_dict
 
     def resolve_event_property(
@@ -23,7 +25,7 @@ class EventResolver(HyResolver):
         """Resolve all properties in the event kwargs dictionary"""
         resolved = {}
         local_names = variables if variables else {}
-        
+
         for key, value in expr.items():
             logger.debug("Resolving property %s with value type: %s", key, type(value))
             if isinstance(value, (HyExpression, HySymbol)):

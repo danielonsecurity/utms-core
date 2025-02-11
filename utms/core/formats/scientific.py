@@ -1,26 +1,26 @@
-from decimal import Decimal
 from dataclasses import dataclass
+from decimal import Decimal
+from enum import Enum, auto
+from typing import Dict, List, Optional
 
 from utms.utils.display.colors import color_scientific_format
 from utms.utms_types import FixedUnitManagerProtocol
+
 from ...utils import ColorFormatter, get_logger
-from .base import FormatterProtocol
-
-from typing import Optional, List, Dict
-
+from .base import FormatterProtocol, FormattingOptions, NotationType
 from .config import TimeUncertainty
-
-from enum import Enum, auto
-from decimal import Decimal
-
-from .base import FormattingOptions, NotationType
 
 logger = get_logger("core.formats.scientific")
 
 
 class ScientificFormatter(FormatterProtocol):
-    def format(self, total_seconds: Decimal, units: FixedUnitManagerProtocol, 
-               uncertainty: TimeUncertainty, options: dict) -> str:
+    def format(
+        self,
+        total_seconds: Decimal,
+        units: FixedUnitManagerProtocol,
+        uncertainty: TimeUncertainty,
+        options: dict,
+    ) -> str:
         opts = FormattingOptions(**options)
         unit_list = options.get("units", ["s"])
         if not unit_list:
@@ -28,10 +28,10 @@ class ScientificFormatter(FormatterProtocol):
         # Sort units by size (largest to smallest)
         units_info = [units.get_unit(u) for u in unit_list]
         units_info.sort(key=lambda u: Decimal(u.value), reverse=True)
-        
+
         result = []
         remaining = abs(total_seconds)
-        
+
         # Process all units except the last one
         for unit in units_info[:-1]:
             unit_value = Decimal(unit.value)
@@ -45,7 +45,7 @@ class ScientificFormatter(FormatterProtocol):
                     unit_text = ColorFormatter.green(unit_text)
                 space = "" if opts.compact else " "
                 result.append(f"{int(count)}{space}{unit_text}")
-        
+
         # Handle the smallest unit in scientific notation
         if remaining > 0 and units_info:
             smallest_unit = units_info[-1]
@@ -64,7 +64,13 @@ class ScientificFormatter(FormatterProtocol):
         formatted = separator.join(result)
         return self._add_prefix(formatted, total_seconds, opts)
 
-    def _format_number(self, total_seconds: Decimal, value: Decimal, uncertainty: TimeUncertainty, opts: FormattingOptions) -> str:
+    def _format_number(
+        self,
+        total_seconds: Decimal,
+        value: Decimal,
+        uncertainty: TimeUncertainty,
+        opts: FormattingOptions,
+    ) -> str:
         """Format a number according to the specified notation."""
         abs_value = abs(value)
         uncert = uncertainty.get_effective_uncertainty(total_seconds)
@@ -76,7 +82,7 @@ class ScientificFormatter(FormatterProtocol):
                 if not opts.raw:
                     separator = ColorFormatter.red(separator)
                     uncert_str = color_scientific_format(uncert_str)
-                return f"{abs_value:.{significant_digits}f}{separator}{uncert_str}" 
+                return f"{abs_value:.{significant_digits}f}{separator}{uncert_str}"
             return f"{abs_value:.{significant_digits}f}"
 
         elif opts.notation == NotationType.SCIENTIFIC:
@@ -110,7 +116,7 @@ class ScientificFormatter(FormatterProtocol):
                 result += self._superscript(eng_exp)
                 result += separator
                 result += uncert_str
-                
+
                 return result
             result = mantissa_str
             result += "×" if opts.raw else ColorFormatter.red("×")
@@ -151,7 +157,7 @@ class ScientificFormatter(FormatterProtocol):
                 logger.debug(f"Uncertainty mantissa: {uncert_mantissa}")
                 logger.debug(f"Significant figures: {sig_figs}")
                 logger.debug(f"Uncertainty digits: {uncert_digits}")
-                
+
                 result = f"{mantissa_str}"
                 if not opts.raw:
                     result += ColorFormatter.magenta("(")
@@ -193,7 +199,6 @@ class ScientificFormatter(FormatterProtocol):
                     ci_format += "]" if opts.raw else ColorFormatter.magenta("]")
                     result += ci_format
 
-
                 return result
 
             # Fallback if uncertainty is 0
@@ -201,13 +206,10 @@ class ScientificFormatter(FormatterProtocol):
 
         return f"{abs_value:.3e}"  # fallback
 
-
     def _superscript(self, n: int) -> str:
         """Convert number to superscript."""
         superscript_map = str.maketrans("0123456789+-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻")
         return str(n).translate(superscript_map)
-
-
 
     def _add_prefix(self, formatted: str, value: Decimal, opts: dict) -> str:
         prefix = ""
