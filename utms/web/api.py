@@ -19,6 +19,19 @@ templates = Jinja2Templates(directory="utms/web/templates")
 from utms.core.config import Config
 config = Config()
 
+def format_scientific(num, max_digits):
+    str_num = str(num)
+    if 'E' in str_num:
+        mantissa, exponent = str_num.split('E')
+        if len(mantissa) > max_digits:
+            return mantissa[:max_digits] + '...' + 'E' + exponent
+    else:
+        if len(str_num) > max_digits:
+            return str_num[:max_digits] + '...'
+    return str_num
+
+
+
 @app.get("/config", response_class=HTMLResponse)
 async def root(request: Request):
     return templates.TemplateResponse(
@@ -49,17 +62,6 @@ async def get_units():
             "groups": unit.groups
         }
     return units_data
-
-def format_scientific(num, max_digits):
-    str_num = str(num)
-    if 'E' in str_num:
-        mantissa, exponent = str_num.split('E')
-        if len(mantissa) > max_digits:
-            return mantissa[:max_digits] + '...' + 'E' + exponent
-    else:
-        if len(str_num) > max_digits:
-            return str_num[:max_digits] + '...'
-    return str_num
 
 @app.get("/units", response_class=HTMLResponse)
 async def units_page(request: Request):
@@ -124,6 +126,56 @@ async def update_unit(label: str, field: str, value: dict):
         config._load_fixed_units()
         
         return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/units/")
+async def create_unit(unit: dict):
+    try:
+        # Validate the input
+        if not all(key in unit for key in ['label', 'name', 'value']):
+            raise HTTPException(status_code=400, message="Missing required fields")
+
+        # Convert value to Decimal
+        try:
+            unit['value'] = Decimal(unit['value'])
+        except:
+            raise HTTPException(status_code=400, detail="Invalid value format")
+
+        success = config.units.create_unit(label=unit["label"],
+                                           name=unit["name"],
+                                           value=unit["value"],
+                                           groups=unit["groups"],
+                                           ) is not None
+
+        if not success:
+            raise HTTPException(status_code=500, detail="Failed to create unit")
+
+        config.save_fixed_units()
+        config._load_fixed_units()
+
+        return {"message": "Unit created successfully"}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/api/units/{label}")
+async def delete_unit(label: str):
+    try:
+        # Get the unit to verify it exists
+        unit = config.units.get_unit(label)
+        if not unit:
+            raise HTTPException(status_code=404, detail=f"Unit '{label}' not found")
+
+        # Remove the unit from the manager
+        del config.units._units[label]
+        
+        config.save_fixed_units()
+        config._load_fixed_units()
+
+        return {"message": f"Unit '{label}' deleted successfully"}
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

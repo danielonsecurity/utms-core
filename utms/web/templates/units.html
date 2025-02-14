@@ -1,79 +1,84 @@
-<!-- templates/units.html -->
 {% extends "index.html" %}
 
 {% block page_title %}Units{% endblock %}
 
 {% block content %}
-<div class="units-container">
-  <div class="units-controls">
-    <div class="search-controls">
-        <div class="search-field">
-            <i class="material-icons">label</i>
-            <input type="text" placeholder="Search by label..." id="labelSearch">
+<div class="units">
+  <div class="units__controls">
+    <button class="btn btn--create" id="createUnitBtn">
+      <i class="material-icons">add</i>Create Unit
+    </button>
+    <div class="units__search">
+        <div class="units__search-field">
+            <i class="material-icons units__search_icon">label</i>
+            <input type="text" class="units__search-input" placeholder="Search by label..." id="labelSearch">
         </div>
-        <div class="search-field">
-          <i class="material-icons">title</i>
-          <input type="text" placeholder="Search by name..." id="nameSearch">
+        <div class="units__search-field">
+          <i class="material-icons units__search-icon">title</i>
+          <input type="text" class="units__search-input" placeholder="Search by name..." id="nameSearch">
         </div>
     </div>
-    <div class="active-filters">
-      <div class="filter-label">Active filters:</div>
-      <div id="activeFilters" class="filter-tags">
-        <!-- Active filters will be inserted here by JavaScript -->
+    <div class="units__controls-row">
+      <div class="units__filters">
+	<div class="units__filters-label">Active filters:</div>
+	<div id="activeFilters" class="filters__tags">
+          <!-- Active filters will be inserted here by JavaScript -->
+	</div>
+	<button class="btn btn--clear" id="clearFiltersBtn">Clear All</button>
       </div>
-      {% if active_filters %}
-      <button class="btn-clear" onclick="clearFilters()">Clear All</button>
-      {% endif %}
+      <div class="sort">
+	<select id="sortSelect" class="sort__select">
+	  <option value="value-asc">Value ↑</option>
+	  <option value="value-desc">Value ↓</option>
+	  <option value="label-asc">Label A-Z</option>
+	  <option value="label-desc">Label Z-A</option>
+	</select>
+      </div>
     </div>
   </div>
-  <div class="sort-control">
-    <select id="sortSelect" onchange="sortUnits()">
-      <option value="value-asc">Value ↑</option>
-      <option value="value-desc">Value ↓</option>
-      <option value="label-asc">Label A-Z</option>
-      <option value="label-desc">Label Z-A</option>
-    </select>
-  </div>    
 
-  <div class="units-grid" id="unitsGrid">
+  <div class="units__grid" id="unitsGrid">
     {% for label, unit in units.items() %}
     <div class="unit-card card" data-unit="{{ label }}">
-      <div class="card-header">
-        <h3 class="edit-target" data-field="label">{{ label }}</h3>
-	<div class="unit-controls">
-          <button class="unit-edit-btn" onclick="toggleUnitEdit('{{ label }}')" title="Edit unit">
+      <div class="card__header">
+        <h3 class="card__title edit-target" data-field="label">{{ label }}</h3>
+	<div class="unit-card__controls">
+          <button class="btn btn--icon btn--edit" data-action="edit" title="Edit unit">
             <i class="material-icons">edit</i>
           </button>
-          <span class="edit-controls" style="display: none;">
-            <button class="btn-save" onclick="saveUnitEdit('{{ label }}')">
+          <div class="unit-card__edit-controls" style="display: none;">
+	    <button class="btn btn--icon btn--delete" data-action="delete">
+	      <i class="material-icons">delete</i>
+	    </button>
+            <button class="btn btn--icon btn--save" data-action="save">
 	      <i class="material-icons">save</i>
 	    </button>
-            <button class="btn-cancel" onclick="cancelUnitEdit('{{ label }}')">
+            <button class="btn btn--icon btn--cancel" data-action="cancel">
               <i class="material-icons">close</i>
-            </button>
+            </div>
           </span>
 	</div>      
       </div>
-      <div class="card-body">
-        <div class="unit-info">
-          <div class="info-row">
-            <span class="info-label">Name:</span>
-            <span class="info-value edit-target" data-field="name">{{ unit.name }}</span>
+      <div class="card__body">
+        <div class="unit-card__info">
+          <div class="unit-card__row">
+            <span class="unit-card__label">Name:</span>
+            <span class="unit-card__value edit-target" data-field="name">{{ unit.name }}</span>
           </div>
-          <div class="info-row">
-            <span class="info-label">Value:</span>
-            <span class="info-value edit-target" data-field="value" data-full-value="{{ unit.value|string }}">{{ format_scientific(unit.value, max_digits=20) }}</span>
+          <div class="unit-card__row">
+            <span class="unit-card__label">Value:</span>
+            <span class="unit-card__value edit-target" data-field="value" data-full-value="{{ unit.value|string }}">{{ format_scientific(unit.value, max_digits=20) }}</span>
           </div>
-          <div class="info-row">
-            <span class="info-label">Groups:</span>
-            <span class="info-value groups edit-target" data-field="groups">
+          <div class="unit-card__row">
+            <span class="unit-card__label">Groups:</span>
+            <span class="groups edit-target" data-field="groups">
               {% for group in unit.groups %}
-              <span class="group-tag" >
-                <span class="group-name" onclick="toggleFilter('{{ group }}')">{{ group }}</span>
-                <i class="material-icons group-remove" style="display: none;">close</i>
+              <span class="groups__tag" >
+                <span class="groups__name" data-group="{{ group }}">{{ group }}</span>
+                <i class="groups__remove material-icons ">close</i>
               </span>
               {% endfor %}
-              <button class="add-group-btn" style="display: none;">
+              <button class="groups__add">
                 <i class="material-icons">add</i>
               </button>
             </span>
@@ -84,4 +89,43 @@
     {% endfor %}
   </div>
 </div>
+
+<div id="createUnitModal" class="modal">
+  <div class="modal__content">
+    <div class="modal__header">
+      <h2 class="modal__title">Create New Unit</h2>
+      <span class="modal__close" id="closeModalX" role="button" tabindex="0">&times;</span>
+    </div>
+    <div class="modal__body">
+      <form id="createUnitForm" class="modal__form">
+	<div class="modal__form-group">
+          <label class="modal__form-label" for="newUnitLabel">Label:</label>
+          <input class="modal__form-input" type="text" id="newUnitLabel" required>
+	</div>
+	<div class="modal__form-group">
+          <label class="modal__form-label" for="newUnitName">Name:</label>
+          <input class="modal__form-input" type="text" id="newUnitName" required>
+	</div>
+	<div class="modal__form-group">
+          <label class="modal__form-label" for="newUnitValue">Value:</label>
+          <input class="modal__form-input" type="text" id="newUnitValue" required>
+	</div>
+	<div class="modal__form-group">
+          <label class="modal__form-label" for="newUnitGroups">Groups (comma-separated):</label>
+          <input class="modal__form-input" type="text" id="newUnitGroups">
+	</div>
+
+	<div class="modal-footer">
+	  <button class="modal__btn modal__btn--create">Create</button>
+	</div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script type="module" src="{{ url_for('static', path='/js/units.js') }}"></script>
 {% endblock %}

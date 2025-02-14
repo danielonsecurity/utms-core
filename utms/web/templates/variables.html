@@ -1,0 +1,146 @@
+{% extends "index.html" %}
+
+{% block page_title %}Variables{% endblock %}
+
+{% block content %}
+<div class="variables-container">
+  <div class="variables-controls">
+    <button class="btn--create" id="createVariableBtn">
+      <i class="material-icons">add</i>Create Variable
+    </button>
+    <div class="search-controls">
+      <div class="search-field">
+        <i class="material-icons">label</i>
+        <input type="text" placeholder="Search by name..." id="nameSearch">
+      </div>
+      <div class="search-field">
+        <i class="material-icons">description</i>
+        <input type="text" placeholder="Search by description..." id="descriptionSearch">
+      </div>
+    </div>
+    <div class="active-filters">
+      <div class="filter-label">Active filters:</div>
+      <div id="activeFilters" class="filter-tags">
+        <!-- Active filters will be inserted here by JavaScript -->
+      </div>
+      <button class="btn--clear" id="clearFiltersBtn">Clear All</button>
+    </div>
+  </div>
+  <div class="sort-control">
+    <select id="sortSelect">
+      <option value="name-asc">Name A-Z</option>
+      <option value="name-desc">Name Z-A</option>
+      <option value="value-asc">Value ↑</option>
+      <option value="value-desc">Value ↓</option>
+    </select>
+  </div>    
+
+  <div class="variables-grid" id="variablesGrid">
+    {% for name, variable in variables.items() %}
+    <div class="variable-card card" data-variable="{{ name }}">
+      <div class="card-header">
+        <h3 class="edit-target" data-field="name">{{ name }}</h3>
+        <div class="variable-controls">
+          <button class="variable-edit-btn" data-action="edit" title="Edit variable">
+            <i class="material-icons">edit</i>
+          </button>
+          <span class="edit-controls" style="display: none;">
+            <button class="btn--delete" data-action="delete">
+              <i class="material-icons">delete</i>
+            </button>
+            <button class="btn--save" data-action="save">
+              <i class="material-icons">save</i>
+            </button>
+            <button class="btn--cancel" data-action="cancel">
+              <i class="material-icons">close</i>
+            </button>
+          </span>
+        </div>      
+      </div>
+      <div class="card-body">
+        <div class="variable-info">
+          <div class="info-row">
+            <span class="info-label">Description:</span>
+            <span class="info-value edit-target" data-field="description">{{ variable.description }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Value:</span>
+            <div class="info-value-container">
+              <div class="evaluated-value {% if variable.value_original %}has-original{% endif %}">
+                <span class="value-display {% if not variable.value_original %}edit-target{% endif %}" 
+                      data-field="value" 
+                      data-full-value="{{ variable.value|string }}">{{ format_scientific(variable.value, max_digits=20) }}</span>
+                
+                {% if variable.value_original %}
+                <button class="show-original-btn toggle-original-btn" title="Show original expression" data-target="value">
+                  <i class="material-icons">code</i>
+                </button>
+                <div class="original-code">
+                  <pre class="code">{{ variable.value_original }}</pre>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% if variable.groups %}
+          <div class="info-row">
+            <span class="info-label">Groups:</span>
+            <span class="info-value groups edit-target" data-field="groups">
+              {% for group in variable.groups %}
+              <span class="group-tag">
+                <span class="group-name">{{ group }}</span>
+                <i class="material-icons group-remove" style="display: none;">close</i>
+              </span>
+              {% endfor %}
+              <button class="add-group-btn" style="display: none;">
+                <i class="material-icons">add</i>
+              </button>
+            </span>
+          </div>
+          {% endif %}
+        </div>      
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div id="createVariableModal" class="modal" style="display: none;">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Create New Variable</h2>
+      <span class="close" id="closeModalX">&times;</span>
+    </div>
+    <div class="modal-body">
+      <form id="createVariableForm">
+        <div class="form-group">
+          <label for="newVariableName">Name:</label>
+          <input type="text" id="newVariableName" required>
+        </div>
+        <div class="form-group">
+          <label for="newVariableDescription">Description:</label>
+          <input type="text" id="newVariableDescription" required>
+        </div>
+        <div class="form-group">
+          <label for="newVariableValue">Value:</label>
+          <input type="text" id="newVariableValue" required>
+        </div>
+        <div class="form-group">
+          <label for="newVariableGroups">Groups (comma-separated):</label>
+          <input type="text" id="newVariableGroups">
+        </div>
+
+        <div class="modal-footer">
+          <button type="submit" class="btn--create">Create</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script type="module" src="{{ url_for('static', path='/js/variables.js') }}"></script>
+{% endblock %}

@@ -1,130 +1,151 @@
-<!-- templates/anchors.html -->
 {% extends "index.html" %}
 
 {% block page_title %}Anchors{% endblock %}
 
 {% block content %}
-<div class="anchors-container">
-  <div class="anchors-controls">
-    <div class="search-bar">
-      <i class="material-icons">search</i>
-      <input type="text" placeholder="Search anchors..." id="anchorSearch">
-    </div>
-    <div class="active-filters">
-      <div class="filter-label">Active filters:</div>
-      <div id="activeFilters" class="filter-tags">
-        <!-- Active filters will be inserted here by JavaScript -->
+<div class="anchors">
+  <div class="anchors__controls">
+    <div class="anchors__search">
+      <div class="anchors__search-field">
+	<i class="material-icons">label</i>
+	<input type="text" class="anchors__search-input" placeholder="Search by label..." id="labelSearch">
       </div>
-      {% if active_filters %}
-      <button class="btn-clear" onclick="clearFilters()">Clear All</button>
-      {% endif %}
+      <div class="anchors__search-field">
+	<i class="material-icons">title</i>
+	<input type="text" class="anchors__search-input" placeholder="Search by name..." id="nameSearch">
+      </div>
     </div>
+    <div class="anchors__controls-row">
+      <div class="anchors__filters">
+	<div class="anchors__filters-label">Active filters:</div>
+	<div id="activeFilters" class="filters__tags">
+          <!-- Active filters will be inserted here by JavaScript -->
+	</div>
+	<button class="btn btn--clear" id="clearFiltersBtn">Clear All</button>
+      </div>
+      <div class="sort">
+	<select id="sortSelect" class="sort__select">
+	  <option value="value-asc">Value ↑</option>
+	  <option value="value-desc">Value ↓</option>
+	  <option value="label-asc">Label A-Z</option>
+	  <option value="label-desc">Label Z-A</option>
+	</select>
+      </div>
+    </div>
+  </div>
 
-  <div class="anchors-grid" id="anchorsGrid">
+  <div class="anchors__grid" id="anchorsGrid">
 
     {% for label, anchor in anchors.items() %}
     <div class="anchor-card card" data-anchor="{{ label }}">
-      <div class="card-header">
-        <h3>{{ label }}</h3>
-	<button class="anchor-edit-btn" onclick="toggleAnchorEdit('{{ label }}')" title="Edit anchor">
-	  <i class="material-icons">edit</i>
-	</button>
-	<span class="edit-controls" style="display: none;">
-          <button class="btn-save" onclick="saveAnchorEdit('{{ label }}')">Save</button>
-          <button class="btn-cancel" onclick="cancelAnchorEdit('{{ label }}')">
-            <i class="material-icons">close</i>
-          </button>
-	</span>
+      <div class="card__header">
+        <h3 class="anchor-card__title edit-target" data-field="label">{{ label }}</h3>
+	<div class="anchor-card__controls">
+	  <button class="btn btn--icon btn--edit" data-action="edit" title="Edit anchor">
+	    <i class="material-icons">edit</i>
+	  </button>
+	  <span class="anchor-card__edit-controls" style="display: none;">
+	    <button class="btn btn--icon btn--delete" data-action="delete">
+	      <i class="material-icons">delete</i>
+	    </button>
+            <button class="btn btn--icon btn--save" data-action="save">
+	      <i class="material-icons">save</i>
+	    </button>
+            <button class="btn btn--icon btn--cancel" data-action="cancel">
+              <i class="material-icons">close</i>
+            </button>
+	  </span>
+	</div>
       </div>
-      <div class="card-body">
-        <div class="anchor-info">
-          <div class="info-row">
-            <span class="info-label">Name:</span>
-            <div class="info-value-container">
-              <div class="evaluated-value {% if anchor.name_original %}has-original{% endif %}">
-		<span class="value-display {% if not anchor.name_original %}edit-target{% endif %}" 
-                      data-field="name" 
-                      data-type="text">{{ anchor.name }}</span>
+      <div class="card__body">
+        <div class="anchor-card__info">
+          <div class="anchor-card__row">
+            <span class="anchor-card__label">Name:</span>
+            <div class="anchor-card__value-container">
+	      <div class="anchor-card__evaluated-value {% if anchor.name_original %}has-original{% endif %}">
+		<span class="anchor-card__value {% if not anchor.name_original %}edit-target{% endif %}" 
+			     data-field="name" 
+			     data-type="text">{{ anchor.name }}</span>
 
 		{% if anchor.name_original %}
-		<button class="show-original-btn" onclick="toggleOriginal(this)" title="Show original expression">
+		<button class="anchor-card__original-btn" title="Show original expression" data-target="name">
                   <i class="material-icons">code</i>
 		</button>
-		<div class="original-code">
-                  <pre class="code">{{ anchor.name_original }}</pre>
+		<div class="anchor-card__original-code">
+                  <pre class="anchor-card__code">{{ anchor.name_original }}</pre>
 		</div>
 		{% endif %}
-              </div>
+	      </div>
             </div>
           </div>
 
-          <div class="info-row">
-            <span class="info-label">Value:</span>
-	    <div class="info-value-container">
-              <div class="evaluated-value {% if anchor.value_original %}has-original{% endif %}">
-		<span class="value-display {% if not anchor.value_original %}edit-target{% endif %}" 
-                      data-field="value" 
-                      data-type="number">{{ anchor.value }}</span>
+          <div class="anchor-card__row">
+            <span class="anchor-card__label">Value:</span>
+	    <div class="anchor-card__value-container">
+	      <div class="anchor-card__evaluated-value {% if anchor.value_original %}has-original{% endif %}">
+		<span class="anchor-card__value {% if not anchor.value_original %}edit-target{% endif %}" 
+			     data-field="value" 
+			     data-type="number">{{ anchor.value }}</span>
 		
 		{% if anchor.value_original %}
-		<button class="show-original-btn" onclick="toggleOriginal(this)" title="Show original expression">
+		<button class="anchor-card__original-btn" title="Show original expression" data-target="value">
                   <i class="material-icons">code</i>
 		</button>
-		<div class="original-code">
-                  <pre class="code">{{ anchor.value_original }}</pre>
+		<div class="anchor-card__original-code">
+                  <pre class="anchor-card__code">{{ anchor.value_original }}</pre>
 		</div>
 		{% endif %}
-              </div>
+	      </div>
 
 	    </div>
           </div>
 
           {% if anchor.uncertainty %}
-          <div class="info-row">
-            <span class="info-label">Uncertainty:</span>
-            <div class="uncertainty-info">
-              <div>Absolute: {{ anchor.uncertainty.absolute }}</div>
-              <div>Relative: {{ anchor.uncertainty.relative }}</div>
-              {% if anchor.uncertainty.confidence_95 %}
-              <div>95% Confidence: 
+          <div class="anchor-card__row">
+            <span class="anchor-card__label">Uncertainty:</span>
+            <div class="anchor-card__uncertainty">
+	      <div class="anchor-card__uncertainty-item">Absolute: {{ anchor.uncertainty.absolute }}</div>
+	      <div class="anchor-card__uncertainty-item">Relative: {{ anchor.uncertainty.relative }}</div>
+	      {% if anchor.uncertainty.confidence_95 %}
+	      <div class="anchor-card__uncertainty-item">95% Confidence: 
                 [{{ anchor.uncertainty.confidence_95[0] }}, 
                 {{ anchor.uncertainty.confidence_95[1] }}]
-              </div>
-              {% endif %}
+	      </div>
+	      {% endif %}
             </div>
           </div>
           {% endif %}
-          <div class="info-row">
-            <span class="info-label">Formats:</span>
-            <div class="formats-list">
-              {% for format in anchor.formats %}
-              <div class="format-item">
+          <div class="anchor-card__row">
+            <span class="anchor-card__label">Formats:</span>
+            <div class="anchor-card__formats">
+	      {% for format in anchor.formats %}
+	      <div class="anchor-card__format">
                 {% if format.format %}
-                <span class="format-type">{{ format.format }}</span>
+                <span class="anchor-card__format-type">{{ format.format }}</span>
                 {% endif %}
                 {% if format.units %}
-                <span class="format-units">{{ format.units|join(', ') }}</span>
+                <span class="anchor-card__format-units">{{ format.units|join(', ') }}</span>
                 {% endif %}
                 {% if format.options %}
-                <span class="format-options">{{ format.options }}</span>
+                <span class="anchor-card__format-options">{{ format.options }}</span>
                 {% endif %}
-              </div>
-              {% endfor %}
+	      </div>
+	      {% endfor %}
             </div>
           </div>
 	  {% if anchor.groups %}
-	  <div class="info-row">
-	    <span class="info-label">Groups:</span>
-	    <span class="info-value groups edit-target" data-field="groups">
-              {% for group in anchor.groups %}
-              <span class="group-tag">
-		<span class="group-name">{{ group }}</span>
-		<i class="material-icons group-remove" style="display: none;">close</i>
-              </span>
-              {% endfor %}
-              <button class="add-group-btn" style="display: none;">
+	  <div class="anchor-card__row">
+	    <span class="anchor-card__label">Groups:</span>
+	    <span class="groups edit-target" data-field="groups">
+	      {% for group in anchor.groups %}
+	      <span class="groups__tag">
+		<span class="groups__name">{{ group }}</span>
+		<i class="groups__remove material-icons">close</i>
+	      </span>
+	      {% endfor %}
+	      <button class="groups__add">
 		<i class="material-icons">add</i>
-              </button>
+	      </button>
 	    </span>
 	  </div>
 	  {% endif %}
@@ -134,5 +155,10 @@
     </div>
     {% endfor %}
   </div>
-  </div>
+
+  {% endblock %}
+
+  {% block scripts %}
+  {{ super() }}
+  <script type="module" src="{{ url_for('static', path='/js/anchors.js') }}"></script>
   {% endblock %}

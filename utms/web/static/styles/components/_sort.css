@@ -1,0 +1,25 @@
+.sort {
+    flex-shrink: 0;
+    margin: var(--spacing-md) 0;
+    padding: 0 var(--spacing-md);
+}
+
+.sort__select {
+    padding: var(--spacing-xs) var(--spacing-md);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--border-radius);
+    background: white;
+    cursor: pointer;
+    color: var(--text-color);
+    font-size: var(--font-size-base);
+}
+
+.sort__select:hover {
+    border-color: var(--accent-color);
+}
+
+.sort__select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.1);
+}

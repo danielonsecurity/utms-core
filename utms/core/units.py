@@ -260,18 +260,18 @@ class FixedUnitManager(FixedUnitManagerProtocol):
     def add_unit(self, unit) -> None:
         self._units[unit.label] = unit
 
-    def create_unit(self, config: UnitConfig) -> None:
-        """Adds a new time unit to the manager and ensures the units are sorted
-        by value.
+    def create_unit(self, label:str, name:str, value:Union[str, Decimal], groups: Optional[List[str]] = None) -> Unit:
+        if label in self._units:
+            raise ValueError(f"Unit with label '{label}' already exists")
 
-        Args:
-            name (str): The full name of the time unit.
-            label (str): The label of the time unit.
-            value (Decimal): The value of the unit in seconds.
-        """
+        config = UnitConfig(label=label,
+                            name=name,
+                            value=Decimal(value),
+                            groups=groups or [])
         new_unit = Unit(config)
-        self._units[config.label] = new_unit
+        self.add_unit(new_unit)
         self._sort_units()
+        return new_unit
 
     def _sort_units(self) -> None:
         """Sort the units by their value (in seconds)."""
