@@ -651,7 +651,7 @@ class AnchorManager(AnchorManagerProtocol):
         Returns:
             List[Anchor]: A list of anchors belonging to the specified group.
         """
-        return [anchor for anchor in self._anchors.values() if group_name in (anchor.groups or [])]
+        return [anchor for anchor in self._anchors.values() if group_name in (hy_to_python(anchor.groups) or [])]
 
     def get_anchors_from_str(self, input_text: str) -> List[Anchor]:
         """Parses a comma-separated string and returns a sorted list of

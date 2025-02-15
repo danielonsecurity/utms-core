@@ -55,7 +55,7 @@ def print_time(
     """
     # Convert timestamp to total seconds
     total_seconds = Decimal(timestamp.timestamp()) if isinstance(timestamp, datetime) else timestamp
-
+    
     # Get anchor list
     anchor_list = (
         config.anchors.get_anchors_by_group("default")
@@ -63,7 +63,6 @@ def print_time(
         else config.anchors.get_anchors_from_str(anchors)
     )
     anchor_list = list(set(anchor_list))
-
     # Override formats if specified
     if formats:
         for anchor in anchor_list:

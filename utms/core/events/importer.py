@@ -120,4 +120,3 @@ manager = EventManager()
 url = "https://www.officeholidays.com/ics-local-name/germany"
 import_ics_calendar(url, manager)
 export_events_to_hy(list(manager.events.values()), "/tmp/holidays.hy")
-breakpoint()

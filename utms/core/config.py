@@ -40,7 +40,7 @@ from ..loaders.unit_loader import (
     parse_unit_definitions,
     resolve_unit_properties,
 )
-from ..loaders.fixed_unit_loader import parse_fixed_unit_definitions, initialize_fixed_units, process_fixed_units
+from ..loaders.fixed_unit_loader import  initialize_fixed_units, process_fixed_units
 from ..loaders.variable_loader import process_variables
 from ..resolvers import (
     AnchorResolver,
@@ -60,12 +60,15 @@ from ..utms_types import (
     FixedUnitManagerProtocol,
     NestedConfig,
     OptionalString,
+    HyProperty,
     is_expression,
 )
 from . import constants
 from .anchors import AnchorConfig, AnchorManager
 from .events import EventManager
 from .units import FixedUnitManager
+from .variables import VariableManager
+
 
 logger = get_logger("core.config")
 
@@ -97,6 +100,7 @@ class Config(ConfigProtocol):
         self.resolver = ConfigResolver()
         self._variable_resolver = VariableResolver
         self._variables = {}
+        self._variable_manager = VariableManager()
         self._load_variables()
         self._load_hy_config()
         set_log_level(self.loglevel)
@@ -174,7 +178,15 @@ class Config(ConfigProtocol):
         if os.path.exists(variables_hy):
             expressions = evaluate_hy_file(variables_hy)
             if expressions:
-                self._variables = process_variables(expressions)
+                self._variable_manager = process_variables(expressions)
+                self._variables = {name: HyProperty(value=self._variable_manager.get_value(name),
+                                                    original=self._variable_manager.get_variable(name).original)
+                                   for name in self._variable_manager.resolved_vars.keys()}
+
+    def save_variables(self) -> None:
+        variables_hy = os.path.join(self.utms_dir, "variables.hy")
+        self._variable_manager.save(variables_hy)
+                
 
     def _load_events(self) -> None:
         events_file = os.path.join(self.utms_dir, "events.hy")
@@ -214,7 +226,11 @@ class Config(ConfigProtocol):
         if os.path.exists(anchors_file):
             try:
                 nodes = self._ast_manager.parse_file(anchors_file)
-                anchor_instances = process_anchors(nodes, self._variables)
+                variables_dict = {
+                    name: prop.value
+                    for name, prop in self._variables.items()
+                    }
+                anchor_instances = process_anchors(nodes, variables_dict)
                 for anchor in anchor_instances.values():
                     self._anchors.add_anchor(anchor)
             except Exception as e:

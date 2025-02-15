@@ -1,0 +1,52 @@
+{% extends "index.html" %}
+
+{% block page_title %}Resolve Time{% endblock %}
+
+{% block content %}
+<div class="resolve">
+  <div class="resolve__search">
+    <div class="resolve__search-container">
+      <input type="text" 
+             class="resolve__search-input" 
+             id="resolveInput" 
+             placeholder="Enter time expression (e.g., 'end of ww2')">
+      <button class="btn btn--primary" id="resolveBtn">
+        <i class="material-icons">schedule</i>
+        Resolve
+      </button>
+    </div>
+  </div>
+
+  <div class="resolve__anchors">
+    <div class="resolve__anchors-header">
+      <h3 class="resolve__anchors-title">Select Anchors</h3>
+      <div class="resolve__anchors-controls">
+        <button class="btn btn--secondary" id="selectAllAnchors">Select All</button>
+        <button class="btn btn--secondary" id="deselectAllAnchors">Deselect All</button>
+      </div>
+    </div>
+    <div class="resolve__anchors-grid">
+      {% for label, anchor in anchors.items() %}
+      <div class="resolve__anchor-item">
+        <label class="resolve__anchor-label">
+          <input type="checkbox" 
+                 class="resolve__anchor-checkbox" 
+                 value="{{ label }}"
+                 checked>
+          <span class="resolve__anchor-name">{{ anchor.name }}</span>
+        </label>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div class="resolve__results" id="resolveResults">
+    <!-- Results will be inserted here by JavaScript -->
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script type="module" src="{{ url_for('static', path='/js/resolve.js') }}"></script>
+{% endblock %}

@@ -8,7 +8,7 @@ from colorama import Fore, Style
 
 from utms.utms_types import FixedUnitManagerProtocol, UnitProtocol, HyProperty, UnitConfig
 from utms.resolvers import HyNode
-from ..resolvers.hy_ast import HyAST
+from ..resolvers import HyAST
 
 from .plt import seconds_to_hplt, seconds_to_pplt
 

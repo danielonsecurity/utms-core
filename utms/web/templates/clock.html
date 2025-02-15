@@ -1,0 +1,148 @@
+{% extends "index.html" %}
+
+{% block page_title %}Clocks{% endblock %}
+
+{% block content %}
+<div class="clocks">
+  <div class="clocks__controls">
+    <button class="btn btn--primary" id="addClockBtn">
+      <i class="material-icons">add</i>Add Clock
+    </button>
+  </div>
+
+  <div class="clocks__grid" id="clocksGrid">
+    <!-- Clocks will be added here dynamically -->
+  </div>
+
+  <!-- Clock Configuration Modal -->
+  <div class="modal" id="clockConfigModal">
+    <div class="modal__content">
+      <div class="modal__header">
+        <h2 class="modal__title">Configure Clock</h2>
+        <span class="modal__close">&times;</span>
+      </div>
+      <div class="modal__body">
+        <form id="clockConfigForm" class="modal__form">
+          <!-- Basic Configuration -->
+          <div class="modal__form-group">
+            <label class="modal__form-label">Clock Name:</label>
+            <input type="text" class="modal__form-input" name="name" required>
+          </div>
+
+          <div class="modal__form-group">
+            <label class="modal__form-label">Timezone Offset (hours):</label>
+            <input type="number" class="modal__form-input" name="timezoneOffset" value="0">
+          </div>
+
+          <!-- Animation Configuration -->
+          <div class="modal__form-group">
+            <h3>Animation Settings</h3>
+            <div class="modal__form-checkbox">
+              <input type="checkbox" name="animation.enabled" id="animationEnabled" checked>
+              <label for="animationEnabled">Enable Animation</label>
+            </div>
+            <div class="modal__form-checkbox">
+              <input type="checkbox" name="animation.smoothSeconds" id="smoothSeconds" checked>
+              <label for="smoothSeconds">Smooth Seconds Movement</label>
+            </div>
+          </div>
+
+          <!-- Theme Configuration -->
+          <div class="modal__form-group">
+            <h3>Theme Settings</h3>
+            <div class="theme-config">
+              <label>Frame Color:</label>
+              <input type="color" name="theme.frameColor" value="#636363">
+              
+              <label>Background Color:</label>
+              <input type="color" name="theme.backgroundColor" value="#E8E8E8">
+              
+              <label>Text Color:</label>
+              <input type="color" name="theme.textColor" value="#000000">
+              
+              <label>Tick Color:</label>
+              <input type="color" name="theme.tickColor" value="#636363">
+              
+              <label>Center Dot Color:</label>
+              <input type="color" name="theme.centerDotColor" value="#636363">
+            </div>
+          </div>
+
+          <!-- Hands Configuration -->
+          <div class="modal__form-group">
+            <h3>Hands Configuration</h3>
+            <div id="handsConfig">
+              <!-- Hour Hand -->
+              <div class="hand-config">
+                <label>Hour Hand:</label>
+                <input type="number" name="hands[0].rotation" value="43200">
+                <input type="color" name="hands[0].color" value="#4A4A4A">
+                <input type="number" name="hands[0].length" value="0.5" step="0.1" min="0" max="1">
+                <div class="modal__form-checkbox">
+                  <input type="checkbox" name="hands[0].smooth" id="hourSmooth">
+                  <label for="hourSmooth">Smooth Movement</label>
+                </div>
+              </div>
+              <!-- Minute Hand -->
+              <div class="hand-config">
+                <label>Minute Hand:</label>
+                <input type="number" name="hands[1].rotation" value="3600">
+                <input type="color" name="hands[1].color" value="#000000">
+                <input type="number" name="hands[1].length" value="0.8" step="0.1" min="0" max="1">
+                <div class="modal__form-checkbox">
+                  <input type="checkbox" name="hands[1].smooth" id="minuteSmooth">
+                  <label for="minuteSmooth">Smooth Movement</label>
+                </div>
+              </div>
+              <!-- Second Hand -->
+              <div class="hand-config">
+                <label>Second Hand:</label>
+                <input type="number" name="hands[2].rotation" value="60">
+                <input type="color" name="hands[2].color" value="#FF3131">
+                <input type="number" name="hands[2].length" value="0.9" step="0.1" min="0" max="1">
+                <div class="modal__form-checkbox">
+                  <input type="checkbox" name="hands[2].smooth" id="secondSmooth" checked>
+                  <label for="secondSmooth">Smooth Movement</label>
+                </div>
+              </div>
+            </div>
+            <button type="button" id="addHandBtn" class="btn btn--secondary">Add Hand</button>
+          </div>
+
+          <!-- Scales Configuration -->
+          <div class="modal__form-group">
+            <h3>Outer Scale Configuration</h3>
+            <label>Number of Major Divisions:</label>
+            <input type="number" name="outerScale.divisions" value="12">
+            <label>Subdivisions per Division:</label>
+            <input type="number" name="outerScale.subdivisions" value="5">
+          </div>
+
+          <div class="modal__form-group">
+            <h3>Inner Scale Configuration</h3>
+            <div class="modal__form-checkbox">
+              <input type="checkbox" name="innerScale.enabled" id="innerScaleEnabled">
+              <label for="innerScaleEnabled">Enable Inner Scale</label>
+            </div>
+            <div id="innerScaleConfig" style="display: none;">
+              <label>Number of Divisions:</label>
+              <input type="number" name="innerScale.divisions" value="864">
+              <label>Major Division Every:</label>
+              <input type="number" name="innerScale.majorDivision" value="100">
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal__footer">
+        <button class="modal__btn modal__btn--save" id="saveClockConfig">Save Clock</button>
+        <button class="modal__btn modal__btn--cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script type="module" src="{{ url_for('static', path='/js/clock.js') }}"></script>
+{% endblock %}

@@ -53,7 +53,7 @@ def filter_relevant_units(total_seconds: Decimal, unit_list: List) -> List:
     # Filter units
     relevant_units = [unit for unit in unit_list if Decimal(unit.value) >= min_unit_value]
 
-    logger.debug(f"Filtered units: {[u.abbreviation for u in relevant_units]}")
+    logger.debug(f"Filtered units: {[u.label for u in relevant_units]}")
     return relevant_units
 
 
@@ -98,7 +98,7 @@ class UnitsFormatter(FormatterProtocol):
                 count = remaining // unit_value
                 remaining %= unit_value
 
-            result[unit.abbreviation] = count
+            result[unit.label] = count
 
         return result
 
@@ -122,7 +122,7 @@ class UnitsFormatter(FormatterProtocol):
         style = opts.style
         started = False
 
-        for unit_abbrev, count in result.items():
+        for unit_label, count in result.items():
             # Skip leading zeros
             if not started and count == 0:
                 continue
@@ -137,14 +137,14 @@ class UnitsFormatter(FormatterProtocol):
                 value_str = f"{int(count)}"
 
             if style == "full":
-                unit_name = units.get_unit(unit_abbrev).name + ("s" if count != 1 else "")
+                unit_name = units.get_unit(unit_label).name + ("s" if count != 1 else "")
                 unit_str = unit_name if opts.raw else ColorFormatter.green(unit_name)
                 parts.append(f"{value_str} {unit_str}")
             elif style == "short":
-                unit_str = unit_abbrev if opts.raw else ColorFormatter.green(unit_abbrev)
+                unit_str = unit_label if opts.raw else ColorFormatter.green(unit_label)
                 parts.append(f"{value_str}{unit_str}")
             elif style == "compact":
-                unit_str = unit_abbrev if opts.raw else ColorFormatter.green(unit_abbrev)
+                unit_str = unit_label if opts.raw else ColorFormatter.green(unit_label)
                 parts.append(f"{value_str}{unit_str}")
 
         if not parts:  # If all values were zero
@@ -154,7 +154,7 @@ class UnitsFormatter(FormatterProtocol):
                 return f"0 {unit_str}s"
             else:
                 unit_str = (
-                    unit.abbreviation if opts.raw else ColorFormatter.green(unit.abbreviation)
+                    unit.label if opts.raw else ColorFormatter.green(unit.label)
                 )
                 return f"0{unit_str}"
 
@@ -165,35 +165,6 @@ class UnitsFormatter(FormatterProtocol):
         else:  # short
             return " ".join(parts)
 
-        # for unit_abbrev, count in result.items():
-        #     if not started and count == 0:
-        #         continue
-        #     started = True
-        #     unit = units.get_unit(unit_abbrev)
-
-        #     # Format the count
-        #     if isinstance(count, Decimal) and count % 1 != 0:
-        #         value_str = f"{count:.2f}"
-        #     else:
-        #         value_str = f"{int(count)}"
-
-        #     if style == 'full':
-        #         unit_name = unit.name + ('s' if count != 1 else '')
-        #         unit_str = unit_name if opts.raw else ColorFormatter.green(unit_name)
-        #         parts.append(f"{value_str} {unit_str}")
-        #     elif style == 'short':
-        #         unit_str = unit_abbrev if opts.raw else ColorFormatter.green(unit_abbrev)
-        #         parts.append(f"{value_str}{unit_str}")
-        #     elif style == 'compact':
-        #         unit_str = unit_abbrev if opts.raw else ColorFormatter.green(unit_abbrev)
-        #         parts.append(f"{value_str}{unit_str}")
-
-        # if style == 'compact':
-        #     return "".join(parts)
-        # elif style == 'full':
-        #     return ", ".join(parts)
-        # else:  # short
-        #     return " ".join(parts)
 
     def _get_meaningful_units(
         self, total_seconds: Decimal, uncertainty: TimeUncertainty, units: FixedUnitManagerProtocol
@@ -219,7 +190,7 @@ class UnitsFormatter(FormatterProtocol):
             effective_uncertainty = max(abs_uncertainty, rel_uncertainty)
 
             logger.debug(
-                f"Unit {unit.abbreviation}: value={unit_value}, "
+                f"Unit {unit.label}: value={unit_value}, "
                 f"abs_unc={abs_uncertainty}, rel_unc={rel_uncertainty}, "
                 f"effective_unc={effective_uncertainty}"
             )
@@ -236,7 +207,7 @@ class UnitsFormatter(FormatterProtocol):
                 meaningful_units.append(unit)
                 remaining %= unit_value
                 logger.debug(
-                    f"Added unit {unit.abbreviation} (count={count}, remaining={remaining})"
+                    f"Added unit {unit.label} (count={count}, remaining={remaining})"
                 )
 
         # Always include at least one unit
@@ -245,173 +216,9 @@ class UnitsFormatter(FormatterProtocol):
 
         return meaningful_units
 
-    # class UnitsFormatter(FormatterProtocol):
-    #     def __init__(self, config: Optional[FormatterConfig] = None):
-    #         self.config = config or FormatterConfig()
-
-    #     def format(self, total_seconds: Decimal, units: FixedUnitManagerProtocol,
-    #                uncertainty: TimeUncertainty, options: dict) -> str:
-    #         opts = FormattingOptions(**options)
-    #         if "units" in options:
-    #             unit_list = [units.get_unit(u) for u in options["units"]]
-    #             breakpoint()
-    #         if opts.style == "scientific":
-    #             formatted = self._format_scientific(total_seconds, uncertainty, opts)
-    #         else:
-    #             meaningful_units = self._get_meaningful_units(total_seconds, uncertainty, units)
-
-    #             if not meaningful_units:
-    #                 return "No appropriate unit found"
-
-    #             result = self._calculate_unit_values(total_seconds, meaningful_units)
-    #             formatted = self._format_result(total_seconds, result, units, uncertainty, opts)
-    #         return self._add_prefix(formatted, total_seconds, opts.raw)
-
-    # def _get_meaningful_units(self, total_seconds: Decimal,
-    #                         uncertainty: TimeUncertainty,
-    #                         units: FixedUnitManagerProtocol) -> List:
-    #     effective_uncertainty = uncertainty.get_effective_uncertainty(total_seconds)
-    #     decimal_units = sorted(
-    #         units.get_units_by_groups(["decimal", "scientific", "second"], True),
-    #         key=lambda u: Decimal(u.value),
-    #         reverse=True
-    #     )
-
-    #     return [
-    #         unit for unit in decimal_units
-    #         if (Decimal(unit.value) >= effective_uncertainty and
-    #             Decimal(unit.value) <= abs(total_seconds))
-    #     ]
-
-    #     def _calculate_unit_values(self, total_seconds: Decimal,
-    #                              units: List) -> Dict[str, int]:
-    #         result = {}
-    #         remaining = abs(total_seconds)
-
-    #         for unit in units:
-    #             unit_value = Decimal(unit.value)
-    #             count = remaining // unit_value
-    #             if count > 0:
-    #                 remaining %= unit_value
-    #                 result[unit.abbreviation] = int(count)
-
-    #         return result
-
-    #     def _format_result(self, total_seconds: Decimal,
-    #                       result: Dict[str, int],
-    #                       units: FixedUnitManagerProtocol,
-    #                       uncertainty: TimeUncertainty,
-    #                       opts: FormattingOptions) -> str:
-    #         if opts.style == 'scientific':
-    #             return self._format_scientific(
-    #                 total_seconds,
-    #                 uncertainty,
-    #                 opts.show_confidence
-    #             )
-
-    #         return self._format_units(result, units, opts.style)
-
-    #     def _format_scientific(self, value: Decimal,
-    #                          uncertainty: TimeUncertainty,
-    #                          opts: FormattingOptions) -> str:
-    #         """Format value in scientific notation."""
-    #         if opts.notation == NotationType.SCIENTIFIC:
-    #             value_str = f"{abs(value):.2e}"  # 1.74e+9
-    #             if opts.show_uncertainty:
-    #                 uncert = uncertainty.get_effective_uncertainty(value)
-    #                 uncert_str = f"{uncert:.2e}"
-    #                 formatted = f"{value_str} ± {uncert_str}"
-    #                 if opts.show_confidence and uncertainty.confidence_95:
-    #                     low, high = uncertainty.confidence_95
-    #                     formatted += f" (95% CI: {low:.2e}-{high:.2e})"
-    #                 return formatted
-    #             return value_str
-
-    #         elif opts.notation == NotationType.ENGINEERING:
-    #             # Convert to engineering notation (powers of 3)
-    #             exp = value.adjusted()
-    #             eng_exp = (exp // 3) * 3
-    #             mantissa = value / Decimal(10) ** eng_exp
-    #             value_str = f"{mantissa:.3f}×10{self._superscript(eng_exp)}"
-
-    #             if opts.show_uncertainty:
-    #                 uncert = uncertainty.get_effective_uncertainty(value)
-    #                 uncert_mantissa = uncert / Decimal(10) ** eng_exp
-    #                 return f"{value_str} ± {uncert_mantissa:.3f}×10{self._superscript(eng_exp)}"
-    #             return value_str
-
-    #         elif opts.notation == NotationType.MEASUREMENT:
-    #             # Compact measurement notation with uncertainty in parentheses
-    #             exp = value.adjusted()
-    #             eng_exp = (exp // 3) * 3
-    #             mantissa = value / Decimal(10) ** eng_exp
-    #             uncert = uncertainty.get_effective_uncertainty(value)
-    #             uncert_mantissa = uncert / Decimal(10) ** eng_exp
-    #             # Format as 1.738809452(174)×10⁹
-    #             return f"{mantissa:.9f}({int(uncert_mantissa*1e9)})×10{self._superscript(eng_exp)}"
-
-    #         return f"{abs(value):.2f}"
-
-    #     def _superscript(self, n: int) -> str:
-    #         """Convert number to superscript."""
-    #         superscript_map = str.maketrans("0123456789+-", "⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻")
-    #         return str(n).translate(superscript_map)
-
-    #     # def _format_scientific(self, value: Decimal,
-    #     #                      uncertainty: TimeUncertainty,
-    #     #                      show_confidence: bool) -> str:
-    #     #     effective_uncertainty = uncertainty.get_effective_uncertainty(value)
-    #     #     formatted = f"{abs(value):.2f} ± {effective_uncertainty:.2f}"
-
-    #     #     if show_confidence and uncertainty.confidence_95:
-    #     #         low, high = uncertainty.confidence_95
-    #     #         formatted += f" (95% CI: {low:.2f}-{high:.2f})"
-
-    #     #     return formatted
-
-    #     def _format_units(self, result: Dict[str, int],
-    #                      units: FixedUnitManagerProtocol,
-    #                      style: str) -> str:
-    #         if style == 'full':
-    #             parts = [f"{count} {units.get_unit(unit).name}s"
-    #                     for unit, count in result.items()]
-    #             return ", ".join(parts)
-
-    #         elif style == 'short':
-    #             parts = [f"{count}{unit}"
-    #                     for unit, count in result.items()]
-    #             return " ".join(parts)
-
-    #         elif style == 'compact':
-    #             parts = [f"{count}{unit}"
-    #                     for unit, count in result.items()]
-    #             return "".join(parts)
-
-    #         return ""
-
     def _add_prefix(self, formatted: str, value: Decimal, raw: bool) -> str:
         if raw:
             return ("+" if value > 0 else "-") + formatted
         return (
             ColorFormatter.green("  + ") if value > 0 else ColorFormatter.red("  - ")
         ) + formatted
-
-
-#     def _format_uncertainty(self, value: Decimal) -> str:
-#         """Format uncertainty value."""
-#         if self.config.show_percentage:
-#             formatted = f"{value * 100:.{self.config.significant_digits}f}%"
-#         else:
-#             formatted = f"{value:.{self.config.significant_digits}f}"
-
-#         if self.config.color_uncertainty:
-#             return ColorFormatter.yellow(formatted)
-#         return formatted
-
-#     def _format_confidence_interval(self, lower: Decimal, upper: Decimal) -> str:
-#         """Format confidence interval."""
-#         formatted = f"({self.config.confidence_level * 100:.0f}% CI: {lower:.{self.config.significant_digits}f}-{upper:.{self.config.significant_digits}f})"
-
-#         if self.config.color_uncertainty:
-#             return ColorFormatter.yellow(formatted)
-#         return formatted

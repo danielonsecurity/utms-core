@@ -1,5 +1,8 @@
 import os
+import hy
 from typing import Any, Dict, Optional
+
+from utms.utms_types.hy.types import HyProperty
 
 from ..core.anchors import Anchor, AnchorConfig
 from ..resolvers import VariableResolver, evaluate_hy_file
@@ -12,6 +15,7 @@ from ..utms_types import (
     ResolvedValue,
     is_expression,
 )
+from ..core.variables import VariableManager
 
 logger = get_logger("core.anchor.variable_loader")
 
@@ -36,19 +40,24 @@ def parse_variable_definitions(variable_data: ExpressionList) -> Dict[str, dict]
         var_name = str(var_name_sym)
         logger.debug("Processing variable: %s", var_name)
 
-        variables[var_name] = {"name": var_name, "value": var_value}
+        variables[var_name] = {"name": var_name, "value": HyProperty(value=var_value,
+                                                                     original=hy.repr(var_value))}
 
     return variables
 
 
-def initialize_variables(parsed_vars: Dict[str, dict]) -> Dict[str, Any]:
+def initialize_variables(parsed_vars: Dict[str, dict]) -> VariableManager:
     """Create resolved variables from parsed definitions."""
-    variables = {}
+    manager = VariableManager()
     for var_name, var_info in parsed_vars.items():
-        resolved_value = _resolver.resolve(var_info["value"])
-        variables[var_name] = resolved_value
+        var_property = var_info["value"]
+        resolved_value = _resolver.resolve(var_property.value)
+        original = var_property.original.strip("'") if var_property.original else None
+        manager.add_variable(name=var_name,
+                             value=resolved_value,
+                             original=original)
         _resolver._resolved_vars[var_name] = resolved_value
-    return variables
+    return manager
 
 
 def process_variables(variable_data: ExpressionList) -> Dict[str, Any]:
@@ -56,6 +65,6 @@ def process_variables(variable_data: ExpressionList) -> Dict[str, Any]:
     logger.debug("Starting process_variables")
     parsed_vars = parse_variable_definitions(variable_data)
     logger.debug("Parsed variables: %s", list(parsed_vars.keys()))
-    variables = initialize_variables(parsed_vars)
-    logger.debug("Initialized variables: %s", list(variables.keys()))
-    return variables
+    variable_manager = initialize_variables(parsed_vars)
+    logger.debug("Initialized variables: %s", list(variable_manager.resolved_vars.keys()))
+    return variable_manager

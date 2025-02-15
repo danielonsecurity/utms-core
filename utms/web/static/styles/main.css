@@ -18,11 +18,6 @@
 @import 'pages/_config.css';
 @import 'pages/_units.css';
 @import 'pages/_anchors.css';
-/* @import 'styles/pages/_anchors.css'; */
-/* @import 'styles/pages/_variables.css'; */
-
-/* /\* Utilities *\/ */
-/* @import 'styles/utils/_animations.css'; */
-/* @import 'styles/utils/_spacing.css'; */
-/* @import 'styles/utils/_flexbox.css'; */
-/* @import 'styles/utils/_grid.css'; */
+@import 'pages/_variables.css';
+@import 'pages/_resolve.css';
+@import 'pages/_clock.css';
