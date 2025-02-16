@@ -1,0 +1,110 @@
+.modal {
+    display: none;
+    position: fixed;
+    z-index: var(--z-modal);
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.4);
+}
+
+.modal__content {
+    background-color: var(--background-color);
+    margin: 10% auto;
+    padding: 20px;
+    border: 1px solid var(--primary-color);
+    border-radius: 5px;
+    width: 80%;
+    max-width: 500px;
+}
+
+.modal__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.modal__title {
+    margin: 0;
+    color: var(--text-color);
+}
+
+.modal__close {
+    color: var(--text-color);
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.modal__body {
+    margin-bottom: 20px;
+}
+
+.modal__footer {
+    margin-top: 20px;
+    text-align: right;
+}
+
+.modal__form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+}
+
+.modal__form-group {
+    margin-bottom: 15px;
+}
+
+.modal__form-label {
+    display: block;
+    margin-bottom: 5px;
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.modal__form-input {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid var(--primary-color);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-base);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.modal__form-input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 2px rgba(41, 182, 246, 0.2);
+}
+
+.modal__btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: var(--font-size-base);
+}
+
+.modal__btn--create {
+    background-color: var(--primary-color);
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.modal__btn--create:hover {
+    background-color: var(--accent-color);
+}
+
+.modal__btn--cancel {
+    background-color: var(--gray-400);
+    color: var(--text-color);
+    margin-right: 8px;
+}
+
+.modal__btn--cancel:hover {
+    background-color: var(--gray-500);
+}

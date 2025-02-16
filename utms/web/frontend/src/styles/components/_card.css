@@ -1,0 +1,24 @@
+.card {
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.card__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    background: var(--primary-color);
+    color: white;
+}
+
+.card__title {
+    margin: 0;
+    font-size: var(--font-size-lg);
+}
+
+.card__body {
+    padding: var(--spacing-md);
+}

@@ -1,0 +1,63 @@
+.config {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--spacing-lg);
+    padding: var(--spacing-md);
+}
+.config__item {
+    background: white;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.config__label {
+    color: white;
+    font-weight: 500;
+}
+
+.config__list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.config__list-item {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+}
+
+.config__input,
+.config__select {
+    flex: 1;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-base);
+}
+
+.config__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.3s;
+}
+
+.config__btn--save {
+    background: var(--primary-color);
+    color: white;
+}
+
+.config__btn--add {
+    background: var(--secondary-color);
+    color: white;
+    margin-top: var(--spacing-sm);
+}
+
+.config__btn:hover {
+    background: var(--accent-color);
+}

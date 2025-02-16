@@ -1,0 +1,91 @@
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 240px;
+  background: var(--sidebar-background);
+  color: var(--sidebar-text);
+  transition: width 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+}
+
+.sidebarCollapsed {
+  width: 64px;
+}
+
+.header {
+  padding: var(--spacing-md);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.logo {
+  height: 32px;
+  width: 32px;
+}
+
+.headerTitle {
+  margin: 0;
+  font-family: 'Orbitron', sans-serif;
+  font-size: var(--font-size-lg);
+}
+
+.sidebarCollapsed .headerTitle {
+  display: none;
+}
+
+.nav {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  flex: 1;
+}
+
+.navItem {
+  margin: var(--spacing-xs) 0;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  padding: var(--spacing-sm) var(--spacing-md);
+  color: var(--sidebar-text);
+  text-decoration: none;
+  gap: var(--spacing-md);
+}
+
+.navIcon {
+  font-size: 24px;
+}
+
+.sidebarCollapsed .navText {
+  display: none;
+}
+
+.navItemActive .navLink {
+  background: var(--sidebar-active);
+  color: var(--sidebar-active-text);
+}
+
+.toggle {
+  padding: var(--spacing-md);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.toggleButton {
+  background: none;
+  border: none;
+  color: var(--sidebar-text);
+  cursor: pointer;
+  padding: var(--spacing-xs);
+  border-radius: 50%;
+}
+
+.toggleButton:hover {
+  background: var(--sidebar-hover);
+}

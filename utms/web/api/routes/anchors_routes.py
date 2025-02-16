@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Body, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from decimal import Decimal
 import hy
 from utms.web.api.models import config
@@ -44,7 +44,7 @@ async def anchors_page(request: Request):
         }
     )
 
-@router.get("/")
+@router.get("/api/anchors", response_class=JSONResponse)
 async def get_anchors():
     anchors_data = {}
     for anchor in config.anchors._anchors.values():
@@ -61,7 +61,7 @@ async def get_anchors():
         }
     return anchors_data
 
-@router.put("/{label}/{field}")
+@router.put("/api/anchors/{label}/{field}", response_class=JSONResponse)
 async def update_anchor(label: str, field: str, value: dict):
     try:
         anchor = config.anchors.get(label)

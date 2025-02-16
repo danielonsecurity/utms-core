@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Body, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from decimal import Decimal
 import hy
 from utms.web.api.models import config
@@ -30,7 +30,7 @@ async def units_page(request: Request):
          "format_scientific": format_scientific}
     )
 
-@router.get("/")
+@router.get("/api/units", response_class=JSONResponse)
 async def get_units():
     units_data = {}
     for unit in config.units._units.values():
@@ -41,7 +41,59 @@ async def get_units():
         }
     return units_data
 
-@router.put("/{label}/{field}")
+
+@router.put("/api/units/{label}", response_class=JSONResponse)
+async def update_unit_bulk(label: str, updates: dict = Body(...)):
+    try:
+        unit = config.units.get_unit(label)
+        if not unit:
+            raise HTTPException(status_code=404, detail="Unit not found")
+
+        current_label = label
+        
+        # Process updates in specific order: label first, then others
+        if "label" in updates:
+            new_label = updates["label"]
+            if new_label != current_label:
+                if config.units.get_unit(new_label):
+                    raise HTTPException(status_code=400, detail="Label already exists")
+                config.units._units[new_label] = unit
+                del config.units._units[current_label]
+                unit._label = new_label
+                current_label = new_label
+
+        # Process other fields
+        for field, value in updates.items():
+            if field == "label":
+                continue  # Already handled
+
+            if field not in unit._properties:
+                raise HTTPException(status_code=400, detail=f"Invalid field: {field}")
+
+            if unit._properties[field].original:
+                raise HTTPException(status_code=400, detail=f"Cannot edit dynamic field: {field}")
+
+            if field == "name":
+                unit._properties[field].value = hy.models.String(value)
+            elif field == "value":
+                try:
+                    unit._properties[field].value = Decimal(value)
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid numeric value")
+            elif field == "groups":
+                if not isinstance(value, list):
+                    raise HTTPException(status_code=400, detail="Groups must be a list")
+                unit._properties[field].value = [hy.models.String(g) for g in value]
+
+        config.save_fixed_units()
+        config._load_fixed_units()
+        
+        return {"status": "success", "new_label": current_label}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/api/units/{label}/{field}", response_class=JSONResponse)
 async def update_unit(label: str, field: str, value: dict):
     try:
         unit = config.units.get_unit(label)
@@ -82,7 +134,7 @@ async def update_unit(label: str, field: str, value: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/")
+@router.post("/api/units", response_class=JSONResponse)
 async def create_unit(unit: dict):
     try:
         if not all(key in unit for key in ['label', 'name', 'value']):
@@ -111,7 +163,7 @@ async def create_unit(unit: dict):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/{label}")
+@router.delete("/api/units/{label}", response_class=JSONResponse)
 async def delete_unit(label: str):
     try:
         unit = config.units.get_unit(label)

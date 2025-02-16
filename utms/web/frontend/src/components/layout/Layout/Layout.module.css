@@ -1,0 +1,30 @@
+.container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.content {
+  flex: 1;
+  padding: var(--spacing-md);
+  margin-left: 240px; /* Width of expanded sidebar */
+  transition: margin-left 0.3s ease;
+}
+
+.contentHeader {
+  margin-bottom: var(--spacing-lg);
+}
+
+.contentTitle {
+  font-size: var(--font-size-xl);
+  color: var(--text-color);
+  margin: 0;
+}
+
+.contentBody {
+  height: calc(100% - 60px);
+}
+
+/* When sidebar is collapsed */
+.sidebarCollapsed + .content {
+  margin-left: 64px; /* Width of collapsed sidebar */
+}
