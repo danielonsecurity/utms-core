@@ -1,0 +1,238 @@
+.dashboard {
+    padding: 20px;
+    height: calc(100vh - 64px);
+    display: flex;
+    flex-direction: column;
+}
+
+.dashboard__container {
+    flex-grow: 1;
+    overflow-x: auto;
+    overflow-y: auto;
+}
+
+/* Make scrollbars visible */
+.dashboard__container::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+    display: block;
+}
+
+.dashboard__container::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.dashboard__container::-webkit-scrollbar-thumb {
+    background: var(--primary-color);
+    border-radius: 4px;
+}
+
+/* Ensure resize placeholder matches actual widget size */
+.react-grid-placeholder {
+    background: var(--primary-color) !important;
+    opacity: 0.2;
+    border-radius: 4px;
+    transition-duration: 100ms;
+    z-index: 2;
+}
+
+
+.dashboard__grid {
+    background: var(--background-color);
+}
+
+.widget {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.widget__header {
+    padding: 8px;
+    background: var(--primary-color);
+    color: white;
+    cursor: move;
+}
+
+.widget__content {
+    flex-grow: 1;
+    padding: 16px;
+    overflow: hidden;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* .dashboard { */
+/*     padding: var(--spacing-md); */
+/*     height: calc(100vh - 64px); /\* Adjust based on your header height *\/ */
+/*     overflow: hidden; */
+/*     display: flex; */
+/*     flex-direction: column; */
+/* } */
+
+/* .dashboard__controls { */
+/*     overflow-x: auto; */
+/*     overflow-y: auto; */
+/*     margin-bottom: var(--spacing-md); */
+/*     flex-shrink: 0; */
+/* } */
+
+/* .dashboard__container { */
+/*     flex-grow: 1; */
+/*     overflow-x: auto; */
+/*     overflow-y: auto; */
+/*     min-width: 100%; */
+/*     position: relative; */
+/*     scrollbar-width: thin; /\* For Firefox *\/ */
+/*     scrollbar-color: var(--primary-color) transparent; /\* For Firefox *\/ */
+/* } */
+
+/* /\* For Webkit browsers (Chrome, Safari) *\/ */
+/* .dashboard__container::-webkit-scrollbar { */
+/*     width: 8px; */
+/*     height: 8px; */
+/* } */
+
+/* .dashboard__container::-webkit-scrollbar-track { */
+/*     background: transparent; */
+/* } */
+
+/* .dashboard__container::-webkit-scrollbar-thumb { */
+/*     background-color: var(--primary-color); */
+/*     border-radius: 4px; */
+/* } */
+
+
+/* .dashboard__grid { */
+/*     background: var(--background-color); */
+/*     min-height: 100%; */
+/*     position: relative; */
+/*     transition: width 0.2s ease; */
+/* } */
+
+/* .widget-container { */
+/*     width: 100% !important; */
+/*     height: 100% !important; */
+/*     min-width: 0 !important; */
+/*     min-heieght: 0 !important; */
+/* } */
+
+/* .widget { */
+/*     width: 100%; */
+/*     height: 100%; */
+/*     display: flex; */
+/*     flex-direction: column; */
+/*     background: white; */
+/*     border-radius: var(--border-radius); */
+/*     box-shadow: var(--shadow); */
+/*     overflow: hidden; */
+/* } */
+
+/* .widget__header { */
+/*     display: flex; */
+/*     justify-content: space-between; */
+/*     align-items: center; */
+/*     padding: var(--spacing-sm); */
+/*     background: var(--primary-color); */
+/*     color: white; */
+/*     cursor: move; */
+/*     flex-shrink: 0; */
+/* } */
+
+/* .widget__content { */
+/*     flex-grow: 1; */
+/*     position: relative; */
+/*     min-height: 0; */
+/*     overflow: hidden; */
+/*     display: flex; */
+/*     align-items: center; */
+/*     justify-content: center; */
+/* } */
+
+/* .widget__controls { */
+/*     display: flex; */
+/*     gap: var(--spacing-xs); */
+/* } */
+
+/* .widget__controls .btn--icon { */
+/*     color: white; */
+/*     padding: 4px; */
+/* } */
+
+/* .widget__controls .btn--icon:hover { */
+/*     background: rgba(255, 255, 255, 0.1); */
+/* } */
+
+/* .clock-widget__canvas { */
+/*     display: block; */
+/*     aspect-ration: 1; */
+/* } */
+
+/* .react-grid-placeholder { */
+/*     background: var(--primary-color) !important; */
+/*     opacity: 0.2; */
+/*     border-radius: var(--border-radius); */
+/*     transition-duration: 100ms; */
+/*     z-index: 2; */
+/*     -webkit-user-select: none; */
+/*     -moz-user-select: none; */
+/*     -ms-user-select: none; */
+/*     -o-user-select: none; */
+/*     user-select: none; */
+/* } */
+
+/* /\* React Grid Layout overrides *\/ */
+/* .react-grid-item.react-grid-placeholder { */
+/*     background: var(--primary-color); */
+/*     opacity: 0.2; */
+/*     border-radius: var(--border-radius); */
+/*     transition: none; */
+/* } */
+
+/* .react-grid-item.resizing { */
+/*   transition: none; */
+/* } */
+
+/* .react-grid-item.react-draggable-dragging { */
+/*   transition: none; */
+/*   z-index: 100; */
+/* } */
+
+/* .react-resizable-handle { */
+/*     background-image: none !important; */
+/*     width: 20px !important; */
+/*     height: 20px !important; */
+/*     right: 5px !important; */
+/*     bottom: 5px !important; */
+/*     opacity: 0; */
+/*     transition: opacity 0.2s ease; */
+/* } */
+
+/* .widget:hover .react-resizable-handle { */
+/*     opacity: 1; */
+/* } */
+
+/* .react-resizable-handle::after { */
+/*     content: 'drag_handle'; */
+/*     font-family: 'Material Icons'; */
+/*     font-size: 20px; */
+/*     color: var(--primary-color); */
+/*     position: absolute; */
+/*     right: 0; */
+/*     bottom: 0; */
+/*     cursor: se-resize; */
+/* } */

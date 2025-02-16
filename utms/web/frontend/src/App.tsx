@@ -8,6 +8,7 @@ import { Anchors } from './pages/Anchors/Anchors';
 import { Resolve } from './pages/Resolve/Resolve';
 import { anchorsApi } from './api/anchorsApi';
 import { Anchor } from './types/anchors';
+import { Dashboard } from './pages/Dashboard/Dashboard';
 
 
 
@@ -44,26 +45,17 @@ function App() {
 	return <div style={{ padding: '20px', color: 'red' }}>{error}</div>;
     }
 
-
-    // useEffect(() => {
-    // 	const loadAnchors = async () => {
-    // 	    try {
-    // 		const data = await anchorsApi.getAnchors();
-    // 		setAnchorsData(data);
-		
-    // 	    } catch (error) {
-    // 		console.error('Failed to load anchors:', error);
-    // 	    }
-    // 	};
-
-    // 	loadAnchors();
-    // }, []);
-
     return (
 	<Router>
 	    <Routes>
             {/* Redirect root to variables for now */}
-            <Route path="/" element={<Navigate to="/variables" replace />} />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+            <Route path="/dashboard" element={
+		<Layout activePage="dashboard">
+		    <Dashboard />
+		    </Layout>
+            } />
             
             <Route path="/variables" element={
 		<Layout activePage="variables">
@@ -71,7 +63,6 @@ function App() {
 		    </Layout>
             } />
             
-            {/* Placeholder routes for other pages */}
             <Route path="/config" element={
 		<Layout activePage="config">
 		    <Config />
