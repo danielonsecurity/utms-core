@@ -42,28 +42,21 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
 	const ctx = canvas.getContext('2d');
 	if (!ctx) return;
 
-	const resizeCanvas = () => {
-	    const containerWidth = container.clientWidth;
-	    const containerHeight = container.clientHeight;
-	    
-	    // Maintain aspect ratio
-	    const size = Math.min(containerWidth, containerHeight);
-	    
-	    // Set canvas size
-	    canvas.width = size;
-	    canvas.height = size;
+        const resizeCanvas = () => {
+            const containerRect = container.getBoundingClientRect();
+            const size = Math.min(containerRect.width, containerRect.height);
+            
+            // Set canvas size
+            canvas.width = size;
+            canvas.height = size;
 
-	    // Set the CSS dimensions to match
-	    canvas.style.width = `${size}px`;
-	    canvas.style.height = `${size}px`;
-	    
-	    // Remove absolute positioning and use flex centering instead
-	    canvas.style.position = 'relative';
-	    canvas.style.maxWidth = '100%';
-	    canvas.style.maxHeight = '100%';
+            // Set the CSS dimensions to match
+            canvas.style.width = `${size}px`;
+            canvas.style.height = `${size}px`;
 
-	    
-	};
+	    canvas.style.transform = 'none';
+
+        };
 
 	const drawClock = () => {
 	    const { width, height } = canvas;
@@ -136,12 +129,23 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
 	    animationFrameRef.current = requestAnimationFrame(drawClock);
 	};
 
-	const resizeObserver = new ResizeObserver(resizeCanvas);
+	const resizeObserver = new ResizeObserver(() => {
+	    resizeCanvas();
+	    drawClock();
+	});
+
 	resizeObserver.observe(container);
 	
 	// Initial draw
 	resizeCanvas();
 	drawClock();
+
+        // Animation loop
+        const animate = () => {
+            drawClock();
+            animationFrameRef.current = requestAnimationFrame(animate);
+        };
+        animate();
 
 	return () => {
 	    if (animationFrameRef.current) {
@@ -152,30 +156,26 @@ export const ClockWidget: React.FC<ClockWidgetProps> = ({
     }, [config]);
 
     return (
-	<BaseWidget
-	id={id}
-	title={config.name}
-	onRemove={onRemove}
-	onConfigure={onConfigure}
-	    >
-	    <div 
-        ref={containerRef} 
-        style={{ 
-          width: '100%', 
-          height: '100%', 
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '20px',
-          boxSizing: 'border-box'
-        }}
-	    >
+        <div 
+            ref={containerRef} 
+            style={{ 
+                width: '100%', 
+                height: '100%', 
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '16px',
+                boxSizing: 'border-box'
+            }}
+        >
             <canvas
-        ref={canvasRef}
-        className="clock-widget__canvas"
+                ref={canvasRef}
+                style={{
+                    display: 'block',
+		    flexShrink: 0
+                }}
             />
-	</div>
-	    </BaseWidget>
+        </div>
     );
 
 };

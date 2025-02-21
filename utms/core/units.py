@@ -6,7 +6,7 @@ from typing import Dict, Iterator, List, Optional, Union, List
 
 from colorama import Fore, Style
 
-from utms.utms_types import FixedUnitManagerProtocol, UnitProtocol, HyProperty, UnitConfig
+from utms.utms_types import FixedUnitManagerProtocol, UnitProtocol, HyProperty, UnitConfig, DecimalTimeLength
 from utms.resolvers import HyNode
 from ..resolvers import HyAST
 
@@ -475,6 +475,16 @@ class FixedUnitManager(FixedUnitManagerProtocol):
                     f"{self._units[args.target_unit].name} ({args.target_unit}):".ljust(25)
                     + f"{format_value(converted_value)}"
                 )
+
+    def convert_time_length(self, time_length: DecimalTimeLength, to_unit: str) -> Decimal:
+        """Convert a TimeLength to specified unit"""
+        target_unit = self.get_unit(to_unit)
+        if target_unit is None:
+            raise ValueError(f"Unknown unit: {to_unit}")
+            
+        seconds_unit = self.get_unit('s')
+        return seconds_unit.convert_to(target_unit, time_length._seconds)
+
 
     def save(self, filename:str):
         ast_manager = HyAST()

@@ -1,8 +1,14 @@
+import re
+import time
+from datetime import datetime, date
+from dataclasses import dataclass
 from decimal import Decimal
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, Protocol
+from ..unit import FixedUnitManagerProtocol
+
 
 if TYPE_CHECKING:
-    from .protocols import TimeLength, TimeStamp
+    from .protocols import TimeLength, TimeStamp, TimeRange
 
 
 class DecimalTimeStamp:
@@ -11,6 +17,26 @@ class DecimalTimeStamp:
     def copy(self) -> "DecimalTimeStamp":
         """Create a new instance with the same value."""
         return DecimalTimeStamp(self._value)
+
+    @classmethod
+    def now(cls) -> 'DecimalTimeStamp':
+        return cls(Decimal(str(time.time())))
+
+    def to_gregorian(self) -> Optional[datetime]:
+        try:
+            return datetime.fromtimestamp(float(self._value))
+        except (ValueError, OSError, OverflowError):
+            return None
+
+    def is_same_day(self, other: 'DecimalTimeStamp') -> bool:
+        """Check if two timestamps are on the same day"""
+        dt1 = datetime.fromtimestamp(float(self._value))
+        dt2 = datetime.fromtimestamp(float(other._value))
+        return dt1.date() == dt2.date()
+
+    def date(self) -> date:
+        """Get the date part of the timestamp"""
+        return datetime.fromtimestamp(float(self._value)).date()
 
     def __init__(self, value: Union[int, float, Decimal, "DecimalTimeStamp"]) -> None:
         if isinstance(value, DecimalTimeStamp):
@@ -421,43 +447,42 @@ class DecimalTimeLength:
         return f"DecimalTimeLength({self._seconds})"
 
 
-class TimeRange:
-    """Represents a time range with start and end timestamps."""
 
-    def __init__(self, start: "TimeStamp", end: "TimeStamp") -> None:
-        self.start: "TimeStamp" = start
-        self.end: "TimeStamp" = end
+class TimeRange(Protocol):
+    """Protocol for time range"""
+    @property
+    def start(self) -> 'TimeStamp': ...
+    
+    @property
+    def duration(self) -> 'TimeLength': ...
+    
+    @property
+    def end(self) -> 'TimeStamp': ...
+    
+    def contains(self, timestamp: 'TimeStamp') -> bool: ...
+    def overlaps(self, other: 'TimeRange') -> bool: ...
 
-    def __post_init__(self) -> None:
-        """Validate that end is not before start."""
-        if self.end < self.start:
-            raise ValueError("TimeRange end cannot be before start")
+@dataclass
+class DecimalTimeRange(TimeRange):
+    """Implementation of TimeRange using DecimalTimeStamp and DecimalTimeLength"""
+    _start: DecimalTimeStamp
+    _duration: DecimalTimeLength
 
     @property
-    def duration(self) -> "TimeStamp":
-        """Calculate the duration of the time range."""
-        return self.end - self.start
+    def start(self) -> "TimeStamp":
+        return self._start
+
+    @property
+    def duration(self) -> "TimeLength":
+        return self._duration
+
+    @property
+    def end(self) -> "TimeStamp":
+        return self._start + self._duration
 
     def contains(self, timestamp: "TimeStamp") -> bool:
-        """Check if a timestamp falls within this range."""
         return self.start <= timestamp < self.end
 
     def overlaps(self, other: "TimeRange") -> bool:
-        """Check if this range overlaps with another range."""
         return self.start < other.end and self.end > other.start
-
-    def __str__(self) -> str:
-        """String representation of TimeRange.
-
-        Format: [start -> end] (duration)
-        Example: [1234.5 -> 2345.6] (1111.1s)
-        """
-        return f"[{self.start} -> {self.end}] ({self.duration}s)"
-
-    def __repr__(self) -> str:
-        """Detailed representation of TimeRange.
-
-        Format: TimeRange(start=value, end=value)
-        Example: TimeRange(start=1234.5, end=2345.6)
-        """
-        return f"TimeRange(start={self.start!r}, end={self.end!r})"
+    
