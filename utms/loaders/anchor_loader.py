@@ -51,30 +51,6 @@ def parse_anchor_definitions(nodes: List[HyNode]) -> Dict[str, dict]:
     return anchors
 
 
-# def initialize_anchors(parsed_anchors, variables) -> dict:
-#     """Create Anchor instances from parsed definitions."""
-#     anchors = {}
-#     for anchor_label, anchor_info in parsed_anchors.items():
-#         logger.debug("Creating anchor %s with formats %s", anchor_label, parsed_anchors.get("formats"))
-#         kwargs = anchor_info["kwargs"]
-#         logger.debug("kwargs before resolution %s", kwargs)
-#         resolved_props = _resolver.resolve_anchor_property(kwargs, variables = variables)
-#         logger.debug("resolved_props after resolution %s", resolved_props)
-#         kwargs = anchor_info["kwargs"]
-#         config = AnchorConfig(
-#             label=anchor_label,
-#             name=resolved_props.get("name"),
-#             value=resolved_props.get("value"),
-#             formats=resolved_props.get("formats"),
-#             groups=resolved_props.get("groups"),
-#             uncertainty=resolved_props.get("uncertainty"),
-#         )
-#         anchor = Anchor(config)
-#         logger.debug("Created anchor with formats %s", anchor_label, anchor._formats)
-#         anchors[anchor_label] = anchor
-#     return anchors
-
-
 def evaluate_with_variables(expr, variables):
     """Evaluate expression with variables, returning original if evaluation fails."""
     resolver = HyResolver()

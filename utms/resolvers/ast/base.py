@@ -5,12 +5,13 @@ from io import StringIO
 from ...utils import get_logger
 from .node import HyNode
 
-from .parsers import parse_anchor_def, parse_unit_def, parse_variable_def
+from .parsers import parse_anchor_def, parse_unit_def, parse_variable_def, parse_pattern_def
 
 from .formatters import (
     format_anchor_to_hy,
     format_unit_to_hy,
     format_variable_to_hy,
+    format_pattern_to_hy,
     format_expression,
 )
 
@@ -73,6 +74,8 @@ class HyAST:
                     nodes.append(parse_unit_def(expr, original))
                 elif str(expr[0]) == "def-var":
                     nodes.append(parse_variable_def(expr, original))
+                elif str(expr[0]) == "def-pattern":
+                    nodes.append(parse_pattern_def(expr, original))
 
         return nodes
 
@@ -94,34 +97,42 @@ class HyAST:
     def to_hy(self, nodes: List[HyNode]) -> str:
         lines = []
 
+        # Add header comments
         if hasattr(self, "header_comments"):
             for comment in self.header_comments:
                 lines.append(comment)
             lines.append("")
 
-        for node in nodes:
+        # Process each node
+        for i, node in enumerate(nodes):
+            # Add node's comment if present
             if node.comment:
                 comment = node.comment.lstrip()
                 if not comment.startswith(";;"):
                     comment = ";;" + comment[1:] if comment.startswith(";") else ";;" + comment
                 lines.append(comment)
 
+            # Format the node
             if hasattr(node, "original") and node.original:
                 expr_str = str(node.original).strip("'")
                 formatted_lines = format_expression(expr_str)
                 lines.extend(formatted_lines)
             else:
-                if node.type == "def-anchor":
+                if node.type == "def-pattern":
+                    lines.extend(format_pattern_to_hy(node))
+                elif node.type == "def-anchor":
                     lines.extend(format_anchor_to_hy(node))
                 elif node.type == "def-fixed-unit":
                     lines.extend(format_unit_to_hy(node))
                 elif node.type == "def-var":
                     lines.extend(format_variable_to_hy(node))
 
-            lines.append("")
+            # Add blank line between patterns
+            if i < len(nodes) - 1:
+                lines.append("")
 
+        # Remove trailing blank lines
         while lines and not lines[-1].strip():
             lines.pop()
 
         return "\n".join(lines)
-    

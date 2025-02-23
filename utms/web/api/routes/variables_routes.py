@@ -1,14 +1,15 @@
 from fastapi import APIRouter, HTTPException, Body, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from utms.web.api.models import config
+from utms.core.new_config import NewConfig as Config
 from utms.web.api import templates
 
+config = Config()
 router = APIRouter()
 
 @router.get("/variables", response_class=HTMLResponse)
 async def variables_page(request: Request):
     variables_data = {}
-    for var_name, var_prop in config._variables.items():
+    for var_name, var_prop in config.variables.items():
         variables_data[var_name] = {
             "value": str(var_prop.value),
             "value_original": var_prop.original,
@@ -27,7 +28,7 @@ async def variables_page(request: Request):
 @router.get("/api/variables", response_class=JSONResponse)
 async def get_variables():
     variables_data = {}
-    for var_name, var_prop in config._variables.items():
+    for var_name, var_prop in config.variables.items():
         variables_data[var_name] = {
             "value": str(var_prop.value),
             "value_original": var_prop.original,

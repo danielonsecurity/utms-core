@@ -1,5 +1,5 @@
 from . import constants
-from .ai import AI
+# from .ai import AI
 from .anchors import Anchor, AnchorConfig, AnchorManager
 from .calendar import Calendar, CalendarRegistry, CalendarUnit
 from .clock import run_clock

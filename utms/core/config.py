@@ -1,22 +1,3 @@
-"""This module defines the `Config` class, which manages the configuration of
-time units and datetime anchors.
-
-The `Config` class is responsible for populating predefined time units and datetime anchors.  It
-uses the `UnitManager` class to manage time units such as Planck Time, Picoseconds, and
-Milliseconds, and the `AnchorManager` class to manage datetime anchors like Unix Time, CE Time, and
-Big Bang Time.
-
-Constants from the `constants` module are used to define the values for the time units and anchors.
-
-Modules:
-- `utms.constants`: Contains predefined constants for time and datetime values.
-- `utms.anchors`: Contains the `AnchorManager` class for managing datetime anchors.
-- `utms.units`: Contains the `UnitManager` class for managing time units.
-
-Usage:
-- Instantiate the `Config` class to initialize the units and anchors with predefined values.
-"""
-
 import importlib.resources
 import json
 import os

@@ -1,4 +1,4 @@
-from typing import Optional, List, Union
+from typing import Optional, List, Union, Any
 from datetime import datetime, time, timedelta  # Add time to imports
 from utms.utms_types.base.time import DecimalTimeStamp, DecimalTimeLength
 from utms.utms_types.base.time_parser import TimeExpressionParser
@@ -12,18 +12,23 @@ from .base import (
     RecurrencePatternProtocol
 )
 from .builders import RecurrenceBuilder
+from utms.resolvers import HyNode
 
 class RecurrencePattern:
     def __init__(self):
+        self.name = None
+        self.label = None
         self.spec = RecurrenceSpec()
         self.modifiers: List[Modifier] = []
         self.constraints: List[Constraint] = []
+        self.groups = []
         self.parser = TimeExpressionParser()
 
     @classmethod
     def every(cls, interval: Union[str, DecimalTimeLength]) -> 'RecurrencePattern':
         pattern = cls()
         if isinstance(interval, str):
+            pattern._original_interval = interval
             pattern.spec.interval = pattern.parser.evaluate(interval)
         else:
             pattern.spec.interval = interval
@@ -35,6 +40,8 @@ class RecurrencePattern:
             'thursday': 3, 'friday': 4, 'saturday': 5, 'sunday': 6
         }
         weekdays = {day_mapping[day.lower()] for day in days}
+
+        self.spec.weekdays = weekdays
         
         def weekday_constraint(ts: DecimalTimeStamp) -> bool:
             dt = ts.to_gregorian()
@@ -179,6 +186,11 @@ class RecurrencePattern:
 
     def except_between(self, start: str, end: str) -> 'RecurrencePattern':
         """Exclude a time range"""
+        # Store in spec
+        if self.spec.except_times is None:
+            self.spec.except_times = []
+        self.spec.except_times.append((start, end))
+
         # Parse time strings
         start_hour, start_minute = map(int, start.split(':'))
         end_hour, end_minute = map(int, end.split(':'))
@@ -205,3 +217,89 @@ class RecurrencePattern:
 
     def add_constraint(self, func: ConstraintFunc, description: str) -> None:
         self.constraints.append(Constraint(func, description))
+
+    def to_hy(self) -> HyNode:
+        """Convert pattern to AST node."""
+        def make_property(name: str, value: Any, original: str = None) -> HyNode:
+            """Create a property node with given name and value."""
+            return HyNode(
+                type="property",
+                value=name,
+                children=[
+                    HyNode(
+                        type="value",
+                        value=value,
+                        original=original,
+                        is_dynamic=bool(original)
+                    )
+                ]
+            )
+
+        properties = []
+
+        # Simple string properties
+        if self.name:
+            properties.append(make_property("name", self.name))
+
+        # Time interval (with original expression preservation)
+        if hasattr(self, '_original_interval'):
+            properties.append(make_property("every", self._original_interval))
+        elif self.spec.interval:
+            properties.append(make_property("every", str(self.spec.interval)))
+
+        # Time specifications
+        if self.spec.times:
+            times = list(self.spec.times)
+            properties.append(make_property("at", times[0] if len(times) == 1 else times))
+
+        if self.spec.start_time and self.spec.end_time:
+            properties.append(make_property("between", [self.spec.start_time, self.spec.end_time]))
+
+        # Day specifications
+        if self.spec.weekdays:
+            weekday_names = {
+                0: 'monday', 1: 'tuesday', 2: 'wednesday',
+                3: 'thursday', 4: 'friday', 5: 'saturday', 6: 'sunday'
+            }
+            days = [weekday_names[day] for day in sorted(self.spec.weekdays)]
+            properties.append(make_property("on", days))
+
+        # Exception times
+        if self.spec.except_times:
+            for start, end in self.spec.except_times:
+                properties.append(make_property("except-between", [start, end]))
+
+        # Lists and collections
+        if hasattr(self, 'groups') and self.groups:
+            properties.append(make_property("groups", self.groups))
+
+        # Add any additional attributes that should be included
+        for attr_name in self.spec.__annotations__:
+            if (attr_name not in ['interval', 'times', 'start_time', 'end_time', 
+                                'weekdays', 'except_times'] and
+                hasattr(self.spec, attr_name)):
+                value = getattr(self.spec, attr_name)
+                if value is not None:
+                    properties.append(make_property(attr_name, value))
+
+        # Custom attributes
+        custom_attrs = [
+            'description', 'priority', 'tags', 'location',
+            'notification_time', 'completion_criteria'
+        ]
+        for attr in custom_attrs:
+            if hasattr(self, attr) and getattr(self, attr) is not None:
+                properties.append(make_property(attr, getattr(self, attr)))
+
+        return HyNode(
+            type="def-pattern",
+            value=self.label,
+            children=properties
+        )
+
+    def add_to_groups(self, *groups: str) -> 'RecurrencePattern':
+        """Add pattern to groups"""
+        if not hasattr(self, 'groups'):
+            self.groups = []
+        self.groups.extend(groups)
+        return self

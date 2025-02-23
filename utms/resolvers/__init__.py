@@ -7,3 +7,5 @@ from .ast import HyAST, HyNode
 from .hy_loader import evaluate_hy_expression, evaluate_hy_file
 from .hy_resolver import HyResolver
 from .variable_resolver import VariableResolver
+from .pattern_resolver import PatternResolver
+from .ast import HyNode, HyAST
