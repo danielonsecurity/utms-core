@@ -1,21 +1,21 @@
-from typing import List, Any
-import hy
 from io import StringIO
+from typing import Any, List
+
+import hy
 
 from ...utils import get_logger
-from .node import HyNode
-
-from .parsers import parse_anchor_def, parse_unit_def, parse_variable_def, parse_pattern_def
-
 from .formatters import (
     format_anchor_to_hy,
+    format_expression,
+    format_pattern_to_hy,
     format_unit_to_hy,
     format_variable_to_hy,
-    format_pattern_to_hy,
-    format_expression,
 )
+from .node import HyNode
+from .parsers import parse_anchor_def, parse_pattern_def, parse_unit_def, parse_variable_def
 
 logger = get_logger("resolvers.ast.base")
+
 
 class HyAST:
     """Base AST manager for Hy code."""

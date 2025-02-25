@@ -2,23 +2,16 @@ from decimal import Decimal
 from typing import Any, Dict, Optional
 
 from ..utils import get_logger, hy_to_python
-from ..utms_types import (
-    Context,
-    HyExpression,
-    HyList,
-    HySymbol,
-    HyDict,
-    LocalsDict,
-    ResolvedValue,
-)
+from ..utms_types import Context, HyDict, HyExpression, HyList, HySymbol, LocalsDict, ResolvedValue
 from .hy_resolver import HyResolver, evaluate_hy_expression
 
 logger = get_logger("resolvers.fixed_unit_resolver")
 
+
 class FixedUnitResolver(HyResolver):
     def get_locals_dict(self, context: Context, local_names: LocalsDict = None) -> LocalsDict:
         locals_dict = {}
-        
+
         if context:
             locals_dict["self"] = context
             logger.debug("Added self: %s", context)
@@ -30,9 +23,7 @@ class FixedUnitResolver(HyResolver):
         logger.debug("Final locals dictionary keys: %s", list(locals_dict.keys()))
         return locals_dict
 
-    def resolve_unit_property(
-        self, expr: dict, unit: Optional[Any] = None, variables=None
-    ) -> dict:
+    def resolve_unit_property(self, expr: dict, unit: Optional[Any] = None, variables=None) -> dict:
         """Resolve all properties in the unit kwargs dictionary"""
         resolved = {}
         local_names = variables if variables else {}
@@ -52,8 +43,6 @@ class FixedUnitResolver(HyResolver):
                 resolved[key] = value
 
         return resolved
-
-
 
 
 # from typing import Any, Dict

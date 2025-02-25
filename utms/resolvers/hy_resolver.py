@@ -34,6 +34,9 @@ class HyResolver(ExpressionResolver, LocalsProvider):
     ) -> ResolvedValue:
         """Main resolution method"""
         logger.debug("Resolving expression: %s", expr)
+        logger.debug("context: %s", context)
+        logger.debug("local_names: %s", local_names)
+        result = None
         # or if you want to catch it in any form:
         if is_symbol(expr):
             symbol_name = str(expr)

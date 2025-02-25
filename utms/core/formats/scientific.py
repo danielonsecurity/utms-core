@@ -26,7 +26,7 @@ class ScientificFormatter(FormatterProtocol):
         if not unit_list:
             unit_list = ["s"]
         # Sort units by size (largest to smallest)
-        units_info = [units.get_unit(u) for u in unit_list]
+        units_info = [units.get(u) for u in unit_list]
         units_info.sort(key=lambda u: Decimal(u.value), reverse=True)
 
         result = []

@@ -18,7 +18,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import List, Optional
 
-from utms import AI, AnchorConfig, Config
+from utms import AI, Config
 
 from ..core import Command, CommandManager
 from .helper import (
@@ -71,10 +71,10 @@ def set_anchor(args: argparse.Namespace, config: Config) -> None:
         else:
             raise ValueError(f"Could not resolve {args.value}") from exc
 
-        anchor = AnchorConfig(
-            args.label, args.name, value, groups=groups, precision=precision, breakdowns=breakdowns
-        )
-        config.anchors.add_anchor(anchor)
+        # anchor = AnchorConfig(
+        #     args.label, args.name, value, groups=groups, precision=precision, breakdowns=breakdowns
+        # )
+        # config.anchors.add_anchor(anchor)
 
         config.save_anchors()
 

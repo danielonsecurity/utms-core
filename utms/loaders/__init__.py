@@ -1,1 +1,1 @@
-from .anchor_loader import parse_anchor_definitions
+

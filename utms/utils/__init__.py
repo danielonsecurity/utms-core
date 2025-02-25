@@ -7,11 +7,12 @@ from .date import (
 )
 from .display import (
     ColorFormatter,
+    ansi_to_html,
     color_scientific_format,
+    format_value,
     generate_time_table,
     print_row,
     print_time,
-    ansi_to_html,
 )
 from .hytools import format_hy_value, hy_to_python, list_to_dict, python_to_hy
 from .logger import get_logger, set_log_level

@@ -1,6 +1,8 @@
 from typing import List
+
 from ..node import HyNode
 from .common import format_value
+
 
 def format_anchor_to_hy(node: HyNode) -> List[str]:
     """Convert an anchor node to Hy code."""

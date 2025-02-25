@@ -1,9 +1,11 @@
 from dataclasses import dataclass
 from typing import Any, List, Optional
 
+
 @dataclass
 class HyNode:
     """A node in the Hy AST."""
+
     type: str  # 'def-anchor', 'def-event', 'property', 'value', 'comment'
     value: Any  # The actual value/content
     children: Optional[List["HyNode"]] = None

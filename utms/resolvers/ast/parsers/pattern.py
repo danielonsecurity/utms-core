@@ -1,9 +1,12 @@
 import hy
+
 from utms.utils import get_logger
+
 from ..node import HyNode
 from ..utils import is_dynamic_content
 
 logger = get_logger("resolvers.ast.parsers.pattern")
+
 
 def parse_pattern_def(expr: hy.models.Expression, original: str) -> HyNode:
     """Parse a def-pattern expression."""
@@ -18,7 +21,7 @@ def parse_pattern_def(expr: hy.models.Expression, original: str) -> HyNode:
             prop_name = str(prop[0])
 
             # Handle properties that should be pairs
-            if prop_name in ['between', 'except-between']:
+            if prop_name in ["between", "except-between"]:
                 if len(prop) != 3:  # Should have name and two values
                     logger.warning(f"Expected two values for {prop_name}, got {len(prop)-1}")
                     continue

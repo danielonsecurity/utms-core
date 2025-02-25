@@ -1,8 +1,7 @@
-// src/pages/Variables/Variables.tsx
-import { useEffect, useState } from 'react';
-import { Card } from '../../components/common/Card/Card';
-import { variablesApi } from '../../api/variables';
-import { Variable } from '../../types/variables';
+import { useEffect, useState } from "react";
+import { Card } from "../../components/common/Card/Card";
+import { variablesApi } from "../../api/variables";
+import { Variable } from "../../types/variables";
 
 interface VariableCardContentProps {
   name: string;
@@ -23,18 +22,24 @@ const VariableCardContent = ({ name, variable }: VariableCardContentProps) => {
         <div className="variable-card__value-container">
           <div className="variable-card__evaluated-value">
             <span className="variable-card__value">{variable.value}</span>
-            <button 
-              className="variable-card__original-btn" 
+            <button
+              className="variable-card__original-btn"
               onClick={() => setShowOriginal(!showOriginal)}
-              title={showOriginal ? "Hide original expression" : "Show original expression"}
+              title={
+                showOriginal
+                  ? "Hide original expression"
+                  : "Show original expression"
+              }
             >
               <i className="material-icons">code</i>
             </button>
-            <div 
-              className="variable-card__original-code" 
-              style={{ display: showOriginal ? 'block' : 'none' }}
+            <div
+              className="variable-card__original-code"
+              style={{ display: showOriginal ? "block" : "none" }}
             >
-              <pre className="variable-card__code">{variable.value_original}</pre>
+              <pre className="variable-card__code">
+                {variable.value_original}
+              </pre>
             </div>
           </div>
         </div>

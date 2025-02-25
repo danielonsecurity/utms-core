@@ -13,16 +13,8 @@ from typing import Any, List, Optional, Tuple, Union
 import appdirs
 import ntplib
 
-from ..loaders.anchor_loader import initialize_anchors, parse_anchor_definitions, process_anchors
+
 from ..loaders.event_loader import initialize_events, parse_event_definitions
-from ..loaders.unit_loader import (
-    initialize_units,
-    parse_calendar_definitions,
-    parse_unit_definitions,
-    resolve_unit_properties,
-)
-from ..loaders.fixed_unit_loader import  initialize_fixed_units, process_fixed_units
-from ..loaders.variable_loader import process_variables
 from ..resolvers import (
     AnchorResolver,
     ConfigResolver,
@@ -39,17 +31,18 @@ from ..utms_types import (
     ConfigProtocol,
     ConfigValue,
     FixedUnitManagerProtocol,
+    HyProperty,
     NestedConfig,
     OptionalString,
-    HyProperty,
     is_expression,
 )
 from . import constants
-from .anchors import AnchorConfig, AnchorManager
+from .managers.anchor import AnchorManager
 from .events import EventManager
-from .units import FixedUnitManager
-from .variables import VariableManager
-
+from .loaders.base import LoaderContext
+from .loaders.variable import VariableLoader
+from .managers.fixed_unit import FixedUnitManager
+from .managers.variable import VariableManager
 
 logger = get_logger("core.config")
 
@@ -88,7 +81,9 @@ class Config(ConfigProtocol):
         self._fixed_units: FixedUnitManagerProtocol = FixedUnitManager()
         self._calendar_units = {}
         self._calendars = {}
-        self._anchors: AnchorManagerProtocol = AnchorManager(self.units)
+        self._anchors = AnchorManager()
+        self._anchors._units = self.units
+
         self._load_fixed_units()
         self._load_calendar_units()
         self._load_anchors()
@@ -157,17 +152,36 @@ class Config(ConfigProtocol):
     def _load_variables(self) -> None:
         variables_hy = os.path.join(self.utms_dir, "variables.hy")
         if os.path.exists(variables_hy):
-            expressions = evaluate_hy_file(variables_hy)
-            if expressions:
-                self._variable_manager = process_variables(expressions)
-                self._variables = {name: HyProperty(value=self._variable_manager.get_value(name),
-                                                    original=self._variable_manager.get_variable(name).original)
-                                   for name in self._variable_manager.resolved_vars.keys()}
+            try:
+                # Create loader with manager
+                loader = VariableLoader(self._variable_manager)
+
+                # Parse file into nodes
+                ast_manager = HyAST()
+                nodes = ast_manager.parse_file(variables_hy)
+
+                # Create context
+                context = LoaderContext(
+                    config_dir=self.utms_dir,
+                    variables=self._variables,  # Pass any existing variables
+                )
+
+                # Process nodes
+                variables = loader.process(nodes, context)
+
+                # Update internal state
+                self._variables = {
+                    name: HyProperty(value=var.value, original=var.original)
+                    for name, var in variables.items()
+                }
+
+            except Exception as e:
+                logger.error(f"Error loading variables: {e}")
+                raise
 
     def save_variables(self) -> None:
         variables_hy = os.path.join(self.utms_dir, "variables.hy")
         self._variable_manager.save(variables_hy)
-                
 
     def _load_events(self) -> None:
         events_file = os.path.join(self.utms_dir, "events.hy")
@@ -207,10 +221,7 @@ class Config(ConfigProtocol):
         if os.path.exists(anchors_file):
             try:
                 nodes = self._ast_manager.parse_file(anchors_file)
-                variables_dict = {
-                    name: prop.value
-                    for name, prop in self._variables.items()
-                    }
+                variables_dict = {name: prop.value for name, prop in self._variables.items()}
                 anchor_instances = process_anchors(nodes, variables_dict)
                 for anchor in anchor_instances.values():
                     self._anchors.add_anchor(anchor)
@@ -218,28 +229,81 @@ class Config(ConfigProtocol):
                 logger.error(f"Error loading anchors: {e}")
                 raise
 
+    def _load_anchors(self) -> None:
+        """Load anchors from anchors.hy"""
+        anchors_file = os.path.join(self.utms_dir, "anchors.hy")
+        if os.path.exists(anchors_file):
+            try:
+                # Create loader with manager
+                from .loaders.anchor import AnchorLoader
+                loader = AnchorLoader(self._anchors)
+
+                # Parse file into nodes
+                nodes = self._ast_manager.parse_file(anchors_file)
+
+                # Create context with variables
+                from .loaders.base import LoaderContext
+                variables = {}
+
+                for name, var in self._variables.items():
+                    if isinstance(var, HyProperty):
+                        variables[name] = var.value
+                    else:
+                        variables[name] = var
+                    # Also add underscore version for compatibility
+                    variables[name.replace("-", "_")] = variables[name]
+                
+                context = LoaderContext(
+                    config_dir=self.utms_dir,
+                    variables=variables,
+                )
+
+                # Process nodes using loader
+                loader.process(nodes, context)
+
+            except Exception as e:
+                logger.error(f"Error loading anchors: {e}")
+                raise
+
+
+
     def save_anchors(self) -> None:
         """Save anchors to file."""
         anchors_file = os.path.join(self.utms_dir, "anchors.hy")
         self._anchors.save(anchors_file)
 
     def _load_fixed_units(self) -> None:
-        units_file = os.path.join(self.utms_dir, "fixed_units.hy")
-        if os.path.exists(units_file):
+        """Load fixed units from fixed_units.hy"""
+        fixed_units_file = os.path.join(self.utms_dir, "fixed_units.hy")
+        if os.path.exists(fixed_units_file):
             try:
-                nodes = self._ast_manager.parse_file(units_file)
-                unit_instances = process_fixed_units(nodes)
-                for unit in unit_instances.values():
-                    self.units.add_unit(unit)
+                # Create and initialize the manager
+                self._fixed_units = FixedUnitManager()
+
+                # Parse and load the units
+                nodes = self._ast_manager.parse_file(fixed_units_file)
+
+                # Create loader with manager
+                from ..core.loaders.fixed_unit import FixedUnitLoader
+
+                loader = FixedUnitLoader(self._fixed_units)
+
+                # Create context with variables
+                from ..core.loaders.base import LoaderContext
+
+                context = LoaderContext(config_dir=self.utms_dir, variables=self._variables)
+
+                # Process nodes
+                loader.process(nodes, context)
 
             except Exception as e:
-                logger.error(f"Error loading anchors: {e}")
+                logger.error(f"Error loading fixed units: {e}")
                 raise
+
 
     def save_fixed_units(self):
         units_file = os.path.join(self.utms_dir, "fixed_units.hy")
         self.units.save(units_file)
-        
 
     def _load_calendar_units(self) -> None:
         units_hy = os.path.join(self.utms_dir, "calendar_units.hy")

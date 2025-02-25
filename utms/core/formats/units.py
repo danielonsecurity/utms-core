@@ -69,7 +69,7 @@ class UnitsFormatter(FormatterProtocol):
         # Get the units to use
         if opts.units:
             # Use specifically requested units
-            unit_list = [units.get_unit(u) for u in opts.units]
+            unit_list = [units.get(u) for u in opts.units]
         else:
             # Use automatically determined units
             unit_list = self._get_meaningful_units(total_seconds, uncertainty, units)
@@ -137,7 +137,7 @@ class UnitsFormatter(FormatterProtocol):
                 value_str = f"{int(count)}"
 
             if style == "full":
-                unit_name = units.get_unit(unit_label).name + ("s" if count != 1 else "")
+                unit_name = units.get(unit_label).name + ("s" if count != 1 else "")
                 unit_str = unit_name if opts.raw else ColorFormatter.green(unit_name)
                 parts.append(f"{value_str} {unit_str}")
             elif style == "short":
@@ -148,14 +148,12 @@ class UnitsFormatter(FormatterProtocol):
                 parts.append(f"{value_str}{unit_str}")
 
         if not parts:  # If all values were zero
-            unit = units.get_unit(next(iter(result)))  # Get first unit
+            unit = units.get(next(iter(result)))  # Get first unit
             if style == "full":
                 unit_str = unit.name if opts.raw else ColorFormatter.green(unit.name)
                 return f"0 {unit_str}s"
             else:
-                unit_str = (
-                    unit.label if opts.raw else ColorFormatter.green(unit.label)
-                )
+                unit_str = unit.label if opts.raw else ColorFormatter.green(unit.label)
                 return f"0{unit_str}"
 
         if style == "compact":
@@ -164,7 +162,6 @@ class UnitsFormatter(FormatterProtocol):
             return ", ".join(parts)
         else:  # short
             return " ".join(parts)
-
 
     def _get_meaningful_units(
         self, total_seconds: Decimal, uncertainty: TimeUncertainty, units: FixedUnitManagerProtocol
@@ -206,9 +203,7 @@ class UnitsFormatter(FormatterProtocol):
             if count > 0:
                 meaningful_units.append(unit)
                 remaining %= unit_value
-                logger.debug(
-                    f"Added unit {unit.label} (count={count}, remaining={remaining})"
-                )
+                logger.debug(f"Added unit {unit.label} (count={count}, remaining={remaining})")
 
         # Always include at least one unit
         if not meaningful_units and relevant_units:

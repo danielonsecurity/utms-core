@@ -1,26 +1,31 @@
-from typing import Dict, ClassVar
 from enum import Enum
-from utms.utms_types.entity.types import AttributeDefinition
+from typing import ClassVar, Dict
+
 from utms.utms_types.entity.attributes import CORE_ATTRIBUTES, EXTENDED_ATTRIBUTES
+from utms.utms_types.entity.types import AttributeDefinition
+
 from ..base import TimeEntity
+
 
 class TaskState(str, Enum):
     """Basic task states"""
+
     TODO = "TODO"
     NEXT = "NEXT"
     DONE = "DONE"
     CANCELLED = "CANCELLED"
 
+
 class Task(TimeEntity):
     """A task entity with state and time specifications"""
-    
+
     attributes: ClassVar[Dict[str, AttributeDefinition]] = {
         **CORE_ATTRIBUTES,
-        'state': AttributeDefinition(str, default=TaskState.TODO),
-        'completion_history': EXTENDED_ATTRIBUTES['completion_history'],
-        'time_tracking': EXTENDED_ATTRIBUTES['time_tracking'],
-        'clock_entries': EXTENDED_ATTRIBUTES['clock_entries'],
-        'description': EXTENDED_ATTRIBUTES['description'],
+        "state": AttributeDefinition(str, default=TaskState.TODO),
+        "completion_history": EXTENDED_ATTRIBUTES["completion_history"],
+        "time_tracking": EXTENDED_ATTRIBUTES["time_tracking"],
+        "clock_entries": EXTENDED_ATTRIBUTES["clock_entries"],
+        "description": EXTENDED_ATTRIBUTES["description"],
     }
 
     def __init__(self, name: str):

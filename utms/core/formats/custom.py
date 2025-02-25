@@ -33,7 +33,7 @@ class CustomFormatter(FormatterProtocol):
         # Get unit info and sort by value
         unit_info = []
         for abbrev in format_units:
-            unit = units.get_unit(abbrev)
+            unit = units.get(abbrev)
             if unit:
                 unit_info.append(unit)
         unit_info.sort(key=lambda u: Decimal(u.value), reverse=True)

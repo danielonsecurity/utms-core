@@ -1,11 +1,10 @@
-from utms.utms_types.base.time import DecimalTimeStamp, DecimalTimeLength
-from utms.utms_types.recurrence.pattern import RecurrencePattern
-from utms.utms_types.base.time import DecimalTimeStamp, DecimalTimeRange
-from utms.utms_types.entity.time_specs import TimeStampSpec, TimeRangeSpec
 from utms.core.entities.types.event import Event
-from utms.core.entities.types.task import Task
 from utms.core.entities.types.habit import Habit, HabitType, MeasurementType
+from utms.core.entities.types.task import Task
+from utms.utms_types.base.time import DecimalTimeLength, DecimalTimeRange, DecimalTimeStamp
 from utms.utms_types.base.time_parser import TimeExpressionParser
+from utms.utms_types.entity.time_specs import TimeRangeSpec, TimeStampSpec
+from utms.utms_types.recurrence.pattern import RecurrencePattern
 
 
 def test_event():
@@ -13,16 +12,11 @@ def test_event():
     event = Event("Team Meeting")
 
     # Set some attributes
-    event.scheduled = TimeStampSpec(
-        timestamp=DecimalTimeStamp(1234567890)
-    )
+    event.scheduled = TimeStampSpec(timestamp=DecimalTimeStamp(1234567890))
 
     event.ranges = [
         TimeRangeSpec(
-            timerange=DecimalTimeRange(
-                DecimalTimeStamp(1234567890),
-                DecimalTimeStamp(1234571490)
-            )
+            timerange=DecimalTimeRange(DecimalTimeStamp(1234567890), DecimalTimeStamp(1234571490))
         )
     ]
 
@@ -44,13 +38,9 @@ def test_task():
     task = Task("Implement UTMS Task System")
 
     # Set some attributes
-    task.scheduled = TimeStampSpec(
-        timestamp=DecimalTimeStamp(1234567890)
-    )
-    task.deadline = TimeStampSpec(
-        timestamp=DecimalTimeStamp(1234571490)
-    )
-    
+    task.scheduled = TimeStampSpec(timestamp=DecimalTimeStamp(1234567890))
+    task.deadline = TimeStampSpec(timestamp=DecimalTimeStamp(1234571490))
+
     task.tags = ["development", "priority"]
     task.priority = "A"
     task.description = "Implement the task management system for UTMS"
@@ -60,16 +50,16 @@ def test_task():
     print(f"Task: {task.name}")
     print(f"Initial State: {task.state}")
     print(f"Is Active: {task.is_active()}")
-    
+
     task.mark_next()
     print(f"After mark_next: {task.state}")
     print(f"Is Active: {task.is_active()}")
-    
+
     task.mark_done()
     print(f"After mark_done: {task.state}")
     print(f"Is Done: {task.is_done()}")
     print(f"Is Active: {task.is_active()}")
-    
+
     print(f"\nOther Attributes:")
     print(f"Scheduled: {task.scheduled.timestamp}")
     print(f"Deadline: {task.deadline.timestamp}")
@@ -81,27 +71,25 @@ def test_task():
 def test_habit():
     # Create habits
     exercise = Habit(
-        name="Daily Exercise",
-        habit_type=HabitType.POSITIVE,
-        measurement=MeasurementType.DURATION
+        name="Daily Exercise", habit_type=HabitType.POSITIVE, measurement=MeasurementType.DURATION
     )
-    
+
     water = Habit(
         name="Drink Water",
         habit_type=HabitType.POSITIVE,
         measurement=MeasurementType.COUNT,
-        target_value=8  # glasses per day
+        target_value=8,  # glasses per day
     )
-    
+
     smoking = Habit(
         name="Smoking",
         habit_type=HabitType.NEGATIVE,
         measurement=MeasurementType.COUNT,
-        target_value=0
+        target_value=0,
     )
 
     print("\n=== Habit Test ===")
-    
+
     # Record and show exercise
     exercise.record(value=30)  # 30 minutes
     print("Exercise Habit:")
@@ -110,7 +98,7 @@ def test_habit():
     print(f"Today's value: {exercise.get_today_total()} minutes")
     print(f"Target: {exercise.target_value} minutes")
     print(f"Progress: {exercise.get_progress()}%")
-    
+
     # Record and show water intake
     water.record(value=1)  # one glass
     water.record(value=1)  # another glass
@@ -118,7 +106,7 @@ def test_habit():
     print(f"Today's count: {water.get_today_total()} glasses")
     print(f"Target: {water.target_value} glasses")
     print(f"Progress: {water.get_progress()}%")
-    
+
     # Record and show smoking
     smoking.record(value=1)
     time_since = smoking.time_since_last()
@@ -129,7 +117,7 @@ def test_habit():
         print(f"Time since last: {minutes:.1f} minutes")
     print(f"Target: {smoking.target_value}")
     print(f"Progress: {smoking.get_progress()}%")
-    
+
     # Show analytics for all habits
     print("\nHabit Analytics:")
     for habit in [exercise, water, smoking]:
@@ -138,18 +126,20 @@ def test_habit():
         print(f"Best streak: {habit.get_best_streak()} days")
         print(f"Average per day: {habit.get_daily_average():.1f}")
 
+
 test_cases = [
-    "2h + (30m / 2)",     # 8100
-    "(1h + 30m) * 2",     # 10800 seconds (5400 * 2)
-    "24h / 6 + 15m",      # 15300 seconds (14400 + 900)
-    "1.5e-1h",          # 540 seconds (0.15 hours)
+    "2h + (30m / 2)",  # 8100
+    "(1h + 30m) * 2",  # 10800 seconds (5400 * 2)
+    "24h / 6 + 15m",  # 15300 seconds (14400 + 900)
+    "1.5e-1h",  # 540 seconds (0.15 hours)
     "(2h + 15m) * 1.5 + 45m",  # 14850
-    "3h - 15m + 2 * 30s"       # 9960
+    "3h - 15m + 2 * 30s",  # 9960
 ]
+
 
 def test_recurrence_patterns():
     print("\n=== Testing Recurrence Patterns ===")
-    
+
     # Basic intervals
     tests = [
         ("2h", "Every 2 hours"),
@@ -159,7 +149,7 @@ def test_recurrence_patterns():
         ("1d + 12h", "Every day and a half"),
         ("3h + 45m + 30s", "Complex interval"),
     ]
-    
+
     start_time = DecimalTimeStamp(1740167869)  # 2025-02-21 20:57:49
     for interval, description in tests:
         print(f"\nTest: {description}")
@@ -215,32 +205,31 @@ def test_recurrence_patterns():
 
     # Complex patterns
     print("\nTest: Business days at specific times")
-    pattern = (RecurrencePattern.every("1d")
-              .on("monday", "tuesday", "wednesday", "thursday", "friday")
-              .at("9:00", "13:00", "17:00"))
+    pattern = (
+        RecurrencePattern.every("1d")
+        .on("monday", "tuesday", "wednesday", "thursday", "friday")
+        .at("9:00", "13:00", "17:00")
+    )
     next_time = pattern.next_occurrence(start_time)
     print(f"Start: {start_time.to_gregorian()}")
     print(f"Next: {next_time.to_gregorian()}")
 
     print("\nTest: Weekend mornings")
-    pattern = (RecurrencePattern.every("1d")
-              .on("saturday", "sunday")
-              .between("6:00", "12:00"))
+    pattern = RecurrencePattern.every("1d").on("saturday", "sunday").between("6:00", "12:00")
     next_time = pattern.next_occurrence(start_time)
     print(f"Start: {start_time.to_gregorian()}")
     print(f"Next: {next_time.to_gregorian()}")
 
     print("\nTest: Complex interval with specific times")
-    pattern = (RecurrencePattern.every("2h + 15m + 30s")
-              .between("9:00", "17:00"))
+    pattern = RecurrencePattern.every("2h + 15m + 30s").between("9:00", "17:00")
     next_time = pattern.next_occurrence(start_time)
     print(f"Start: {start_time.to_gregorian()}")
     print(f"Next: {next_time.to_gregorian()}")
 
     print("\nTest: Business hours with lunch break")
-    pattern = (RecurrencePattern.every("1h")
-              .between("9:00", "17:00")
-              .except_between("12:00", "13:00"))
+    pattern = (
+        RecurrencePattern.every("1h").between("9:00", "17:00").except_between("12:00", "13:00")
+    )
     next_time = pattern.next_occurrence(start_time)
     print(f"Start: {start_time.to_gregorian()}")
     print(f"Next: {next_time.to_gregorian()}")
@@ -262,4 +251,3 @@ if __name__ == "__main__":
     for expr in test_cases:
         print(parser.evaluate(expr))
     test_recurrence_patterns()
-    

@@ -1,14 +1,14 @@
 import re
 import time
-from datetime import datetime, date
 from dataclasses import dataclass
+from datetime import date, datetime
 from decimal import Decimal
-from typing import TYPE_CHECKING, Optional, Union, Protocol
+from typing import TYPE_CHECKING, Optional, Protocol, Union
+
 from ..unit import FixedUnitManagerProtocol
 
-
 if TYPE_CHECKING:
-    from .protocols import TimeLength, TimeStamp, TimeRange
+    from .protocols import TimeLength, TimeRange, TimeStamp
 
 
 class DecimalTimeStamp:
@@ -19,7 +19,7 @@ class DecimalTimeStamp:
         return DecimalTimeStamp(self._value)
 
     @classmethod
-    def now(cls) -> 'DecimalTimeStamp':
+    def now(cls) -> "DecimalTimeStamp":
         return cls(Decimal(str(time.time())))
 
     def to_gregorian(self) -> Optional[datetime]:
@@ -28,7 +28,7 @@ class DecimalTimeStamp:
         except (ValueError, OSError, OverflowError):
             return None
 
-    def is_same_day(self, other: 'DecimalTimeStamp') -> bool:
+    def is_same_day(self, other: "DecimalTimeStamp") -> bool:
         """Check if two timestamps are on the same day"""
         dt1 = datetime.fromtimestamp(float(self._value))
         dt2 = datetime.fromtimestamp(float(other._value))
@@ -447,24 +447,26 @@ class DecimalTimeLength:
         return f"DecimalTimeLength({self._seconds})"
 
 
-
 class TimeRange(Protocol):
     """Protocol for time range"""
+
     @property
-    def start(self) -> 'TimeStamp': ...
-    
+    def start(self) -> "TimeStamp": ...
+
     @property
-    def duration(self) -> 'TimeLength': ...
-    
+    def duration(self) -> "TimeLength": ...
+
     @property
-    def end(self) -> 'TimeStamp': ...
-    
-    def contains(self, timestamp: 'TimeStamp') -> bool: ...
-    def overlaps(self, other: 'TimeRange') -> bool: ...
+    def end(self) -> "TimeStamp": ...
+
+    def contains(self, timestamp: "TimeStamp") -> bool: ...
+    def overlaps(self, other: "TimeRange") -> bool: ...
+
 
 @dataclass
 class DecimalTimeRange(TimeRange):
     """Implementation of TimeRange using DecimalTimeStamp and DecimalTimeLength"""
+
     _start: DecimalTimeStamp
     _duration: DecimalTimeLength
 
@@ -485,4 +487,3 @@ class DecimalTimeRange(TimeRange):
 
     def overlaps(self, other: "TimeRange") -> bool:
         return self.start < other.end and self.end > other.start
-    

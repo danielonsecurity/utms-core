@@ -26,7 +26,7 @@ class CalendarFormatter(DateTimeFormatterBase):
 
         # Calculate Y/M/D values with proper remainder handling
         for i, unit in enumerate(self.UNIT_SEQUENCE):
-            unit_info = units.get_unit(unit)
+            unit_info = units.get(unit)
             if not unit_info:
                 continue
 

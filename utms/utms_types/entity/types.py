@@ -1,7 +1,8 @@
-from typing import Any, Type, Union, List, Dict, Protocol, Optional, Callable
-from ..base.protocols import TimeStamp, TimeRange
+from typing import Any, Callable, Dict, List, Optional, Protocol, Type, Union
+
+from ..base.protocols import TimeRange, TimeStamp
 from .properties import EntityPropertiesProtocol, PropertyDefinition
-from .time_specs import TimeStampSpec, TimeRangeSpec, ClockEntry, CompletionRecord, TimeTracking
+from .time_specs import ClockEntry, CompletionRecord, TimeRangeSpec, TimeStampSpec, TimeTracking
 
 
 class AttributeProtocol(Protocol):
@@ -56,4 +57,3 @@ class AttributeDefinition:
 
         if default is not None and default_factory is not None:
             raise ValueError("Cannot specify both default and default_factory")
-        

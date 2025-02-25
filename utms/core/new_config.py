@@ -1,26 +1,30 @@
 import os
-import appdirs
-from typing import Dict, Type, Any
+from typing import Any, Dict, Type
 
-from .components.base import ComponentManager, SystemComponent
-from . import constants
+import appdirs
+
 from ..utils import get_logger
+from . import constants
+from .components.anchor import AnchorComponent
+from .components.base import ComponentManager, SystemComponent
+from .components.fixed_units import FixedUnitComponent
 from .components.patterns import PatternComponent
 from .components.variables import VariableComponent
 
 logger = get_logger("core.new_config")
 
+
 class NewConfig:
     """New configuration class using component-based system"""
-    
+
     def __init__(self):
         # Initialize config directory
         self._utms_dir = appdirs.user_config_dir(constants.APP_NAME, constants.COMPANY_NAME)
         os.makedirs(self.utms_dir, exist_ok=True)
-        
+
         # Initialize component manager
         self._component_manager = ComponentManager(self._utms_dir)
-        
+
         # Register components without loading them
         self._register_components()
 
@@ -28,6 +32,8 @@ class NewConfig:
         """Register all available components"""
         self._component_manager.register("patterns", PatternComponent)
         self._component_manager.register("variables", VariableComponent)
+        self._component_manager.register("units", FixedUnitComponent)
+        self._component_manager.register("anchors", AnchorComponent)
         # self._component_manager.register("units", UnitComponent)
         # self._component_manager.register("anchors", AnchorComponent)
         # etc...
@@ -50,14 +56,22 @@ class NewConfig:
     def variables(self) -> VariableComponent:
         return self.get_component("variables")
 
+    @property
+    def units(self) -> FixedUnitComponent:
+        return self.get_component("units")
+
+    @property
+    def anchors(self) -> AnchorComponent:
+        return self.get_component("anchors")
+
     # Properties for backward compatibility
     # These will be added as we migrate each component
     # @property
     # def variables(self):
     #     return self.get_component("variables")
-    
+
     # @property
     # def units(self):
     #     return self.get_component("units")
-    
+
     # etc...

@@ -1,12 +1,12 @@
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
 from typing import Callable, List, Optional, Set, Union
-from utms.utms_types.base.time import DecimalTimeStamp, DecimalTimeLength
+
+from utms.utms_types.base.time import DecimalTimeLength, DecimalTimeStamp
 
 # Type aliases for function signatures
 ModifierFunc = Callable[[DecimalTimeStamp], DecimalTimeStamp]
 ConstraintFunc = Callable[[DecimalTimeStamp], bool]
-
 
 
 class FrequencyType(str, Enum):
@@ -19,9 +19,11 @@ class FrequencyType(str, Enum):
     YEARLY = "yearly"
     CUSTOM = "custom"
 
+
 @dataclass
 class RecurrenceSpec:
     """Holds specifications for building a recurrence pattern"""
+
     interval: Optional[DecimalTimeLength] = None
     weekdays: Optional[Set[int]] = None
     times: Optional[Set[str]] = None
@@ -34,6 +36,7 @@ class RecurrenceSpec:
 class Modifier:
     func: ModifierFunc
     description: str
+
 
 @dataclass
 class Constraint:

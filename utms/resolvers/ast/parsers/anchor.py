@@ -1,9 +1,12 @@
 import hy
+
 from utms.utils import get_logger
+
 from ..node import HyNode
 from ..utils import is_dynamic_content
 
 logger = get_logger("resolvers.ast.parsers.anchor")
+
 
 def parse_anchor_def(expr: hy.models.Expression, original: str) -> HyNode:
     """Parse a def-anchor expression."""

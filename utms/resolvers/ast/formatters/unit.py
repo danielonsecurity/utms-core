@@ -1,6 +1,8 @@
 from typing import List
+
 from ..node import HyNode
 from .common import format_value
+
 
 def format_unit_to_hy(node: HyNode) -> List[str]:
     """Convert a unit node to Hy code lines."""

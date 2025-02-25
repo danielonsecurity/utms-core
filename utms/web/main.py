@@ -1,9 +1,17 @@
+import uvicorn
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.middleware.cors import CORSMiddleware
-from utms.web.api.routes import config_routes, units_routes, anchors_routes, variables_routes, resolve_routes, clock_routes
-import uvicorn
+
+from utms.web.api.routes import (
+    anchors_routes,
+    clock_routes,
+    config_routes,
+    resolve_routes,
+    units_routes,
+    variables_routes,
+)
 
 app = FastAPI()
 

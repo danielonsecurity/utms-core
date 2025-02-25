@@ -1,6 +1,6 @@
 import argparse
 from decimal import Decimal
-from typing import Dict, Iterator, Optional, Protocol, Union, List
+from typing import Dict, Iterator, List, Optional, Protocol, Union
 
 
 class UnitConfigProtocol(Protocol):
@@ -8,6 +8,7 @@ class UnitConfigProtocol(Protocol):
     name: str
     value: Decimal
     groups: List[str]
+
 
 class UnitProtocol(Protocol):
     """Protocol defining the interface for Unit class."""

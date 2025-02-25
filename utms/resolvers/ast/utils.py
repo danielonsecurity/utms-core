@@ -1,5 +1,7 @@
 from typing import Any
+
 import hy
+
 
 def is_dynamic_content(value: Any) -> bool:
     """Determine if content is dynamic based on its structure."""

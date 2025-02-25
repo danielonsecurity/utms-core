@@ -32,7 +32,7 @@ class MoneyFormatter(FormatterProtocol):
         raw = opts.raw
 
         # Get base unit information from unit manager
-        unit_info = units.get_unit(base_unit)
+        unit_info = units.get(base_unit)
         if not unit_info:
             raise ValueError(f"Invalid base unit: {base_unit}")
 

@@ -1,20 +1,22 @@
 import os
-from typing import Dict, Optional, Any
-from utms.utils import get_logger
-from .base import SystemComponent
-from utms.resolvers import HyAST
-from ..variables import VariableManager
-from utms.loaders.variable_loader import process_variables
+from typing import Any, Dict, Optional
 
-logger = get_logger("core.components.variables")
+from utms.core.loaders.base import LoaderContext
+from utms.core.loaders.variable import VariableLoader
+from utms.core.managers.variable import VariableManager
+from utms.resolvers import HyAST
+
+from .base import SystemComponent
+
 
 class VariableComponent(SystemComponent):
     """Component managing variables"""
-    
-    def __init__(self, config_dir: str):
-        super().__init__(config_dir)
+
+    def __init__(self, config_dir: str, component_manager=None):
+        super().__init__(config_dir, component_manager)
         self._ast_manager = HyAST()
         self._variable_manager = VariableManager()
+        self._loader = VariableLoader(self._variable_manager)
 
     def load(self) -> None:
         """Load variables from variables.hy"""
@@ -24,17 +26,20 @@ class VariableComponent(SystemComponent):
         variables_file = os.path.join(self._config_dir, "variables.hy")
         if os.path.exists(variables_file):
             try:
-                breakpoint()
                 nodes = self._ast_manager.parse_file(variables_file)
-                self._variable_manager = process_variables(nodes)
-                # Store variables in _items for dict-like access
-                self._items = {
-                    name: self._variable_manager.get_variable(name)
-                    for name in self._variable_manager.resolved_vars.keys()
+
+                context = LoaderContext(config_dir=self._config_dir, variables=self._items)
+
+                self._items = self._loader.process(nodes, context)
+
+                self._variable_manager._items = self._items
+                self._variable_manager._resolved_vars = {
+                    name: var.value for name, var in self._items.items()
                 }
                 self._loaded = True
+
             except Exception as e:
-                logger.error(f"Error loading variables: {e}")
+                self.logger.error(f"Error loading variables: {e}")
                 raise
 
     def save(self) -> None:

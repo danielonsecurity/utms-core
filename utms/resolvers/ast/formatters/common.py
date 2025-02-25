@@ -3,11 +3,14 @@ from decimal import Decimal
 from typing import Any, List
 
 import hy
+
 from utms.core.formats import TimeUncertainty
 from utms.utils import get_logger
+
 from ..node import HyNode
 
 logger = get_logger("resolvers.ast.formatters.common")
+
 
 def format_value(value: Any) -> str:
     """Format a value as Hy code."""

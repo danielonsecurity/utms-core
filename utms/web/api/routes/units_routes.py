@@ -1,43 +1,46 @@
-from fastapi import APIRouter, HTTPException, Body, Request
-from fastapi.responses import HTMLResponse, JSONResponse
 from decimal import Decimal
+
 import hy
-from utms.web.api.models import config
+from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+
+from utms.core.new_config import NewConfig as Config
 from utms.web.api import templates
 from utms.web.api.utils import format_scientific
 
+config = Config()
+unit_component = config.units
+
 router = APIRouter()
+
 
 @router.get("/units", response_class=HTMLResponse)
 async def units_page(request: Request):
     units_data = {}
-    unit_manager = config.units
-    for label in unit_manager:
-        unit = unit_manager[label]
-        units_data[label] = {
-            "name": unit.name,
-            "value": str(unit.value),
-            "groups": unit.groups
-        }
+    for label, unit in unit_component.get_all_units().items():
+        units_data[label] = {"name": unit.name, "value": str(unit.value), "groups": unit.groups}
     active_filters = request.query_params.get("filters", "").split(",")
     active_filters = [f for f in active_filters if f]
     return templates.TemplateResponse(
         "units.html",
-        {"request": request,
-         "active_page": "units",
-         "units": units_data,
-         "active_filters": active_filters,
-         "format_scientific": format_scientific}
+        {
+            "request": request,
+            "active_page": "units",
+            "units": units_data,
+            "active_filters": active_filters,
+            "format_scientific": format_scientific,
+        },
     )
+
 
 @router.get("/api/units", response_class=JSONResponse)
 async def get_units():
     units_data = {}
-    for unit in config.units._units.values():
+    for label, unit in unit_component.get_all_units().items():
         units_data[unit.label] = {
             "name": unit.name,
             "value": str(unit.value),
-            "groups": unit.groups
+            "groups": unit.groups,
         }
     return units_data
 
@@ -45,20 +48,20 @@ async def get_units():
 @router.put("/api/units/{label}", response_class=JSONResponse)
 async def update_unit_bulk(label: str, updates: dict = Body(...)):
     try:
-        unit = config.units.get_unit(label)
+        unit = unit_component.get_unit(label)
         if not unit:
             raise HTTPException(status_code=404, detail="Unit not found")
 
         current_label = label
-        
+
         # Process updates in specific order: label first, then others
         if "label" in updates:
             new_label = updates["label"]
             if new_label != current_label:
                 if config.units.get_unit(new_label):
                     raise HTTPException(status_code=400, detail="Label already exists")
-                config.units._units[new_label] = unit
-                del config.units._units[current_label]
+                unit_component.remove_unit(current_label)
+                unit_component.add_unit(unit)
                 unit._label = new_label
                 current_label = new_label
 
@@ -85,9 +88,9 @@ async def update_unit_bulk(label: str, updates: dict = Body(...)):
                     raise HTTPException(status_code=400, detail="Groups must be a list")
                 unit._properties[field].value = [hy.models.String(g) for g in value]
 
-        config.save_fixed_units()
-        config._load_fixed_units()
-        
+        unit_component.save()
+        unit_component.load()
+
         return {"status": "success", "new_label": current_label}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -96,17 +99,17 @@ async def update_unit_bulk(label: str, updates: dict = Body(...)):
 @router.put("/api/units/{label}/{field}", response_class=JSONResponse)
 async def update_unit(label: str, field: str, value: dict):
     try:
-        unit = config.units.get_unit(label)
+        unit = unit_component.get_unit(label)
         if not unit:
             raise HTTPException(status_code=404, detail="Unit not found")
 
         if field == "label":
             new_label = value["value"]
             if new_label != label:
-                if config.units.get_unit(new_label):
+                if unit_component.get_unit(new_label):
                     raise HTTPException(status_code=400, detail="Label already exists")
-                config.units._units[new_label] = unit
-                del config.units._units[label]
+                unit_component.remove_unit(label)
+                unit_component.add_unit(unit)
                 unit._label = new_label
         else:
             if field not in unit._properties:
@@ -127,53 +130,55 @@ async def update_unit(label: str, field: str, value: dict):
                     raise HTTPException(status_code=400, detail="Groups must be a list")
                 unit._properties[field].value = [hy.models.String(g) for g in value["value"]]
 
-        config.save_fixed_units()
-        config._load_fixed_units()
-        
+        unit_component.save()
+        unit_component.load()
+
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.post("/api/units", response_class=JSONResponse)
 async def create_unit(unit: dict):
     try:
-        if not all(key in unit for key in ['label', 'name', 'value']):
+        if not all(key in unit for key in ["label", "name", "value"]):
             raise HTTPException(status_code=400, detail="Missing required fields")
 
         try:
-            unit['value'] = Decimal(unit['value'])
+            unit["value"] = Decimal(unit["value"])
         except:
             raise HTTPException(status_code=400, detail="Invalid value format")
 
-        success = config.units.create_unit(
+        unit_component.create_unit(
             label=unit["label"],
             name=unit["name"],
             value=unit["value"],
             groups=unit["groups"],
-        ) is not None
+        )
+        success = True
 
         if not success:
             raise HTTPException(status_code=500, detail="Failed to create unit")
 
-        config.save_fixed_units()
-        config._load_fixed_units()
+        unit_component.save()
+        unit_component.load()
 
         return {"message": "Unit created successfully"}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @router.delete("/api/units/{label}", response_class=JSONResponse)
 async def delete_unit(label: str):
     try:
-        unit = config.units.get_unit(label)
+        unit = unit_component.get_unit(label)
         if not unit:
             raise HTTPException(status_code=404, detail=f"Unit '{label}' not found")
 
-        del config.units._units[label]
-        
-        config.save_fixed_units()
-        config._load_fixed_units()
+        unit_component.remove_unit(label)
+        unit_component.save()
+        unit_component.load()
 
         return {"message": f"Unit '{label}' deleted successfully"}
 

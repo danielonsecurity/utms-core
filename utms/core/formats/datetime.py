@@ -32,7 +32,7 @@ class DateTimeFormatter(DateTimeFormatterBase):
         remaining = abs(total_seconds)
 
         for i, unit in enumerate(self.UNIT_SEQUENCE):
-            unit_info = units.get_unit(unit)
+            unit_info = units.get(unit)
             if not unit_info:
                 continue
 

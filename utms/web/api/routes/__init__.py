@@ -1,5 +1,6 @@
 from fastapi import APIRouter
-from . import config_routes, units_routes, anchors_routes, clock_routes, resolve_routes
+
+from . import anchors_routes, clock_routes, config_routes, resolve_routes, units_routes
 
 routers = [
     config_routes.router,

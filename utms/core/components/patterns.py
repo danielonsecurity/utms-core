@@ -1,17 +1,18 @@
 import os
 from typing import Dict, Optional
-from utms.utils import get_logger
-from .base import SystemComponent
+
+from utms.loaders.pattern_loader import process_patterns
 from utms.resolvers import HyAST
 from utms.utms_types.recurrence.pattern import RecurrencePattern
-from utms.loaders.pattern_loader import process_patterns
+
+from .base import SystemComponent
 
 
 class PatternComponent(SystemComponent):
     """Component managing recurrence patterns"""
-    
-    def __init__(self, config_dir: str):
-        super().__init__(config_dir)
+
+    def __init__(self, config_dir: str, component_manager=None):
+        super().__init__(config_dir, component_manager)
         self._ast_manager = HyAST()
 
     def load(self) -> None:
@@ -27,7 +28,7 @@ class PatternComponent(SystemComponent):
                 self._items = pattern_instances
                 self._loaded = True
             except Exception as e:
-                self._logger.error(f"Error loading patterns: {e}")
+                self.logger.error(f"Error loading patterns: {e}")
                 raise
 
     def save(self) -> None:

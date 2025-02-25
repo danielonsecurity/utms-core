@@ -1,2 +1,2 @@
-from .colors import ColorFormatter, color_scientific_format, ansi_to_html
-from .formatting import generate_time_table, print_row, print_time
+from .colors import ColorFormatter, ansi_to_html, color_scientific_format
+from .formatting import format_value, generate_time_table, print_row, print_time

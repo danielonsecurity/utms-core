@@ -1,9 +1,12 @@
 import hy
+
 from utms.utils import get_logger
+
 from ..node import HyNode
 from ..utils import is_dynamic_content
 
 logger = get_logger("resolvers.ast.parsers.variable")
+
 
 def parse_variable_def(expr: hy.models.Expression, original: str) -> HyNode:
     """Parse a def-var expression."""
@@ -12,7 +15,7 @@ def parse_variable_def(expr: hy.models.Expression, original: str) -> HyNode:
 
     var_name = str(expr[1])
     var_value = expr[2]
-    
+
     is_dynamic = is_dynamic_content(var_value)
 
     logger.debug(f"Variable: {var_name}")
@@ -31,5 +34,5 @@ def parse_variable_def(expr: hy.models.Expression, original: str) -> HyNode:
                 is_dynamic=is_dynamic,
             )
         ],
-        original=original
+        original=original,
     )
