@@ -26,7 +26,13 @@ With UTMS, time measurement becomes:
 - **Practical**: Simplifies calculations with a decimal-based hierarchy.
 - **Flexible**: Allows for multiple reference points, from the Unix epoch to your birthday.
 
----
+
+
+![Units](utms/resources/units.png)
+![Anchors](utms/resources/anchors.png)
+![Variables](utms/resources/variables.png)
+![Resolve](utms/resources/resolve.png)
+
 
 #### 🌌 **The Problem with Current Timekeeping**
 
