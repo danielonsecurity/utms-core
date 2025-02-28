@@ -1,5 +1,5 @@
 
-# UTMS - Universal Time Measurement System
+# UTMS - Universal Time Measurement System - Rethinking Time
 
 #### 🚀 **Revolutionizing How We Measure Time**
 
