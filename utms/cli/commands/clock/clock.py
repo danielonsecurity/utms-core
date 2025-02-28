@@ -20,7 +20,7 @@ Usage:
         register_clock_command(command_manager)
 """
 
-from utms.core import run_clock
+from utms.core.time.clock import run_clock
 
 from ..core import Command, CommandManager
 

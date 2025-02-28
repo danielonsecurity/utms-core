@@ -6,7 +6,7 @@ from typing import Dict, List, Optional
 from utms.utms_types import FixedUnitManagerProtocol
 
 from ...utils import ColorFormatter, get_logger
-from .. import constants
+from utms.core.config import constants
 from .base import FormatterProtocol, FormattingOptions, NotationType
 from .config import TimeUncertainty
 

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, List, Optional, Protocol, Set, Union
 
-from utms.utms_types.base.time import DecimalTimeLength, DecimalTimeStamp
+from utms.core.time import DecimalTimeLength, DecimalTimeStamp
 
 # Type aliases
 ModifierFunc = Callable[[DecimalTimeStamp], DecimalTimeStamp]

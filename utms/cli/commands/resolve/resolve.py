@@ -24,7 +24,7 @@ from datetime import datetime
 from decimal import Decimal
 
 from utms import AI, Config
-from utms.utils import print_time
+from utms.core.time.utils import print_time
 
 from ..core import Command, CommandManager
 from .helper import (

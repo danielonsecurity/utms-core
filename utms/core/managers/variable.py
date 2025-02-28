@@ -1,9 +1,9 @@
 from typing import Any, Dict, List, Optional
 
-from ...resolvers import HyAST, HyNode
-from ...utms_types import HyProperty
-from ..mixins.manager import ManagerMixin
-from ..models.variable import Variable
+from utms.core.hy.ast import HyAST, HyNode
+from utms.utms_types import HyProperty
+from utms.core.mixins.manager import ManagerMixin
+from utms.core.models.variable import Variable
 from .base import BaseManager
 
 

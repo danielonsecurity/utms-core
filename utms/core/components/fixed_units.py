@@ -5,8 +5,8 @@ from typing import Any, Dict, List, Optional
 from utms.core.loaders.fixed_unit import FixedUnitLoader
 from utms.core.managers.fixed_unit import FixedUnitManager
 from utms.core.models.fixed_unit import FixedUnit
-from utms.loaders.base import LoaderContext
-from utms.resolvers import HyAST
+from utms.core.loaders.base import LoaderContext
+from utms.core.hy.ast import HyAST
 
 from .base import SystemComponent
 

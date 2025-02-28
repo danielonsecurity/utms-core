@@ -5,7 +5,6 @@ from typing import List as PyList
 from typing import Literal, Optional, TypeAlias, TypedDict, TypeGuard, Union, cast
 
 from ..base.protocols import TimeLength, TimeStamp
-from ..base.time import DecimalTimeLength, DecimalTimeStamp
 from ..hy.types import (
     HyExpression,
     HyInteger,
@@ -98,11 +97,11 @@ def to_unit_type(s: str) -> UnitType:
 
 
 def is_timestamp(value: Any) -> TypeGuard[Union[HyInteger, float, int, Decimal, TimeStamp]]:
-    return is_number(value) or isinstance(value, DecimalTimeStamp)
+    return is_number(value) or isinstance(value, TimeStamp)
 
 
 def is_timelength(value: Any) -> TypeGuard[Union[HyInteger, float, int, Decimal, TimeLength]]:
-    return is_number(value) or isinstance(value, DecimalTimeLength)
+    return is_number(value) or isinstance(value, TimeLength)
 
 
 def is_names_list(value: Any) -> TypeGuard[Union[PyList[str], HyList]]:

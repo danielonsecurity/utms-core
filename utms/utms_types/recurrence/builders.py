@@ -1,6 +1,6 @@
 from typing import List, Union
 
-from utms.utms_types.base.time import DecimalTimeStamp
+from utms.core.time import DecimalTimeStamp
 
 from .base import BuilderProtocol, RecurrencePatternProtocol
 

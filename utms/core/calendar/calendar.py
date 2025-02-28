@@ -1,6 +1,5 @@
-from utms.resolvers import CalendarResolver
-from utms.utils import TimeRange, get_logger
-from utms.utms_types import CalendarUnit, TimeStamp
+from utms.utils import get_logger
+from utms.utms_types import CalendarUnit, TimeStamp, TimeRange
 
 from .calendar_calculator import CalendarCalculator, MonthCalculationParams
 from .calendar_data import CalendarState, MonthData, YearData
@@ -8,7 +7,6 @@ from .calendar_printer import CalendarPrinter, PrinterContext
 from .registry import CalendarRegistry
 from .unit_accessor import UnitAccessor
 
-_resolver = CalendarResolver()
 logger = get_logger("core.calendar.calendar")
 
 

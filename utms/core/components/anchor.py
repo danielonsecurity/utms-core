@@ -2,7 +2,7 @@ import os
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Union
 
-from utms.resolvers import HyAST
+from utms.core.hy.ast.base import HyAST
 
 from ..formats import TimeUncertainty
 from ..loaders.anchor import AnchorLoader

@@ -1,8 +1,8 @@
 from dataclasses import dataclass
 
 from utms.utils import get_logger
+from utms.core.time import DecimalTimeStamp
 from utms.utms_types import (
-    DecimalTimeStamp,
     NamesList,
     TimeLength,
     TimeRange,

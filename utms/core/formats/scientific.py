@@ -3,7 +3,7 @@ from decimal import Decimal
 from enum import Enum, auto
 from typing import Dict, List, Optional
 
-from utms.utils.display.colors import color_scientific_format
+from utms.utils import color_scientific_format
 from utms.utms_types import FixedUnitManagerProtocol
 
 from ...utils import ColorFormatter, get_logger

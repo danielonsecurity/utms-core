@@ -1,7 +1,8 @@
 from decimal import Decimal
-from typing import Optional, Protocol, Union
+from typing import Optional, Protocol, Union, TYPE_CHECKING
 
-from .time import DecimalTimeLength, DecimalTimeStamp
+if TYPE_CHECKING:
+    from utms.core.time.decimal import DecimalTimeLength, DecimalTimeStamp
 
 
 class TimeStamp(Protocol):

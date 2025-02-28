@@ -47,7 +47,8 @@ from prompt_toolkit.styles import Style
 from utms import AI, VERSION, Config
 from utms.cli.commands.core import CommandManager
 from utms.cli.commands.register import register_all_commands
-from utms.utils import print_time
+from utms.core.time.utils.formatting import print_time
+from utms.core.logger import LoggerManager, get_logger
 
 config = Config()
 
@@ -63,6 +64,8 @@ def add_global_arguments(command_manager: CommandManager) -> None:
     """
     command_manager.parser.add_argument("--version", action="store_true", help="Show UTMS version")
     command_manager.parser.add_argument("--debug", action="store_true", help="Enter Python's PDB")
+    command_manager.parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+                                        help="Set bootstrap logging level")
 
 
 def print_prompt_help(parser: argparse.ArgumentParser) -> None:
@@ -193,17 +196,24 @@ def main() -> None:
         None: The function either starts the interactive shell or terminates if arguments are
         processed.
     """
-    # parser, subparser_map = create_parser()
+    LoggerManager.bootstrap()
+    logger = get_logger()
+    logger.debug("Starting UTMS CLI")
+    logger.debug("Initializing command manager and config")
     command_manager = CommandManager(config)
 
+    logger.debug("Registering commands")
     register_all_commands(command_manager)
 
-    # Configure the parsers for all commands
+    logger.debug("Configuring command parsers")
     command_manager.configure_parsers()
 
+    logger.debug("Adding global arguments")
     add_global_arguments(command_manager)
 
     if command_manager.process_args():
+        logger.debug("Command line arguments processed, exiting")
         return
 
+    logger.info("Starting interactive shell")
     interactive_shell(command_manager)

@@ -1,7 +1,7 @@
 from .anchor.protocols import AnchorConfigProtocol, AnchorManagerProtocol, AnchorProtocol
 from .anchor.types import AnchorKwargs
-from .base.protocols import TimeLength, TimeStamp
-from .base.time import DecimalTimeLength, DecimalTimeStamp, TimeRange
+from .base.protocols import TimeLength, TimeStamp, TimeRange
+
 from .base.types import (
     ArbitraryArgs,
     ArbitraryKwargs,

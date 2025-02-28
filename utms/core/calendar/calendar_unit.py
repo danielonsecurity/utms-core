@@ -3,18 +3,16 @@ import time
 from decimal import Decimal
 from types import FunctionType
 
-from utms.resolvers import CalendarResolver
+from utms.core.calendar.utils import get_day_of_week
 from utms.utils import (
     get_datetime_from_timestamp,
-    get_day_of_week,
+
     get_logger,
     get_timezone_from_seconds,
 )
 from utms.utms_types import ArbitraryArgs, ArbitraryKwargs
 from utms.utms_types import CalendarUnit as CalendarUnitProtocol
 from utms.utms_types import (
-    DecimalTimeLength,
-    DecimalTimeStamp,
     FunctionCache,
     NamesList,
     OptionalUnitKwargs,
@@ -31,8 +29,8 @@ from utms.utms_types import (
     is_timelength,
     is_timestamp,
 )
+from utms.core.time import DecimalTimeStamp, DecimalTimeLength
 
-_resolver = CalendarResolver()
 logger = get_logger("core.calendar.calendar_unit")
 
 
@@ -48,6 +46,7 @@ class CalendarUnit(CalendarUnitProtocol):
                 "offset": kwargs.get("offset", 0),
                 "index": kwargs.get("index", 0),
             }
+            self._resolver = None
 
         def get(self, prop: str) -> ResolvedValue:
             return self._values.get(prop)
@@ -132,7 +131,7 @@ class CalendarUnit(CalendarUnitProtocol):
                 raise
         if isinstance(value, (int, float, str, Decimal, list)):
             return value
-        return _resolver.resolve_unit_property(value, self)
+        return self._resolver.resolve_unit_property(value, self)
 
     def get_start(
         self, timestamp: TimeStamp = DecimalTimeStamp(0), **kwargs: ArbitraryKwargs

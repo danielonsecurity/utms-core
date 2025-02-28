@@ -4,8 +4,8 @@ from datetime import datetime
 
 import hy
 
-from utms.resolvers import AnchorResolver
-from utms.resolvers.ast.node import HyNode
+from utms.core.hy.resolvers import AnchorResolver
+from utms.core.hy.ast.node import HyNode
 from utms.utils import hy_to_python
 
 from ..formats import TimeUncertainty

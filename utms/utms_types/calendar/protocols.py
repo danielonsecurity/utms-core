@@ -1,8 +1,7 @@
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
 
-from ..base.protocols import TimeStamp
-from ..base.time import DecimalTimeLength, DecimalTimeStamp
+from ..base.protocols import TimeStamp, TimeLength
 from ..base.types import ArbitraryKwargs
 from ..hy.types import ResolvedValue
 
@@ -33,38 +32,38 @@ class CalendarUnit(Protocol):
     _func_cache: "FunctionCache"
 
     def get_value(
-        self, prop: str, timestamp: TimeStamp = DecimalTimeStamp(0), *args: object, **kwargs: object
+        self, prop: str, timestamp: TimeStamp = None, *args: object, **kwargs: object
     ) -> ResolvedValue: ...
 
     def get_start(
-        self, timestamp: TimeStamp = DecimalTimeStamp(0), **kwargs: "ArbitraryKwargs"
-    ) -> DecimalTimeStamp: ...
+        self, timestamp: TimeStamp = None, **kwargs: "ArbitraryKwargs"
+    ) -> TimeStamp: ...
 
     def get_length(
-        self, timestamp: TimeStamp = DecimalTimeStamp(0), **kwargs: "ArbitraryKwargs"
-    ) -> DecimalTimeLength: ...
+        self, timestamp: TimeStamp = None, **kwargs: "ArbitraryKwargs"
+    ) -> TimeLength: ...
 
     def get_timezone(
-        self, timestamp: TimeStamp = DecimalTimeStamp(0), **kwargs: "ArbitraryKwargs"
-    ) -> DecimalTimeLength: ...
+        self, timestamp: TimeStamp = None, **kwargs: "ArbitraryKwargs"
+    ) -> TimeLength: ...
 
     def get_names(
-        self, timestamp: TimeStamp = DecimalTimeStamp(0), **kwargs: "ArbitraryKwargs"
+        self, timestamp: TimeStamp = None, **kwargs: "ArbitraryKwargs"
     ) -> "NamesList": ...
 
     def get_offset(
-        self, timestamp: TimeStamp = DecimalTimeStamp(0), **kwargs: "ArbitraryKwargs"
+        self, timestamp: TimeStamp = None, **kwargs: "ArbitraryKwargs"
     ) -> Decimal: ...
 
     def get_index(
-        self, timestamp: TimeStamp = DecimalTimeStamp(0), **kwargs: "ArbitraryKwargs"
+        self, timestamp: TimeStamp = None, **kwargs: "ArbitraryKwargs"
     ) -> int: ...
 
     def get_property(self, prop: str) -> "PropertyValue": ...
     def set_property(self, prop: str, value: "PropertyValue") -> None: ...
     def get_all_properties(self) -> "PropertyDict": ...
 
-    def calculate_index(self, timestamp: TimeStamp = DecimalTimeStamp(0)) -> None: ...
+    def calculate_index(self, timestamp: TimeStamp = None) -> None: ...
 
     def __str__(self) -> str: ...
 

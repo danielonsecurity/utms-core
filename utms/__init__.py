@@ -6,8 +6,12 @@ between various time systems, and more....
 
 Author: [Daniel Neagaru]
 """
+from .core.logger import LoggerManager
+
+LoggerManager.bootstrap()
+
 
 from .core import constants
 from .core.ai import AI
 from .core.config import Config
-from .core.constants import VERSION
+from .core.config.constants import VERSION

@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, Generic, List, Optional, TypeVar
 
-from utms.resolvers.ast.node import HyNode
+from utms.core.hy.ast.node import HyNode
 
 from ..mixins.loader import LoaderMixin
 

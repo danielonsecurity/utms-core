@@ -1,7 +1,6 @@
 from time import time
 
-from ....core import Calendar
-from ....core.calendar.registry import CalendarRegistry
+from utms.core.calendar import Calendar, CalendarRegistry
 from ..core import Command, CommandManager
 
 

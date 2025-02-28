@@ -3,13 +3,12 @@ import time
 from decimal import Decimal
 from types import FunctionType
 
-from utms.resolvers import evaluate_hy_expression
-from utms.utils import (
-    get_datetime_from_timestamp,
+from utms.core.hy import evaluate_hy_expression
+from utms.core.calendar.utils import (
     get_day_of_week,
-    get_logger,
-    get_timezone_from_seconds,
 )
+
+from utms.utils import get_datetime_from_timestamp, get_logger, get_timezone_from_seconds
 from utms.utms_types import (
     CalendarUnit,
     FunctionCache,

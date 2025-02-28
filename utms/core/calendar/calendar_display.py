@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from utms.utils import ColorFormatter, TimeRange
+from utms.utils import ColorFormatter
 from utms.utms_types import (
     IntegerList,
     NamesList,
@@ -8,6 +8,7 @@ from utms.utms_types import (
     OptionalTimeStampList,
     TimeLength,
     TimeStamp,
+    TimeRange,
     TimeStampList,
 )
 

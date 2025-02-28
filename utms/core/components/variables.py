@@ -4,7 +4,7 @@ from typing import Any, Dict, Optional
 from utms.core.loaders.base import LoaderContext
 from utms.core.loaders.variable import VariableLoader
 from utms.core.managers.variable import VariableManager
-from utms.resolvers import HyAST
+from utms.core.hy.ast import HyAST
 
 from .base import SystemComponent
 
