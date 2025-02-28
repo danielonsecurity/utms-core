@@ -28,10 +28,10 @@ With UTMS, time measurement becomes:
 
 
 
-![Units](utms/resources/units.png)
-![Anchors](utms/resources/anchors.png)
-![Variables](utms/resources/variables.png)
-![Resolve](utms/resources/resolve.png)
+![Units](utms/resources/units.jpeg)
+![Anchors](utms/resources/anchors.jpeg)
+![Variables](utms/resources/variables.jpeg)
+![Resolve](utms/resources/resolve.jpeg)
 
 
 #### 🌌 **The Problem with Current Timekeeping**
