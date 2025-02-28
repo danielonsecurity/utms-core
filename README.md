@@ -1,6 +1,10 @@
 
-# UTMS - Universal Time Measurement System
+# UTMS - Universal Time Measurement/Management System
+Universal Time Measurement/Management System (UTMS): Beyond timekeeping -
+A new Paradigm for Measuring and Managing Time.
 
+**WIP**: The code here is highly unstable, documentation is outdated, code is experimental, but free to take a look around at what I'm working on.
+      
 #### 🚀 **Revolutionizing How We Measure Time**
 
 The **Universal Time Measurement System (UTMS)** is a bold reimagining
