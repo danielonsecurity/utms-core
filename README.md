@@ -1,8 +1,8 @@
 
 # UTMS - Universal Time Measurement System - Rethinking Time
-**WIP**: The published code is just the core idea (about and the
+**WIP**: The published code is just the core idea (the
 PoC with a web UI, hy configuration engine, and much more is being
-worked on in private, and will be published soon when it's usable). 
+worked on in dev branch, and will be published soon when it's usable). 
 
 #### 🚀 **Revolutionizing How We Measure Time**
 
