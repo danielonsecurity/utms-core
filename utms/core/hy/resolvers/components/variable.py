@@ -1,10 +1,11 @@
 import datetime
 
-from utms.utils import get_logger, get_ntp_date, get_timezone_from_seconds
+from utms.utils import get_ntp_date, get_timezone_from_seconds
+from utms.core.logger import get_logger
 from utms.utms_types import Context, HyExpression, LocalsDict, ResolvedValue, is_expression
 from utms.core.hy.resolvers.base import HyResolver
 
-logger = get_logger("resolvers.variable_resolver")
+logger = get_logger()
 
 
 class VariableResolver(HyResolver):

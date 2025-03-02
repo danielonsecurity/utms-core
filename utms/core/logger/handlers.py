@@ -5,13 +5,14 @@ from pathlib import Path
 from typing import Tuple
 from logging.handlers import RotatingFileHandler
 import os
+from .colors import LogFormatter
 
 def create_console_handler(level: int) -> logging.Handler:
     """Create console handler with basic formatting."""
     handler = logging.StreamHandler(sys.stdout)
-    handler.setFormatter(
-        logging.Formatter("%(levelname)s: %(message)s")
-    )
+    formatter = LogFormatter("%(levelname)s: %(name)s - %(message)s")
+    formatter.is_console = True
+    handler.setFormatter(formatter)
     handler.setLevel(level)
     return handler
 
@@ -34,10 +35,6 @@ def create_temp_file_handler(level: int) -> Tuple[logging.Handler, Path]:
     )
     handler.setLevel(level)
     
-    # Test write to temp file
-    with open(temp_file, 'w') as f:
-        f.write("=== Bootstrap Log Started ===\n")
-
     return handler, temp_file
 
 def create_rotating_handler(log_file: Path, level: int) -> logging.Handler:
@@ -47,7 +44,8 @@ def create_rotating_handler(log_file: Path, level: int) -> logging.Handler:
     handler = RotatingFileHandler(
         log_file,
         maxBytes=10 * 1024 * 1024,  # 10MB
-        backupCount=5
+        backupCount=5,
+        delay=True,
     )
     handler.setFormatter(
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")

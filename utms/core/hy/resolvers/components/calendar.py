@@ -1,13 +1,13 @@
 import datetime
 import time
 
-from utms.utils import get_logger
+from utms.core.logger import get_logger
 from utms.utms_types import CalendarUnit as CalendarUnitProtocol
 from utms.utms_types import Context, HyExpression, LocalsDict, ResolvedValue
 from utms.core.hy.resolvers.base import HyResolver
 from utms.core.calendar.utils import get_day_of_week
 
-logger = get_logger("resolvers.calendar_resolver")
+logger = get_logger()
 
 
 class CalendarResolver(HyResolver):

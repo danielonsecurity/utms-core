@@ -3,7 +3,7 @@ from typing import Any, List
 
 import hy
 
-from utms.utils import get_logger
+from utms.core.logger import get_logger
 from .formatters import (
     format_anchor_to_hy,
     format_expression,
@@ -14,7 +14,7 @@ from .formatters import (
 from .node import HyNode
 from .parsers import parse_anchor_def, parse_pattern_def, parse_unit_def, parse_variable_def
 
-logger = get_logger("resolvers.ast.base")
+logger = get_logger()
 
 
 class HyAST:

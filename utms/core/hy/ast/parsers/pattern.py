@@ -1,11 +1,11 @@
 import hy
 
-from utms.utils import get_logger
+from utms.core.logger import get_logger
 
 from ..node import HyNode
 from ..utils import is_dynamic_content
 
-logger = get_logger("resolvers.ast.parsers.pattern")
+logger = get_logger()
 
 
 def parse_pattern_def(expr: hy.models.Expression, original: str) -> HyNode:

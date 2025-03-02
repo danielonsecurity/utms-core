@@ -1,10 +1,11 @@
 from typing import Any, Optional
 
-from utms.utils import get_logger, hy_to_python
+from utms.utils import hy_to_python
+from utms.core.logger import get_logger
 from utms.utms_types import Context, HyExpression, HySymbol, LocalsDict
 from utms.core.hy.resolvers.base import HyResolver
 
-logger = get_logger("resolvers.event_resolver")
+logger = get_logger()
 
 
 class EventResolver(HyResolver):

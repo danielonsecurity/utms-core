@@ -4,10 +4,9 @@ from decimal import Decimal
 from types import FunctionType
 
 from utms.core.calendar.utils import get_day_of_week
+from utms.core.logger import get_logger
 from utms.utils import (
     get_datetime_from_timestamp,
-
-    get_logger,
     get_timezone_from_seconds,
 )
 from utms.utms_types import ArbitraryArgs, ArbitraryKwargs
@@ -31,7 +30,7 @@ from utms.utms_types import (
 )
 from utms.core.time import DecimalTimeStamp, DecimalTimeLength
 
-logger = get_logger("core.calendar.calendar_unit")
+logger = get_logger()
 
 
 class CalendarUnit(CalendarUnitProtocol):

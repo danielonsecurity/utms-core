@@ -5,11 +5,11 @@ from typing import Any, List
 import hy
 
 from utms.core.formats import TimeUncertainty
-from utms.utils import get_logger
+from utms.core.logger import get_logger
 
 from ..node import HyNode
 
-logger = get_logger("resolvers.ast.formatters.common")
+logger = get_logger()
 
 
 def format_value(value: Any) -> str:

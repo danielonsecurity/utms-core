@@ -8,7 +8,8 @@ from utms.core.calendar.utils import (
     get_day_of_week,
 )
 
-from utms.utils import get_datetime_from_timestamp, get_logger, get_timezone_from_seconds
+from utms.core.logger import get_logger
+from utms.utils import get_datetime_from_timestamp, get_timezone_from_seconds
 from utms.utms_types import (
     CalendarUnit,
     FunctionCache,
@@ -21,7 +22,7 @@ from utms.utms_types import (
 from .calendar_data import MonthCalculationParams, MonthContext, MonthData, MonthGroupData, YearData
 from .unit_accessor import UnitAccessor
 
-logger = get_logger("core.calendar.calendar_calculator")
+logger = get_logger()
 
 
 class DayOfWeekCalculator:  # pylint: disable=too-few-public-methods

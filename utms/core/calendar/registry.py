@@ -1,7 +1,7 @@
-from utms.utils import get_logger
+from utms.core.logger import get_logger
 from utms.utms_types import CalendarComponents, CalendarDefinitions, UnitDefinitions
 
-logger = get_logger("core.calendar.calendar_registry")
+logger = get_logger()
 
 
 class CalendarRegistry:

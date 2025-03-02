@@ -23,7 +23,7 @@ from utms.core.hy.resolvers import (
     VariableResolver,
 )
 from utms.core.hy import evaluate_hy_file
-from utms.utils import hy_to_python
+from utms.utils import hy_to_python, list_to_dict
 from utms.utms_types import (
     AnchorManagerProtocol,
     ConfigData,
@@ -49,6 +49,7 @@ from utms.core.components.base import ComponentManager, SystemComponent
 from utms.core.components.fixed_units import FixedUnitComponent
 from utms.core.components.patterns import PatternComponent
 from utms.core.components.variables import VariableComponent
+from utms.core.components.config import ConfigComponent
 
 from utms.core.logger import get_logger, LoggerManager
 from utms.core.loaders.fixed_unit import FixedUnitLoader
@@ -57,23 +58,21 @@ from utms.core.loaders.base import LoaderContext
 
 logger = get_logger()
 
-
 class Config(ConfigProtocol):
     def __init__(self) -> None:
         logger.debug("Initializing configuration")
         self._utms_dir = appdirs.user_config_dir(constants.APP_NAME, constants.COMPANY_NAME)
-        breakpoint()
         os.makedirs(self.utms_dir, exist_ok=True)
         logger.debug("Config directory %s", self.utms_dir)
 
         LoggerManager.configure_file_logging(self.utms_dir)
-        logger.info("File logging configured in %s/logs", self.utms_dir)
 
         logger.debug("Initializing component manager")
         self._component_manager = ComponentManager(self._utms_dir)
 
         logger.debug("Registering components")
         self._register_components()
+
         
 
 
@@ -96,6 +95,8 @@ class Config(ConfigProtocol):
         self._ast_manager = HyAST()
         self._data: NestedConfig = {}  # = self.load()
 
+
+
         self.resolver = ConfigResolver()
         self._variable_resolver = VariableResolver
         self._variables = {}
@@ -107,6 +108,8 @@ class Config(ConfigProtocol):
         if self.loglevel:
             logger.info("Updating log level from config: %s", self.loglevel)
             LoggerManager.configure_from_config(self.loglevel)
+
+        breakpoint()
         self._fixed_units: FixedUnitManagerProtocol = FixedUnitManager()
         self._calendar_units = {}
         self._calendars = {}
@@ -122,6 +125,7 @@ class Config(ConfigProtocol):
         """Register all available components"""
         logger.debug("Registering core components")
         
+        self._component_manager.register("config", ConfigComponent)
         self._component_manager.register("variables", VariableComponent)
         self._component_manager.register("patterns", PatternComponent)
         self._component_manager.register("units", FixedUnitComponent)
@@ -155,6 +159,10 @@ class Config(ConfigProtocol):
     def anchors(self) -> AnchorComponent:
         return self.get_component("anchors")
 
+    @property
+    def config(self) -> ConfigComponent:
+        return self.get_component("config")
+
 
 
 
@@ -176,6 +184,12 @@ class Config(ConfigProtocol):
                 raise
         else:
             logger.warning(f"Config file not found: {config_hy}")
+
+        if self.has_value('loglevel-components'):
+            levels = list_to_dict(self.get_value('loglevel-components'))
+            for component, level in levels.items():
+                LoggerManager.set_component_pattern(component, level)
+
             
 
     def _save_hy_config(self) -> None:

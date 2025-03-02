@@ -2,7 +2,7 @@ import datetime
 import time
 from types import FunctionType, ModuleType  # pylint: disable=no-name-in-module
 
-from utms.utils import get_logger
+from utms.core.logger import get_logger
 from utms.utms_types import (
     Context,
     EvaluatedResult,
@@ -25,7 +25,7 @@ from utms.utms_types import (
 )
 from utms.core.hy import evaluate_hy_expression
 
-logger = get_logger("resolvers.hy_resolver")
+logger = get_logger()
 
 
 class HyResolver(ExpressionResolver, LocalsProvider):

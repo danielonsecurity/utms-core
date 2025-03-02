@@ -2,10 +2,10 @@ from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from utms.web.api import templates
-from utms.web.api.models import config
+from utms.core.config import Config
 
 router = APIRouter()
-
+config = Config()
 
 @router.get("/config", response_class=HTMLResponse)
 async def config_page(request: Request):

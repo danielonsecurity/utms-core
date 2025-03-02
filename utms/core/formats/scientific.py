@@ -6,11 +6,12 @@ from typing import Dict, List, Optional
 from utms.utils import color_scientific_format
 from utms.utms_types import FixedUnitManagerProtocol
 
-from ...utils import ColorFormatter, get_logger
+from ...utils import ColorFormatter
+from utms.core.logger import get_logger
 from .base import FormatterProtocol, FormattingOptions, NotationType
 from .config import TimeUncertainty
 
-logger = get_logger("core.formats.scientific")
+logger = get_logger()
 
 
 class ScientificFormatter(FormatterProtocol):

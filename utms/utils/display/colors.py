@@ -1,5 +1,4 @@
-import re
-from typing import List, Union
+from typing import Union
 
 from colorama import Back, Fore, Style, init
 

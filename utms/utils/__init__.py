@@ -20,4 +20,3 @@ from .hytools import (
     python_to_hy,
     format_hy_value,
 )
-from .logger import get_logger, set_log_level

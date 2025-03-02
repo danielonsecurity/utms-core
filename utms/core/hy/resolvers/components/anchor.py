@@ -3,7 +3,8 @@ from decimal import Decimal
 from typing import Any, Optional
 
 from utms.core.formats.config import TimeUncertainty
-from utms.utils import get_logger, get_ntp_date, hy_to_python
+from utms.utils import get_ntp_date, hy_to_python
+from utms.core.logger import get_logger
 from utms.utms_types import (
     Context,
     HyDict,
@@ -18,7 +19,7 @@ from utms.core.hy import evaluate_hy_file, evaluate_hy_expression
 
 from utms.core.hy.resolvers.base import HyResolver
 
-logger = get_logger("resolvers.anchor_resolver")
+logger = get_logger()
 
 
 class AnchorResolver(HyResolver):

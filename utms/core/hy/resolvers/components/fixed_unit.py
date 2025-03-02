@@ -1,11 +1,12 @@
 from decimal import Decimal
 from typing import Any, Dict, Optional
 
-from utms.utils import get_logger, hy_to_python
+from utms.utils import hy_to_python
+from utms.core.logger import get_logger
 from utms.utms_types import Context, HyDict, HyExpression, HyList, HySymbol, LocalsDict, ResolvedValue
 from utms.core.hy.resolvers.base import HyResolver
 
-logger = get_logger("resolvers.fixed_unit_resolver")
+logger = get_logger()
 
 
 class FixedUnitResolver(HyResolver):

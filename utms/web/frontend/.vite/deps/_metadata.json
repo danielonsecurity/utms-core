@@ -1,0 +1,55 @@
+{
+  "hash": "667239b5",
+  "configHash": "fb42b793",
+  "lockfileHash": "aa64ece0",
+  "browserHash": "8443249c",
+  "optimized": {
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "50d161a5",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "96f8f4cd",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "d422452a",
+      "needsInterop": true
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/react-router-dom/dist/index.mjs",
+      "file": "react-router-dom.js",
+      "fileHash": "5c41206a",
+      "needsInterop": false
+    },
+    "decimal.js": {
+      "src": "../../node_modules/decimal.js/decimal.mjs",
+      "file": "decimal__js.js",
+      "fileHash": "06b85a65",
+      "needsInterop": false
+    },
+    "gridstack": {
+      "src": "../../node_modules/gridstack/dist/gridstack.js",
+      "file": "gridstack.js",
+      "fileHash": "0a733281",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-DBUGNT2R": {
+      "file": "chunk-DBUGNT2R.js"
+    },
+    "chunk-VUPZMC2T": {
+      "file": "chunk-VUPZMC2T.js"
+    },
+    "chunk-EQCVQC35": {
+      "file": "chunk-EQCVQC35.js"
+    }
+  }
+}

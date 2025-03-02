@@ -197,6 +197,12 @@ def main() -> None:
         processed.
     """
     LoggerManager.bootstrap()
+    bootstrap_logger = get_logger("bootstrap")
+    bootstrap_logger.debug("HELP")
+    bootstrap_logger.info("INFO")
+    bootstrap_logger.warning("WARNING")
+    bootstrap_logger.error("ERROR")
+    bootstrap_logger.critical("CRITICAL")
     logger = get_logger()
     logger.debug("Starting UTMS CLI")
     logger.debug("Initializing command manager and config")

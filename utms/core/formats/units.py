@@ -5,12 +5,13 @@ from typing import Dict, List, Optional
 
 from utms.utms_types import FixedUnitManagerProtocol
 
-from ...utils import ColorFormatter, get_logger
+from ...utils import ColorFormatter
+from utms.core.logger import get_logger
 from utms.core.config import constants
 from .base import FormatterProtocol, FormattingOptions, NotationType
 from .config import TimeUncertainty
 
-logger = get_logger("core.formats.units")
+logger = get_logger()
 
 
 def filter_relevant_units(total_seconds: Decimal, unit_list: List) -> List:

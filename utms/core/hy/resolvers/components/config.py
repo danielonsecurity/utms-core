@@ -1,9 +1,9 @@
-from utms.utils import get_logger, hy_to_python
+from utms.core.logger import get_logger
+from utms.utils import hy_to_python
 from utms.utms_types import Context, HyExpression, LocalsDict, ResolvedValue, is_expression
 from utms.core.hy.resolvers.base import HyResolver
 
-logger = get_logger("resolvers.config_resolver")
-
+logger = get_logger()
 
 class ConfigResolver(HyResolver):
     def __init__(self) -> None:
@@ -12,31 +12,46 @@ class ConfigResolver(HyResolver):
 
     def get_locals_dict(self, context: Context, local_names: LocalsDict = None) -> LocalsDict:
         """Provide config-specific context for Hy evaluation"""
-        locals_dict = {}
-
+        locals_dict = super().get_locals_dict(context, local_names or {})
+        # Add any config-specific globals here if needed
         return locals_dict
 
     def _resolve_expression(
-        self, expr: HyExpression, context: Context, local_names: LocalsDict = None
+        self, 
+        expr: HyExpression, 
+        context: Context, 
+        local_names: LocalsDict = None
     ) -> ResolvedValue:
-        """Override to handle custom-set-config specially."""
+        """Handle custom-set-config specially."""
         if len(expr) > 0 and str(expr[0]) == "custom-set-config":
             logger.debug("Found custom-set-config form")
             result = {}
-            # Process each setting, skipping the 'quote' wrapper
+            # Process each setting
             for setting in expr[1:]:
-                if is_expression(setting) and len(setting) > 1:
-                    # Get the actual pair from (quote pair)
-                    quoted_pair = setting[1]
-                    if is_expression(quoted_pair) and len(quoted_pair) == 2:
-                        key = str(quoted_pair[0])
-                        value = quoted_pair[1]
-                        result[key] = value
+                if is_expression(setting) and len(setting) == 2:
+                    key = str(setting[0])
+                    value = setting[1]
+                    # Resolve the value using the base resolver
+                    resolved_value = self.resolve(value, context, local_names)
+                    result[key] = resolved_value
             return result
 
         return super()._resolve_expression(expr, context, local_names)
 
-    def resolve_config_property(self, expr: HyExpression, config=None) -> ResolvedValue:
+    def resolve_config_property(
+        self, 
+        expr: HyExpression, 
+        context: Context = None
+    ) -> ResolvedValue:
         """Config-specific resolution method"""
-        config = self.resolve(expr, config)
-        return {k: hy_to_python(v) for k, v in config.items()}
+        logger.debug("Resolving config property: %s", expr)
+        config = self.resolve(expr, context)
+        logger.debug("Raw resolved config: %s", config)
+        
+        # Convert Hy values to Python values
+        python_config = {
+            k: hy_to_python(v) 
+            for k, v in config.items()
+        }
+        logger.debug("Python config: %s", python_config)
+        return python_config

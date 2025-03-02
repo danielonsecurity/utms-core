@@ -7,8 +7,9 @@ from fastapi.responses import HTMLResponse
 from utms import AI
 from utms.utils import ansi_to_html
 from utms.web.api import templates
-from utms.web.api.models import config
+from utms.core.config import Config
 
+config = Config()
 router = APIRouter()
 
 

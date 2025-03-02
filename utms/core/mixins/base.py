@@ -1,4 +1,4 @@
-from utms.utils import get_logger
+from utms.core.logger import get_logger
 
 
 class LoggerMixin:

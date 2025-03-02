@@ -3,10 +3,11 @@ from ..loaders.base import ComponentLoader, LoaderContext
 from ..managers.pattern import PatternManager
 from utms.utms_types.recurrence.pattern import RecurrencePattern
 from utms.core.hy.ast.node import HyNode
-from utms.utils import get_logger, hy_to_python
+from utms.utils import hy_to_python
+from utms.core.logger import get_logger
 from utms.core.hy.resolvers import PatternResolver
 
-logger = get_logger("core.loaders.pattern")
+logger = get_logger()
 
 class PatternLoader(ComponentLoader[RecurrencePattern, PatternManager]):
     """Loader for Pattern components."""

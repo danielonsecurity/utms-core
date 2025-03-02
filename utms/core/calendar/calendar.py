@@ -1,4 +1,4 @@
-from utms.utils import get_logger
+from utms.core.logger import get_logger
 from utms.utms_types import CalendarUnit, TimeStamp, TimeRange
 
 from .calendar_calculator import CalendarCalculator, MonthCalculationParams
@@ -7,7 +7,7 @@ from .calendar_printer import CalendarPrinter, PrinterContext
 from .registry import CalendarRegistry
 from .unit_accessor import UnitAccessor
 
-logger = get_logger("core.calendar.calendar")
+logger = get_logger()
 
 
 class Calendar:

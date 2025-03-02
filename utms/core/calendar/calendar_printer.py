@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from utms.utils import get_logger
+from utms.core.logger import get_logger
 from utms.core.time import DecimalTimeStamp
 from utms.utms_types import (
     NamesList,
@@ -22,7 +22,7 @@ from .calendar_display import (
     YearHeaderFormatter,
 )
 
-logger = get_logger("core.calendar.calendar_printer")
+logger = get_logger()
 
 
 @dataclass

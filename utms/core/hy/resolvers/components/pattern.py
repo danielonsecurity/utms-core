@@ -1,9 +1,9 @@
 from typing import Any, Dict
 
-from utms.utils import get_logger
+from utms.core.logger import get_logger
 from utms.core.hy.resolvers.base import HyResolver
 
-logger = get_logger("resolvers.pattern_resolver")
+logger = get_logger()
 
 
 class PatternResolver(HyResolver):
