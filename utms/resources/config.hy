@@ -2,7 +2,7 @@
 (custom-set-config
   (bebebe "12345678")
   (blah "blah")
-  (gemini-api-key "AIzaSyBhzZO31MiupEWHgxq6MuL1YQ4F6gUV6Xo")
+  (gemini-api-key "YOUR-API-KEY")
   (gemini-max-output-tokens 200)
   (gemini-model "gemini-1.5-flash")
   (gemini-model-choices ["gemini-exp-1206" "gemini-2.0-flash-exp" "gemini-1.5-pro" "gemini-2.0-flash-thinking-exp-1219" "gemini-1.5-flash"])
