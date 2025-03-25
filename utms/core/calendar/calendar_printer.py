@@ -1,14 +1,8 @@
 from dataclasses import dataclass
 
-from utms.core.logger import get_logger
+from utms.core.mixins import LoggerMixin
 from utms.core.time import DecimalTimeStamp
-from utms.utms_types import (
-    NamesList,
-    TimeLength,
-    TimeRange,
-    TimeStamp,
-    TimeStampList,
-)
+from utms.utms_types import NamesList, TimeLength, TimeRange, TimeStamp, TimeStampList
 
 from .calendar_data import MonthCalculationParams, MonthData, YearData
 from .calendar_display import (
@@ -22,8 +16,6 @@ from .calendar_display import (
     YearHeaderFormatter,
 )
 
-logger = get_logger()
-
 
 @dataclass
 class PrinterContext:
@@ -35,7 +27,7 @@ class PrinterContext:
     today_start: TimeStamp
 
 
-class CalendarPrinter:
+class CalendarPrinter(LoggerMixin):
     """Handles all calendar display operations."""
 
     def __init__(self, context: PrinterContext):
@@ -71,7 +63,7 @@ class CalendarPrinter:
 
         # Check if we have valid names
         if year_unit_names is None:
-            logger.warning("No month names available")
+            self.logger.warning("No month names available")
             return
         # Find starting month index
         while valid_months_seen < (params.current_month - 1):

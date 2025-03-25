@@ -1,10 +1,13 @@
 from dataclasses import dataclass, field
 from typing import List, Optional
+
 from ..mixins.pattern import PatternMixin
+
 
 @dataclass
 class Pattern(PatternMixin):
     """Represents a recurrence pattern."""
+
     label: str
     name: str
     every: str

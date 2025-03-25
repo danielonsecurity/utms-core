@@ -1,29 +1,35 @@
-import { useEffect, useState } from 'react';
-import { Card } from '../../components/common/Card/Card';
-import { configApi } from '../../api/configApi';
-import { ConfigData } from '../../types/config';
+import { useEffect, useState, useRef } from "react";
+import { Card } from "../../components/common/Card/Card";
+import { configApi } from "../../api/configApi";
+import { ConfigData } from "../../types/config";
 
-const ConfigItem = ({ 
-  configKey, 
-  value, 
-  choices 
-}: { 
-  configKey: string; 
-  value: string | string[]; 
-  choices?: string[]; 
+const ConfigItem = ({
+  configKey,
+  value,
+  choices,
+}: {
+  configKey: string;
+  value: string | string[];
+  choices?: string[];
 }) => {
   const handleSave = async (key: string, index?: number) => {
     try {
-      if (typeof index === 'number') {
-        const inputValue = (document.getElementById(`${key}_${index}`) as HTMLInputElement | HTMLSelectElement).value;
+      if (typeof index === "number") {
+        const inputValue = (
+          document.getElementById(`${key}_${index}`) as
+            | HTMLInputElement
+            | HTMLSelectElement
+        ).value;
         await configApi.updateListItem(key, index, inputValue);
       } else {
-        const inputValue = (document.getElementById(key) as HTMLInputElement | HTMLSelectElement).value;
+        const inputValue = (
+          document.getElementById(key) as HTMLInputElement | HTMLSelectElement
+        ).value;
         await configApi.updateConfig(key, inputValue);
       }
-      alert('Saved successfully');
+      alert("Saved successfully");
     } catch (error) {
-      alert('Error saving: ' + (error as Error).message);
+      alert("Error saving: " + (error as Error).message);
     }
   };
 
@@ -32,23 +38,23 @@ const ConfigItem = ({
       await configApi.addNewListItem(key);
       window.location.reload();
     } catch (error) {
-      alert('Error adding item: ' + (error as Error).message);
+      alert("Error adding item: " + (error as Error).message);
     }
   };
 
   const handleSelectChange = async (key: string, index?: number) => {
     const selectId = index !== undefined ? `${key}_${index}` : key;
     const select = document.getElementById(selectId) as HTMLSelectElement;
-    
-    if (select.value === '__new__') {
-      const newValue = prompt('Enter new value:');
+
+    if (select.value === "__new__") {
+      const newValue = prompt("Enter new value:");
       if (newValue) {
-        const option = document.createElement('option');
+        const option = document.createElement("option");
         option.value = newValue;
         option.textContent = newValue;
         select.insertBefore(option, select.lastElementChild);
         select.value = newValue;
-        
+
         try {
           if (index !== undefined) {
             await configApi.updateListItem(key, index, newValue);
@@ -56,11 +62,11 @@ const ConfigItem = ({
             await configApi.updateConfig(key, newValue);
           }
         } catch (error) {
-          alert('Error saving: ' + (error as Error).message);
-          select.value = select.querySelector('option:checked')?.value || '';
+          alert("Error saving: " + (error as Error).message);
+          select.value = select.querySelector("option:checked")?.value || "";
         }
       } else {
-        select.value = select.querySelector('option:checked')?.value || '';
+        select.value = select.querySelector("option:checked")?.value || "";
       }
     }
   };
@@ -68,7 +74,9 @@ const ConfigItem = ({
   return (
     <div className="config__item card">
       <div className="card__header">
-        <label className="config__label" htmlFor={configKey}>{configKey}</label>
+        <label className="config__label" htmlFor={configKey}>
+          {configKey}
+        </label>
       </div>
       <div className="card__body">
         {Array.isArray(value) ? (
@@ -82,7 +90,7 @@ const ConfigItem = ({
                     defaultValue={item}
                     onChange={() => handleSelectChange(configKey, index)}
                   >
-                    {choices.map(choice => (
+                    {choices.map((choice) => (
                       <option key={choice} value={choice}>
                         {choice}
                       </option>
@@ -97,7 +105,7 @@ const ConfigItem = ({
                     defaultValue={item}
                   />
                 )}
-                <button 
+                <button
                   className="config__btn config__btn--save"
                   onClick={() => handleSave(configKey, index)}
                 >
@@ -105,7 +113,7 @@ const ConfigItem = ({
                 </button>
               </div>
             ))}
-            <button 
+            <button
               className="config__btn config__btn--add"
               onClick={() => handleAddItem(configKey)}
             >
@@ -122,7 +130,7 @@ const ConfigItem = ({
                 defaultValue={value}
                 onChange={() => handleSelectChange(configKey)}
               >
-                {choices.map(choice => (
+                {choices.map((choice) => (
                   <option key={choice} value={choice}>
                     {choice}
                   </option>
@@ -137,7 +145,7 @@ const ConfigItem = ({
                 defaultValue={value}
               />
             )}
-            <button 
+            <button
               className="config__btn config__btn--save"
               onClick={() => handleSave(configKey)}
             >
@@ -151,18 +159,55 @@ const ConfigItem = ({
 };
 
 export const Config = () => {
+  console.log("Config component rendering");
   const [config, setConfig] = useState<ConfigData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const controllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
-    configApi.getConfig().then(setConfig);
+    if (controllerRef.current) {
+      controllerRef.current.abort();
+    }
+    controllerRef.current = new AbortController();
+
+    const loadConfig = async () => {
+      try {
+        console.log("Starting config load");
+        const data = await configApi.getConfig(controllerRef.current!.signal);
+        console.log("Config loaded successfully:", data);
+        setConfig(data);
+      } catch (err) {
+        if (err.name !== "AbortError") {
+          console.error("Error in config component:", err);
+          setError(err instanceof Error ? err.message : "Unknown error");
+        }
+      }
+    };
+
+    loadConfig();
+
+    return () => {
+      if (controllerRef.current) {
+        controllerRef.current.abort();
+        controllerRef.current = null;
+      }
+    };
   }, []);
+
+  if (error) {
+    return (
+      <div style={{ color: "red", padding: "20px" }}>
+        Error loading config: {error}
+      </div>
+    );
+  }
 
   if (!config) return <div>Loading...</div>;
 
   return (
     <div className="config">
       {Object.entries(config)
-        .filter(([key]) => !key.endsWith('-choices'))
+        .filter(([key]) => !key.endsWith("-choices"))
         .map(([key, value]) => (
           <ConfigItem
             key={key}

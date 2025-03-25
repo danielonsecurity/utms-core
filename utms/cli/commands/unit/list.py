@@ -30,8 +30,8 @@ def register_unit_list_command(command_manager: CommandManager) -> None:
     Returns:
         None
     """
-    units_manager = command_manager.config.units
-    command = Command("unit", "list", units_manager.print, is_default=True)
+    units_component = command_manager.config.units
+    command = Command("unit", "list", units_component.print, is_default=True)
     command.set_help("List all time units")
     command.set_description("List all time units")
     add_plt_argument(command)

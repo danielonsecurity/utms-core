@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Protocol
 
-from ..base.protocols import TimeStamp, TimeLength
+from ..base.protocols import TimeLength, TimeStamp
 from ..base.types import ArbitraryKwargs
 from ..hy.types import ResolvedValue
 
@@ -35,9 +35,7 @@ class CalendarUnit(Protocol):
         self, prop: str, timestamp: TimeStamp = None, *args: object, **kwargs: object
     ) -> ResolvedValue: ...
 
-    def get_start(
-        self, timestamp: TimeStamp = None, **kwargs: "ArbitraryKwargs"
-    ) -> TimeStamp: ...
+    def get_start(self, timestamp: TimeStamp = None, **kwargs: "ArbitraryKwargs") -> TimeStamp: ...
 
     def get_length(
         self, timestamp: TimeStamp = None, **kwargs: "ArbitraryKwargs"
@@ -51,13 +49,9 @@ class CalendarUnit(Protocol):
         self, timestamp: TimeStamp = None, **kwargs: "ArbitraryKwargs"
     ) -> "NamesList": ...
 
-    def get_offset(
-        self, timestamp: TimeStamp = None, **kwargs: "ArbitraryKwargs"
-    ) -> Decimal: ...
+    def get_offset(self, timestamp: TimeStamp = None, **kwargs: "ArbitraryKwargs") -> Decimal: ...
 
-    def get_index(
-        self, timestamp: TimeStamp = None, **kwargs: "ArbitraryKwargs"
-    ) -> int: ...
+    def get_index(self, timestamp: TimeStamp = None, **kwargs: "ArbitraryKwargs") -> int: ...
 
     def get_property(self, prop: str) -> "PropertyValue": ...
     def set_property(self, prop: str, value: "PropertyValue") -> None: ...

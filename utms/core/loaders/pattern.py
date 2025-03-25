@@ -1,13 +1,13 @@
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
+from utms.core.hy.resolvers import PatternResolver
+from utms.utils import hy_to_python
+from utms.utms_types import HyNode
+from utms.utms_types.recurrence.pattern import RecurrencePattern
+
 from ..loaders.base import ComponentLoader, LoaderContext
 from ..managers.pattern import PatternManager
-from utms.utms_types.recurrence.pattern import RecurrencePattern
-from utms.core.hy.ast.node import HyNode
-from utms.utils import hy_to_python
-from utms.core.logger import get_logger
-from utms.core.hy.resolvers import PatternResolver
 
-logger = get_logger()
 
 class PatternLoader(ComponentLoader[RecurrencePattern, PatternManager]):
     """Loader for Pattern components."""
@@ -19,14 +19,14 @@ class PatternLoader(ComponentLoader[RecurrencePattern, PatternManager]):
     def parse_definitions(self, nodes: List[HyNode]) -> Dict[str, dict]:
         """Parse HyNodes into pattern definitions."""
         patterns = {}
-        logger.debug("Starting to parse pattern definitions")
+        self.logger.debug("Starting to parse pattern definitions")
 
         for node in nodes:
             if not self.validate_node(node, "def-pattern"):
                 continue
 
             pattern_label = node.value
-            logger.debug(f"Processing pattern: {pattern_label}")
+            self.logger.debug(f"Processing pattern: {pattern_label}")
 
             pattern_kwargs = {}
             for prop in node.children:
@@ -35,10 +35,10 @@ class PatternLoader(ComponentLoader[RecurrencePattern, PatternManager]):
                     if prop.children:
                         prop_value = prop.children[0].value
                         pattern_kwargs[prop_name] = prop_value
-                        logger.debug(f"Added property {prop_name}: {prop_value}")
+                        self.logger.debug(f"Added property {prop_name}: {prop_value}")
 
             patterns[pattern_label] = {"label": pattern_label, "kwargs": pattern_kwargs}
-            logger.info(f"Added pattern {pattern_label}")
+            self.logger.info(f"Added pattern {pattern_label}")
 
         return patterns
 

@@ -1,12 +1,13 @@
 import os
+from argparse import Namespace
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
+from utms.core.hy.ast import HyAST
+from utms.core.loaders.base import LoaderContext
 from utms.core.loaders.fixed_unit import FixedUnitLoader
 from utms.core.managers.fixed_unit import FixedUnitManager
 from utms.core.models.fixed_unit import FixedUnit
-from utms.core.loaders.base import LoaderContext
-from utms.core.hy.ast import HyAST
 
 from .base import SystemComponent
 
@@ -61,6 +62,14 @@ class FixedUnitComponent(SystemComponent):
         """Get all fixed units"""
         return self._fixed_unit_manager.get_all()
 
+    def get_units_by_group(self, group):
+        """Get all fixed units"""
+        return self._fixed_unit_manager.get_units_by_group(group)
+
+    def get_units_by_groups(self, groups, match_all: bool = False):
+        """Get all fixed units"""
+        return self._fixed_unit_manager.get_units_by_groups(groups, match_all)
+
     def add_unit(self, unit: FixedUnit) -> None:
         """Add a fixed unit."""
         self._fixed_unit_manager.add(unit.label, unit)
@@ -74,3 +83,9 @@ class FixedUnitComponent(SystemComponent):
     ) -> FixedUnit:
         """Create a new fixed unit."""
         return self._fixed_unit_manager.create(label=label, name=name, value=value, groups=groups)
+
+    def convert(self, args: Namespace):
+        return self._fixed_unit_manager.convert_units(args)
+
+    def print(self, args: Namespace):
+        return self._fixed_unit_manager.print(args)

@@ -1,5 +1,7 @@
 from decimal import Decimal
+
 from .colors import ColorFormatter
+
 
 def color_scientific_format(number_str: str) -> str:
     """Format scientific notation string with colored 'e' and '+/-' symbols."""
@@ -17,6 +19,7 @@ def color_scientific_format(number_str: str) -> str:
 
     # Construct the colored string
     return f"{base}" f"{ColorFormatter.magenta('e')}" f"{ColorFormatter.red(sign)}" f"{exponent}"
+
 
 def format_value(
     value: Decimal, threshold: Decimal = Decimal("1e7"), small_threshold: Decimal = Decimal("0.001")

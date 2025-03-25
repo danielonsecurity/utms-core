@@ -1,8 +1,8 @@
 from datetime import datetime, time, timedelta  # Add time to imports
 from typing import Any, List, Optional, Union
 
-from utms.core.hy.ast import HyNode
 from utms.core.time import DecimalTimeLength, DecimalTimeStamp, TimeExpressionParser
+from utms.utms_types import HyNode
 
 from .base import (
     Constraint,

@@ -4,7 +4,6 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from utms.core.config import Config
 from utms.web.api import templates
 
-config = Config()
 router = APIRouter()
 
 

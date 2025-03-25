@@ -4,4 +4,3 @@ def print_row(items_list, separator="   "):
     for items in items_list:
         formatted_items.append(f"{items}")
     print(separator.join(formatted_items))
-

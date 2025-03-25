@@ -1,5 +1,5 @@
 from decimal import Decimal
-from typing import Optional, Protocol, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Protocol, Union
 
 if TYPE_CHECKING:
     from utms.core.time.decimal import DecimalTimeLength, DecimalTimeStamp

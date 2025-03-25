@@ -9,7 +9,6 @@ from ..models.anchor import Anchor, FormatSpec
 from .base import BaseManager
 
 
-
 class AnchorManager(BaseManager[Anchor], AnchorManagerProtocol):
     """Manages anchors with their properties and relationships."""
 
@@ -41,6 +40,7 @@ class AnchorManager(BaseManager[Anchor], AnchorManagerProtocol):
 
     def _sort_anchors(self) -> None:
         """Sort the anchors by their value."""
+        breakpoint()
         self._items = dict(sorted(self._items.items(), key=lambda item: item[1].value))
 
     def get_anchors_by_group(self, group: str) -> List[Anchor]:

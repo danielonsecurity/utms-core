@@ -99,25 +99,26 @@ class AI:
             ValueError: If required configuration values are missing.
         """
         self.config = config
-        if config.has_value("gemini-api-key"):
-            api_key = config.get_value("gemini-api-key")
+        config_component = config.config
+        if "gemini-api-key" in config_component:
+            api_key = config_component.get("gemini-api-key")
         else:
             api_key = input("Gemini API key: ")
-            config.set_value("gemini-api-key", api_key)
+            config_component["gemini-api-key"] = api_key
 
         genai.configure(api_key=api_key, transport="rest")
         self.ai_config = genai.GenerationConfig(
-            max_output_tokens=int(config.get_value("gemini-max-output-tokens")),
-            temperature=float(config.get_value("gemini-temperature")),
-            top_p=float(config.get_value("gemini-top-p")),
-            top_k=int(config.get_value("gemini-top-k")),
+            max_output_tokens=int(config_component.get("gemini-max-output-tokens")),
+            temperature=float(config_component.get("gemini-temperature")),
+            top_p=float(config_component.get("gemini-top-p")),
+            top_k=int(config_component.get("gemini-top-k")),
         )
 
         with open(
             os.path.join(config.utms_dir, "system_prompt.txt"), "r", encoding="utf-8"
         ) as file:
             self.model = genai.GenerativeModel(
-                "models/" + config.get_value("gemini-model"),
+                "models/" + config_component.get("gemini-model"),
                 system_instruction=file.read().format(datetime_now=datetime.now().isoformat()),
             )
 

@@ -1,6 +1,7 @@
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
-from datetime import datetime, timedelta, timezone
+
 
 def get_timezone_from_seconds(seconds: Decimal) -> timezone:
     """Create a timezone object from seconds offset.

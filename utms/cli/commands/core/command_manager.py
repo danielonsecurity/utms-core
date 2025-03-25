@@ -29,6 +29,7 @@ from utms.cli.commands.core.command import Command
 from utms.cli.commands.core.hierarchy import CommandHierarchy
 from utms.core.logger import LoggerManager, get_logger
 
+
 class CommandManager:
     """A class responsible for managing and processing commands in the UTMS
     CLI.

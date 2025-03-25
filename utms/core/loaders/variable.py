@@ -1,11 +1,10 @@
 from typing import Any, Dict, List
 
+from utms.core.hy.resolvers.components.variable import VariableResolver
 from utms.core.loaders.base import ComponentLoader, LoaderContext
 from utms.core.managers.variable import VariableManager
 from utms.core.models.variable import Variable
-from utms.core.hy.resolvers.components.variable import VariableResolver
-from utms.core.hy.ast.node import HyNode
-from utms.utms_types import HyProperty
+from utms.utms_types import HyNode, HyProperty
 
 
 class VariableLoader(ComponentLoader[Variable, VariableManager]):

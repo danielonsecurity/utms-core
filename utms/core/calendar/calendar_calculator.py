@@ -3,12 +3,9 @@ import time
 from decimal import Decimal
 from types import FunctionType
 
+from utms.core.calendar.utils import get_day_of_week
 from utms.core.hy import evaluate_hy_expression
-from utms.core.calendar.utils import (
-    get_day_of_week,
-)
-
-from utms.core.logger import get_logger
+from utms.core.mixins import LoggerMixin
 from utms.utils import get_datetime_from_timestamp, get_timezone_from_seconds
 from utms.utms_types import (
     CalendarUnit,
@@ -21,8 +18,6 @@ from utms.utms_types import (
 
 from .calendar_data import MonthCalculationParams, MonthContext, MonthData, MonthGroupData, YearData
 from .unit_accessor import UnitAccessor
-
-logger = get_logger()
 
 
 class DayOfWeekCalculator:  # pylint: disable=too-few-public-methods
@@ -72,7 +67,7 @@ class DayOfWeekCalculator:  # pylint: disable=too-few-public-methods
         return get_day_of_week(timestamp, units["week"], units["day"])
 
 
-class CalendarCalculator:
+class CalendarCalculator(LoggerMixin):
     def __init__(self) -> None:
         self._day_of_week_calculator = DayOfWeekCalculator()
         self.epoch_year: int = 1970
@@ -180,7 +175,7 @@ class CalendarCalculator:
         week_length: int,
         group_data: MonthGroupData,
     ) -> None:
-        logger.debug(
+        self.logger.debug(
             "Processing month %d:\nCurrent timestamp: %s",
             context.month_index,
             context.current_timestamp,
@@ -189,26 +184,26 @@ class CalendarCalculator:
         month_length = units.month.get_length(
             context.current_timestamp, month_index=context.month_index
         )
-        logger.debug("Month length: %d days", month_length // 86400)
+        self.logger.debug("Month length: %d days", month_length // 86400)
 
         if month_length > 0:
             current_ts = context.current_timestamp.copy()
             month_end = min((current_ts + month_length - 1).copy(), (context.year_end - 1).copy())
-            logger.debug("Month end: %s\nCurrent TS: %s", month_end, current_ts)
+            self.logger.debug("Month end: %s\nCurrent TS: %s", month_end, current_ts)
             first_day_weekday = (
                 self._day_of_week_calculator.calculate(
                     context.current_timestamp.copy(), units, units.day_of_week_fn
                 )
                 % week_length
             )
-            logger.debug("First day weekday: %d", first_day_weekday)
+            self.logger.debug("First day weekday: %d", first_day_weekday)
 
             group_data.add_month(
                 context.current_timestamp.copy(), month_end.copy(), first_day_weekday
             )
             context.months_added += 1
             context.current_timestamp += month_length
-            logger.debug("New current timestamp: %s", context.current_timestamp)
+            self.logger.debug("New current timestamp: %s", context.current_timestamp)
 
     def calculate_max_weeks(
         self,
@@ -223,7 +218,7 @@ class CalendarCalculator:
             month_data.month_starts, month_data.month_ends, month_data.first_day_weekdays
         ):
             month_start, month_end, first_day_weekday = month
-            logger.debug(
+            self.logger.debug(
                 "Calculating weeks for month:\n  start: %s\n  end: %s\n  first_day_weekday: %d",
                 month_start,
                 month_end,
@@ -232,14 +227,14 @@ class CalendarCalculator:
 
             month_duration = month_end - month_start
             days_in_month = int(month_duration / day_length) + 1
-            logger.debug("  days_in_month: %d", days_in_month)
+            self.logger.debug("  days_in_month: %d", days_in_month)
 
             total_slots_needed = days_in_month + first_day_weekday
             weeks_in_month = (total_slots_needed + days_per_week - 1) // days_per_week
-            logger.debug("  weeks_in_month: %d", weeks_in_month)
+            self.logger.debug("  weeks_in_month: %d", weeks_in_month)
 
             max_weeks = max(max_weeks, weeks_in_month)
-            logger.debug("  max_weeks: %d", max_weeks)
+            self.logger.debug("  max_weeks: %d", max_weeks)
 
         return int(max_weeks)
 

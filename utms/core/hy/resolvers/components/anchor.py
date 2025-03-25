@@ -3,8 +3,10 @@ from decimal import Decimal
 from typing import Any, Optional
 
 from utms.core.formats.config import TimeUncertainty
+from utms.core.hy import evaluate_hy_expression, evaluate_hy_file
+from utms.core.hy.resolvers.base import HyResolver
+from utms.core.mixins import ResolverMixin
 from utms.utils import get_ntp_date, hy_to_python
-from utms.core.logger import get_logger
 from utms.utms_types import (
     Context,
     HyDict,
@@ -15,11 +17,6 @@ from utms.utms_types import (
     ResolvedValue,
     is_dict,
 )
-from utms.core.hy import evaluate_hy_file, evaluate_hy_expression
-
-from utms.core.hy.resolvers.base import HyResolver
-
-logger = get_logger()
 
 
 class AnchorResolver(HyResolver):
@@ -31,13 +28,13 @@ class AnchorResolver(HyResolver):
 
         if context:
             locals_dict["self"] = context
-            logger.debug("Added self: %s", context)
+            self.logger.debug("Added self: %s", context)
 
         if local_names:
             locals_dict.update(local_names)
-            logger.debug("Added local names: %s", list(local_names.keys()))
+            self.logger.debug("Added local names: %s", list(local_names.keys()))
 
-        logger.debug("Final locals dictionary keys: %s", list(locals_dict.keys()))
+        self.logger.debug("Final locals dictionary keys: %s", list(locals_dict.keys()))
         return locals_dict
 
     def resolve_anchor_property(
@@ -48,12 +45,12 @@ class AnchorResolver(HyResolver):
         local_names = variables if variables else {}
 
         for key, value in expr.items():
-            logger.debug("Resolving property %s with value type: %s", key, type(value))
-            logger.debug("Value: %s", value)
+            self.logger.debug("Resolving property %s with value type: %s", key, type(value))
+            self.logger.debug("Value: %s", value)
             if isinstance(value, (HyExpression, HyList, HySymbol, HyDict)):
                 try:
                     resolved_value = self.resolve(value, anchor, local_names)
-                    logger.debug(
+                    self.logger.debug(
                         "Resolved %s to %s (type: %s)", key, resolved_value, type(resolved_value)
                     )
                     if key == "uncertainty":
@@ -61,7 +58,7 @@ class AnchorResolver(HyResolver):
 
                     resolved[key] = resolved_value
                 except Exception as e:
-                    logger.error("Error resolving %s: %s", key, e)
+                    self.logger.error("Error resolving %s: %s", key, e)
             else:
                 resolved[key] = value
 

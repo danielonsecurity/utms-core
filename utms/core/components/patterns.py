@@ -2,10 +2,10 @@ import os
 from typing import Dict, List, Optional
 
 from utms.core.hy.ast import HyAST
+from utms.core.loaders.pattern import PatternLoader
+from utms.core.managers.pattern import PatternManager
 from utms.utms_types.recurrence.pattern import RecurrencePattern
 
-from utms.core.managers.pattern import PatternManager
-from utms.core.loaders.pattern import PatternLoader
 from .base import SystemComponent
 
 
@@ -28,19 +28,19 @@ class PatternComponent(SystemComponent):
             try:
                 # Get variables from variables component if needed
                 variables_component = self.get_component("variables")
-                variables = {
-                    name: var.value for name, var in variables_component.items()
-                } if variables_component else {}
+                variables = (
+                    {name: var.value for name, var in variables_component.items()}
+                    if variables_component
+                    else {}
+                )
 
                 # Parse file into nodes
                 nodes = self._ast_manager.parse_file(patterns_file)
 
                 # Create context
                 from ..loaders.base import LoaderContext
-                context = LoaderContext(
-                    config_dir=self._config_dir,
-                    variables=variables
-                )
+
+                context = LoaderContext(config_dir=self._config_dir, variables=variables)
 
                 # Process nodes using loader
                 self._items = self._loader.process(nodes, context)

@@ -1,2 +1,2 @@
-from .config import Config
 from . import constants
+from .config import Config

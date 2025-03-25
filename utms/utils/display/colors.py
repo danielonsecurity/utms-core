@@ -1,10 +1,11 @@
 from typing import Union
 
 from colorama import Back, Fore, Style, init
+from colorama.ansi import AnsiBack, AnsiFore, AnsiStyle
 
 init()
 
-ColorCode = Union[str, Fore, Back, Style]
+ColorCode = Union[str, AnsiFore, AnsiBack, AnsiStyle]
 
 
 class ColorFormatter:
@@ -159,7 +160,3 @@ class ColorFormatter:
     @staticmethod
     def format_if(text: str, condition: bool, *colors: ColorCode) -> str:
         return ColorFormatter.format(text, *colors) if condition else text
-
-
-
-

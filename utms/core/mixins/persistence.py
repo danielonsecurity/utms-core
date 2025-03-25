@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, List
 
-from utms.core.hy.ast.base import HyAST
-from utms.core.hy.ast.node import HyNode
+from utms.core.hy.ast import HyAST
+from utms.utms_types import HyNode
 
 from .base import LoggerMixin
 

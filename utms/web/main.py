@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,8 +14,16 @@ from utms.web.api.routes import (
     units_routes,
     variables_routes,
 )
+from utms.web.dependencies import get_config
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    get_config()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,15 +41,12 @@ app.mount("/static", StaticFiles(directory="utms/web/static"), name="static")
 templates = Jinja2Templates(directory="utms/web/templates")
 
 # Include routers
-app.include_router(resolve_routes.router)
-app.include_router(resolve_routes.router, prefix="/api/resolve", tags=["resolve"])
-app.include_router(clock_routes.router)
-app.include_router(clock_routes.router, prefix="/api/clock", tags=["clock"])
-
-app.include_router(variables_routes.router)
 app.include_router(config_routes.router)
-app.include_router(units_routes.router)
+app.include_router(variables_routes.router)
 app.include_router(anchors_routes.router)
+app.include_router(units_routes.router)
+app.include_router(clock_routes.router)
+app.include_router(resolve_routes.router)
 
 
 if __name__ == "__main__":

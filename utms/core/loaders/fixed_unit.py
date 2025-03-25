@@ -4,8 +4,7 @@ from typing import Any, Dict, List
 from utms.core.loaders.base import ComponentLoader
 from utms.core.managers.fixed_unit import FixedUnitManager
 from utms.core.models.fixed_unit import FixedUnit
-from utms.core.hy.ast.node import HyNode
-from utms.utms_types import HyProperty, UnitConfig
+from utms.utms_types import HyNode, HyProperty, UnitConfig
 
 
 class FixedUnitLoader(ComponentLoader[FixedUnit, FixedUnitManager]):

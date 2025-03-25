@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from typing import Any, Dict, Generic, Optional, TypeVar
 
 from ..mixins.manager import ManagerMixin
@@ -6,7 +6,7 @@ from ..mixins.manager import ManagerMixin
 T = TypeVar("T")  # The type of objects managed by this manager
 
 
-class BaseManager(ABC, Generic[T], ManagerMixin):
+class BaseManager(Generic[T], ManagerMixin):
     """Base class for all managers in the system.
 
     Managers are responsible for:

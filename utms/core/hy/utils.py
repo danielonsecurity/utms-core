@@ -5,11 +5,23 @@ from typing import Any, List
 import hy
 
 from utms.core.formats import TimeUncertainty
-from utms.core.logger import get_logger
+from utms.utms_types import HyNode
 
-from ..node import HyNode
 
-logger = get_logger()
+def is_dynamic_content(value: Any) -> bool:
+    """Determine if content is dynamic based on its structure."""
+    if isinstance(value, hy.models.Expression):
+        return True  # Any Hy expression is considered dynamic
+    if isinstance(value, hy.models.Symbol):
+        # Symbols that aren't keywords are dynamic
+        return not str(value).startswith(":")
+    if isinstance(value, hy.models.List):
+        # Check if any element in the list is dynamic
+        return any(is_dynamic_content(x) for x in value)
+    if isinstance(value, hy.models.Dict):
+        # Check both keys and values in the dict
+        return any(is_dynamic_content(x) for x in value)
+    return False
 
 
 def format_value(value: Any) -> str:
@@ -59,49 +71,51 @@ def format_value(value: Any) -> str:
     return str(value)
 
 
-def format_expression(expr_str: str) -> List[str]:
-    """Format a Hy expression with proper indentation."""
+def _format_map(content: str, base_indent: int) -> str:
+    """Format map content with proper indentation."""
+    items = content.split()
+    if len(items) <= 4:  # Short maps on one line
+        return f"{{{' '.join(items)}}}"
 
-    def format_map(content: str, base_indent: int) -> str:
-        """Format map content with proper indentation."""
-        items = content.split()
-        if len(items) <= 4:  # Short maps on one line
-            return f"{{{' '.join(items)}}}"
-
-        lines = ["{"]
-        i = 0
-        while i < len(items):
-            if items[i].startswith(":"):
-                # Key-value pair
-                if i + 1 < len(items):
-                    lines.append(f"  {' '.join(items[i:i+2])}")
-                    i += 2
-                else:
-                    lines.append(f"  {items[i]}")
-                    i += 1
+    lines = ["{"]
+    i = 0
+    while i < len(items):
+        if items[i].startswith(":"):
+            # Key-value pair
+            if i + 1 < len(items):
+                lines.append(f"  {' '.join(items[i:i+2])}")
+                i += 2
             else:
                 lines.append(f"  {items[i]}")
                 i += 1
-        lines.append("}")
-        return "\n".join("  " * base_indent + line for line in lines)
+        else:
+            lines.append(f"  {items[i]}")
+            i += 1
+    lines.append("}")
+    return "\n".join("  " * base_indent + line for line in lines)
 
-    def format_list(content: str, base_indent: int) -> str:
-        """Format list content with proper indentation."""
-        items = content.split()
-        if len(items) <= 4:  # Short lists on one line
-            return f"[{' '.join(items)}]"
 
-        lines = ["["]
-        current_line = "  "
-        for item in items:
-            if len(current_line) + len(item) > 80:  # Line length limit
-                lines.append(current_line.rstrip())
-                current_line = "  "
-            current_line += item + " "
-        if current_line.strip():
+def _format_list(content: str, base_indent: int) -> str:
+    """Format list content with proper indentation."""
+    items = content.split()
+    if len(items) <= 4:  # Short lists on one line
+        return f"[{' '.join(items)}]"
+
+    lines = ["["]
+    current_line = "  "
+    for item in items:
+        if len(current_line) + len(item) > 80:  # Line length limit
             lines.append(current_line.rstrip())
-        lines.append("]")
-        return "\n".join("  " * base_indent + line for line in lines)
+            current_line = "  "
+        current_line += item + " "
+    if current_line.strip():
+        lines.append(current_line.rstrip())
+    lines.append("]")
+    return "\n".join("  " * base_indent + line for line in lines)
+
+
+def format_expression(expr_str: str) -> List[str]:
+    """Format a Hy expression with proper indentation."""
 
     formatted = []
     current_line = ""
@@ -142,7 +156,7 @@ def format_expression(expr_str: str) -> List[str]:
                     brace_count -= 1
                 j += 1
             map_content = expr_str[i + 1 : j - 1].strip()
-            current_line += format_map(map_content, indent_level)
+            current_line += _format_map(map_content, indent_level)
             i = j
             continue
 
@@ -157,7 +171,7 @@ def format_expression(expr_str: str) -> List[str]:
                     bracket_count -= 1
                 j += 1
             list_content = expr_str[i + 1 : j - 1].strip()
-            current_line += format_list(list_content, indent_level)
+            current_line += _format_list(list_content, indent_level)
             i = j
             continue
 

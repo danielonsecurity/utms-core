@@ -40,11 +40,11 @@ def register_unit_convert_command(command_manager: CommandManager) -> None:
     Returns:
         None
     """
-    units_manager = command_manager.config.units
+    units_component = command_manager.config.units
     command = Command(
         "unit",
         "convert",
-        units_manager.convert_units,
+        units_component.convert,
     )
     command.set_help("Convert value between units")
     command.set_description(

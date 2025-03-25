@@ -1,5 +1,5 @@
-import { ReactNode } from 'react';
-import { Sidebar } from '../Sidebar/Sidebar';
+import { ReactNode } from "react";
+import { Sidebar } from "../Sidebar/Sidebar";
 
 interface LayoutProps {
   children: ReactNode;
@@ -7,6 +7,7 @@ interface LayoutProps {
 }
 
 export const Layout = ({ children, activePage }: LayoutProps) => {
+  console.log("Layout rendering, activePage:", activePage);
   return (
     <div className="container">
       <Sidebar activePage={activePage} />
@@ -16,9 +17,7 @@ export const Layout = ({ children, activePage }: LayoutProps) => {
             {activePage?.charAt(0).toUpperCase() + activePage?.slice(1)}
           </h1>
         </header>
-        <div className="content__body">
-          {children}
-        </div>
+        <div className="content__body">{children}</div>
       </main>
     </div>
   );

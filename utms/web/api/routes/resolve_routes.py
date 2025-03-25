@@ -1,41 +1,20 @@
 from datetime import datetime
 from decimal import Decimal
 
-from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 
 from utms import AI
+from utms.core.config import Config
 from utms.utils import ansi_to_html
 from utms.web.api import templates
-from utms.core.config import Config
+from utms.web.dependencies import get_config
 
-config = Config()
 router = APIRouter()
 
 
-@router.get("/resolve", response_class=HTMLResponse)
-async def resolve_page(request: Request):
-    # Get all available anchors for selection
-    anchors_data = {}
-    for anchor in config.anchors._anchors.values():
-        anchors_data[anchor.label] = {
-            "name": anchor.name,
-            "formats": [format_spec.__dict__ for format_spec in anchor.formats],
-        }
-
-    return templates.TemplateResponse(
-        "resolve.html", {"request": request, "active_page": "resolve", "anchors": anchors_data}
-    )
-
-
-@router.get("/")
-async def get_resolve_info():
-    # Basic endpoint for initial data if needed
-    return {"status": "active"}
-
-
 @router.post("/resolve")
-async def resolve_time(data: dict):
+async def resolve_time(data: dict, config: Config = Depends(get_config)):
     try:
         input_string = data.get("input")
         selected_anchors = data.get("anchors", [])

@@ -1,5 +1,5 @@
+from ..ast import HyAST
 from .base import HyResolver
-from ..ast import HyAST, HyNode
 from .components.anchor import AnchorResolver
 from .components.calendar import CalendarResolver
 from .components.config import ConfigResolver

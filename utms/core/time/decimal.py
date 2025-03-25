@@ -5,9 +5,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional, Protocol, Union
 
-from utms.utms_types.unit import FixedUnitManagerProtocol
-
 from utms.utms_types.base.protocols import TimeLength, TimeRange, TimeStamp
+from utms.utms_types.unit import FixedUnitManagerProtocol
 
 
 class DecimalTimeStamp(TimeStamp):
@@ -444,7 +443,6 @@ class DecimalTimeLength:
 
     def __repr__(self) -> str:
         return f"DecimalTimeLength({self._seconds})"
-
 
 
 @dataclass

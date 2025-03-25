@@ -1,9 +1,7 @@
-from utms.core.logger import get_logger
+from utms.core.hy.resolvers.base import HyResolver
 from utms.utils import hy_to_python
 from utms.utms_types import Context, HyExpression, LocalsDict, ResolvedValue, is_expression
-from utms.core.hy.resolvers.base import HyResolver
 
-logger = get_logger()
 
 class ConfigResolver(HyResolver):
     def __init__(self) -> None:
@@ -17,14 +15,11 @@ class ConfigResolver(HyResolver):
         return locals_dict
 
     def _resolve_expression(
-        self, 
-        expr: HyExpression, 
-        context: Context, 
-        local_names: LocalsDict = None
+        self, expr: HyExpression, context: Context, local_names: LocalsDict = None
     ) -> ResolvedValue:
         """Handle custom-set-config specially."""
         if len(expr) > 0 and str(expr[0]) == "custom-set-config":
-            logger.debug("Found custom-set-config form")
+            self.logger.debug("Found custom-set-config form")
             result = {}
             # Process each setting
             for setting in expr[1:]:
@@ -38,20 +33,13 @@ class ConfigResolver(HyResolver):
 
         return super()._resolve_expression(expr, context, local_names)
 
-    def resolve_config_property(
-        self, 
-        expr: HyExpression, 
-        context: Context = None
-    ) -> ResolvedValue:
+    def resolve_config_property(self, expr: HyExpression, context: Context = None) -> ResolvedValue:
         """Config-specific resolution method"""
-        logger.debug("Resolving config property: %s", expr)
+        self.logger.debug("Resolving config property: %s", expr)
         config = self.resolve(expr, context)
-        logger.debug("Raw resolved config: %s", config)
-        
+        self.logger.debug("Raw resolved config: %s", config)
+
         # Convert Hy values to Python values
-        python_config = {
-            k: hy_to_python(v) 
-            for k, v in config.items()
-        }
-        logger.debug("Python config: %s", python_config)
+        python_config = {k: hy_to_python(v) for k, v in config.items()}
+        self.logger.debug("Python config: %s", python_config)
         return python_config

@@ -18,8 +18,8 @@
 
   ;; Additional properties
   (properties {
-    "priority" "A"
-    "location" "Office"
-    "url" "https://example.com"
-    "notes" "This is a test event with all possible fields"
+    :priority "A"
+    :location "Office"
+    :url "https://example.com"
+    :notes "This is a test event with all possible fields"
   }))

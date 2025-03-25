@@ -2,7 +2,8 @@ import os
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Union
 
-from utms.core.hy.ast.base import HyAST
+from utms.core.hy.ast import HyAST
+from utms.utils import hy_to_python
 
 from ..formats import TimeUncertainty
 from ..loaders.anchor import AnchorLoader
@@ -10,7 +11,6 @@ from ..loaders.base import LoaderContext
 from ..managers.anchor import AnchorManager
 from ..models.anchor import Anchor, FormatSpec
 from .base import SystemComponent
-from utms.utils import hy_to_python
 
 
 class AnchorComponent(SystemComponent):
@@ -49,10 +49,7 @@ class AnchorComponent(SystemComponent):
                 nodes = self._ast_manager.parse_file(anchors_file)
 
                 # Create context with variables
-                context = LoaderContext(
-                    config_dir=self._config_dir,
-                    variables=variables
-                )
+                context = LoaderContext(config_dir=self._config_dir, variables=variables)
 
                 # Process nodes using loader
                 self._items = self._loader.process(nodes, context)
@@ -62,7 +59,6 @@ class AnchorComponent(SystemComponent):
             except Exception as e:
                 self.logger.error(f"Error loading anchors: {e}")
                 raise
-
 
     def save(self) -> None:
         """Save anchors to anchors.hy"""
@@ -91,10 +87,6 @@ class AnchorComponent(SystemComponent):
     def get_anchor(self, label: str) -> Optional[Anchor]:
         """Get an anchor by label."""
         return self._anchor_manager.get(label)
-
-    def get_all_anchors(self) -> Dict[str, Anchor]:
-        """Get all anchors."""
-        return self._anchor_manager.get_all()
 
     def get_anchors_by_group(self, group: str) -> List[Anchor]:
         """Get all anchors belonging to a specific group."""

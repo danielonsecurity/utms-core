@@ -3,11 +3,11 @@ from decimal import Decimal
 from enum import Enum, auto
 from typing import Dict, List, Optional
 
+from utms.core.config import constants
+from utms.core.logger import get_logger
 from utms.utms_types import FixedUnitManagerProtocol
 
 from ...utils import ColorFormatter
-from utms.core.logger import get_logger
-from utms.core.config import constants
 from .base import FormatterProtocol, FormattingOptions, NotationType
 from .config import TimeUncertainty
 

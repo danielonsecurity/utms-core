@@ -1,5 +1,5 @@
-from utms.core.logger import get_logger
-from utms.utms_types import CalendarUnit, TimeStamp, TimeRange
+from utms.core.mixins import LoggerMixin
+from utms.utms_types import CalendarUnit, TimeRange, TimeStamp
 
 from .calendar_calculator import CalendarCalculator, MonthCalculationParams
 from .calendar_data import CalendarState, MonthData, YearData
@@ -7,12 +7,10 @@ from .calendar_printer import CalendarPrinter, PrinterContext
 from .registry import CalendarRegistry
 from .unit_accessor import UnitAccessor
 
-logger = get_logger()
 
-
-class Calendar:
+class Calendar(LoggerMixin):
     def __init__(self, name: str, timestamp: TimeStamp):
-        logger.debug("Initializing calendar %s", name)
+        self.logger.debug("Initializing calendar %s", name)
         self.name: str = name
         self.timestamp: TimeStamp = timestamp
         units = CalendarRegistry.get_calendar_units(name)
@@ -20,7 +18,7 @@ class Calendar:
         self._calculator: CalendarCalculator = CalendarCalculator()
         self._state: CalendarState = self._create_calendar_state()
         self._printer: CalendarPrinter = self._create_printer()
-        logger.info("Calendar %s initialized successfully", name)
+        self.logger.info("Calendar %s initialized successfully", name)
 
     def _create_calendar_state(self) -> CalendarState:
         """Create initial calendar state."""

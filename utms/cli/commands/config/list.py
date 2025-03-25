@@ -19,6 +19,8 @@ Usage:
         register_config_list_command(command_manager)
 """
 
+import json
+
 from utms.cli.commands.core import Command, CommandManager
 
 
@@ -46,7 +48,12 @@ def register_config_list_command(command_manager: CommandManager) -> None:
         In CLI:
             config list
     """
-    command = Command("config", "list", lambda _: command_manager.config.print(), is_default=True)
+    command = Command(
+        "config",
+        "list",
+        lambda _: print(json.dumps(command_manager.config.get(), indent=4, sort_keys=True)),
+        is_default=True,
+    )
     command.set_help("Print config")
     command.set_description("List all configuration options")
     command_manager.register_command(command)

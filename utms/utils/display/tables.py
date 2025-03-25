@@ -1,7 +1,9 @@
+from prettytable import PrettyTable
+
 from utms.core.time.utils import calculate_decimal_time, calculate_standard_time
 
-from prettytable import PrettyTable
 from .colors import ColorFormatter
+
 
 def generate_time_table() -> str:
     """Generate a time table mapping seconds to decidays, centidays, standard

@@ -48,7 +48,7 @@ class SystemComponent(MutableMapping, ComponentMixin):
 
     def get_component(self, name: str):
         if self._component_manager:
-            return self._component_manager.get(name)
+            return self._component_manager.get_instance(name)
         return None
 
 
@@ -65,16 +65,19 @@ class ComponentManager:
         self._components[name] = component_class(self._config_dir, self)
         self._loaded[name] = False
 
-    def get(self, name: str) -> SystemComponent:
-        """Get a component, loading it if necessary"""
+    def get_instance(self, name: str) -> SystemComponent:
+        """Get component instance without loading it"""
         if name not in self._components:
             raise KeyError(f"No component registered for {name}")
-
-        if not self._loaded[name]:
-            self._components[name].load()
-            self._loaded[name] = True
-
         return self._components[name]
+
+    def get(self, name: str) -> SystemComponent:
+        """Get and load component if needed"""
+        component = self.get_instance(name)
+        if not self._loaded[name]:
+            component.load()
+            self._loaded[name] = True
+        return component
 
     def is_loaded(self, name: str) -> bool:
         """Check if a component has been loaded"""

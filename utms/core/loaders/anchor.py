@@ -1,17 +1,18 @@
+from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
-from datetime import datetime
 
 import hy
 
 from utms.core.hy.resolvers import AnchorResolver
-from utms.core.hy.ast.node import HyNode
 from utms.utils import hy_to_python
+from utms.utms_types import HyNode
 
 from ..formats import TimeUncertainty
 from ..loaders.base import ComponentLoader, LoaderContext
 from ..managers.anchor import AnchorManager
 from ..models.anchor import Anchor, FormatSpec
+
 
 class AnchorLoader(ComponentLoader[Anchor, AnchorManager]):
     """Loader for Anchor components."""
@@ -46,39 +47,32 @@ class AnchorLoader(ComponentLoader[Anchor, AnchorManager]):
 
         return anchors
 
-
     def create_object(self, label: str, properties: Dict[str, Any]) -> Anchor:
         """Create an Anchor from properties."""
         props = properties["properties"]
         resolved_props = self._resolver.resolve_anchor_property(
-            props,
-            variables=self.context.variables if self.context else None
+            props, variables=self.context.variables if self.context else None
         )
 
         # Get name with its original expression
-        name_value = props['name']['value']
-        name_original = props['name'].get('original')
+        name_value = props["name"]["value"]
+        name_original = props["name"].get("original")
 
         # Get value and its original expression
-        value = resolved_props['value']['value']
-        value_original = props['value'].get('original')
-
+        value = resolved_props["value"]["value"]
+        value_original = props["value"].get("original")
 
         # Resolve name if it's an expression
         if isinstance(name_value, (hy.models.Expression, hy.models.Symbol)):
             resolved_name = self._resolver.resolve(
-                name_value,
-                context=None,
-                local_names=self.context.variables
+                name_value, context=None, local_names=self.context.variables
             )
         else:
             resolved_name = name_value
 
         if isinstance(value, (hy.models.Expression, hy.models.Symbol)):
             resolved_value = self._resolver.resolve(
-                value,
-                context=None,
-                local_names=self.context.variables
+                value, context=None, local_names=self.context.variables
             )
         else:
             resolved_value = value
@@ -97,17 +91,15 @@ class AnchorLoader(ComponentLoader[Anchor, AnchorManager]):
             formats=[
                 FormatSpec(
                     format=str(fmt) if isinstance(fmt, hy.models.String) else None,
-                    units=[str(u) for u in fmt] if isinstance(fmt, hy.models.List) else None
+                    units=[str(u) for u in fmt] if isinstance(fmt, hy.models.List) else None,
                 )
-                for fmt in resolved_props.get('formats', {}).get('value', [])
+                for fmt in resolved_props.get("formats", {}).get("value", [])
             ],
-            groups=[str(g) for g in resolved_props.get('groups', {}).get('value', [])],
-            uncertainty=self._parse_uncertainty(resolved_props.get('uncertainty', {}))
+            groups=[str(g) for g in resolved_props.get("groups", {}).get("value", [])],
+            uncertainty=self._parse_uncertainty(resolved_props.get("uncertainty", {})),
         )
 
-
         return anchor
-
 
     def process(self, nodes: List[HyNode], context: LoaderContext) -> Dict[str, Anchor]:
         """Process nodes into Anchors with resolution context."""
@@ -116,15 +108,14 @@ class AnchorLoader(ComponentLoader[Anchor, AnchorManager]):
 
     def _parse_uncertainty(self, uncertainty_data: Dict) -> Optional[TimeUncertainty]:
         """Parse uncertainty data into TimeUncertainty object."""
-        if not uncertainty_data or 'value' not in uncertainty_data:
+        if not uncertainty_data or "value" not in uncertainty_data:
             return None
 
-        data = uncertainty_data['value']
+        data = uncertainty_data["value"]
         if isinstance(data, dict):
             return TimeUncertainty(
-                absolute=Decimal(data.get('absolute', '1e-9')),
-                relative=Decimal(data.get('relative', '1e-9')),
-                confidence_95=data.get('confidence_95')
+                absolute=Decimal(data.get("absolute", "1e-9")),
+                relative=Decimal(data.get("relative", "1e-9")),
+                confidence_95=data.get("confidence_95"),
             )
         return None
-    

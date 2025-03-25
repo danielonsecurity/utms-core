@@ -1,11 +1,8 @@
 from typing import Any, Optional
 
-from utms.utils import hy_to_python
-from utms.core.logger import get_logger
-from utms.utms_types import Context, HyExpression, HySymbol, LocalsDict
 from utms.core.hy.resolvers.base import HyResolver
-
-logger = get_logger()
+from utms.utils import hy_to_python
+from utms.utms_types import Context, HyExpression, HySymbol, LocalsDict
 
 
 class EventResolver(HyResolver):
@@ -28,13 +25,13 @@ class EventResolver(HyResolver):
         local_names = variables if variables else {}
 
         for key, value in expr.items():
-            logger.debug("Resolving property %s with value type: %s", key, type(value))
+            self.logger.debug("Resolving property %s with value type: %s", key, type(value))
             if isinstance(value, (HyExpression, HySymbol)):
                 try:
                     resolved_value = self.resolve(value, event, local_names)
                     resolved[key] = resolved_value
                 except Exception as e:
-                    logger.error("Error resolving %s: %s", key, e)
+                    self.logger.error("Error resolving %s: %s", key, e)
             else:
                 resolved[key] = value
 

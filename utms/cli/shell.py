@@ -47,8 +47,8 @@ from prompt_toolkit.styles import Style
 from utms import AI, VERSION, Config
 from utms.cli.commands.core import CommandManager
 from utms.cli.commands.register import register_all_commands
-from utms.core.time.utils.formatting import print_time
 from utms.core.logger import LoggerManager, get_logger
+from utms.core.time.utils.formatting import print_time
 
 config = Config()
 
@@ -64,8 +64,11 @@ def add_global_arguments(command_manager: CommandManager) -> None:
     """
     command_manager.parser.add_argument("--version", action="store_true", help="Show UTMS version")
     command_manager.parser.add_argument("--debug", action="store_true", help="Enter Python's PDB")
-    command_manager.parser.add_argument("--log-level", choices=["DEBUG", "INFO", "WARNING", "ERROR"],
-                                        help="Set bootstrap logging level")
+    command_manager.parser.add_argument(
+        "--log-level",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        help="Set bootstrap logging level",
+    )
 
 
 def print_prompt_help(parser: argparse.ArgumentParser) -> None:

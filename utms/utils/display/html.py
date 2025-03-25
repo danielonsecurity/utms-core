@@ -1,5 +1,7 @@
 import re
+
 from .colors import ColorFormatter
+
 
 def ansi_to_html(text: str) -> str:
     """Convert ANSI color codes to HTML span elements with appropriate classes."""

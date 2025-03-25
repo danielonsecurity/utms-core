@@ -1,8 +1,8 @@
-import hy
 from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional, Union
 
+import hy
 from colorama import Fore, Style, init
 from prettytable import PrettyTable
 
@@ -10,11 +10,9 @@ if TYPE_CHECKING:
     from utms.config import Config
 
 from utms.core.time.plt import seconds_to_hplt, seconds_to_pplt
-
 from utms.utils.display.colors import ColorFormatter
 
 init()
-
 
 
 def print_time(
@@ -74,7 +72,7 @@ def print_time(
 
     # Print results for each anchor
     for anchor in anchor_list:
-        print(ColorFormatter.cyan(f"{config.anchors.get_label(anchor)}: {anchor.name}"))
+        print(ColorFormatter.cyan(f"{config.anchors.get_anchor(anchor)}: {anchor.name}"))
 
         # Print formats
         format_result = anchor.format(total_seconds - anchor.value, config.units)
@@ -91,4 +89,3 @@ def print_time(
                 f"    {Fore.GREEN}{Style.BRIGHT}hPLT:{Style.RESET_ALL} "
                 f"{seconds_to_hplt(total_seconds - anchor.value):.5f}"
             )
-

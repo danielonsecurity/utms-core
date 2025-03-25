@@ -1,7 +1,6 @@
 from .anchor.protocols import AnchorConfigProtocol, AnchorManagerProtocol, AnchorProtocol
 from .anchor.types import AnchorKwargs
-from .base.protocols import TimeLength, TimeStamp, TimeRange
-
+from .base.protocols import TimeLength, TimeRange, TimeStamp
 from .base.types import (
     ArbitraryArgs,
     ArbitraryKwargs,
@@ -66,6 +65,7 @@ from .hy.types import (
     HyKeyword,
     HyLazy,
     HyList,
+    HyNode,
     HyProperty,
     HyString,
     HySymbol,

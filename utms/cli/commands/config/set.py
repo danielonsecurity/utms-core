@@ -19,6 +19,8 @@ Usage:
         register_config_set_command(command_manager)
 """
 
+from argparse import Namespace
+
 from utms.cli.commands.core import Command, CommandManager
 
 
@@ -51,9 +53,13 @@ def register_config_set_command(command_manager: CommandManager) -> None:
         In CLI:
             config set <key> <value>
     """
-    command = Command(
-        "config", "set", lambda args: command_manager.config.set_value(args.key, args.value)
-    )
+
+    def set_config(args: Namespace) -> None:
+        config = command_manager.config.get_component("config")
+        config[args.key] = args.value
+        config.save()
+
+    command = Command("config", "set", set_config)
     command.set_help("Set a configuration value")
     command.set_description("Set the config option from its key")
     # Add the arguments for this command

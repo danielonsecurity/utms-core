@@ -1,9 +1,6 @@
 from typing import Any, Dict
 
-from utms.core.logger import get_logger
 from utms.core.hy.resolvers.base import HyResolver
-
-logger = get_logger()
 
 
 class PatternResolver(HyResolver):
@@ -26,13 +23,13 @@ class PatternResolver(HyResolver):
         local_names = variables if variables else {}
 
         for key, value in expr.items():
-            logger.debug("Resolving property %s with value type: %s", key, type(value))
+            self.logger.debug("Resolving property %s with value type: %s", key, type(value))
             try:
                 resolved_value = self.resolve(value, pattern, local_names)
-                logger.debug("Resolved %s to %s", key, resolved_value)
+                self.logger.debug("Resolved %s to %s", key, resolved_value)
                 resolved[key] = resolved_value
             except Exception as e:
-                logger.error("Error resolving %s: %s", key, e)
+                self.logger.error("Error resolving %s: %s", key, e)
                 resolved[key] = value
 
         return resolved

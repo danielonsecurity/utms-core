@@ -1,21 +1,22 @@
-import sys
 import logging
 import os
 import re
+import sys
 from pathlib import Path
 from typing import Dict, Optional, Union
 
-from .handlers import create_console_handler, create_temp_file_handler, create_rotating_handler
+from .handlers import create_console_handler, create_rotating_handler, create_temp_file_handler
+
 
 class LoggerManager:
     """Centralized logger management with bootstrap and component-specific levels."""
-    
+
     _initialized = False
     _loggers: Dict[str, logging.Logger] = {}
     _component_patterns: Dict[str, int] = {}
     _default_level = logging.INFO
     _log_file: Optional[Path] = None
-    
+
     @classmethod
     def bootstrap(cls, cli_level: Optional[str] = None) -> None:
         """Initialize bootstrap logging."""
@@ -23,10 +24,7 @@ class LoggerManager:
             return
 
         # Set bootstrap level from CLI or environment
-        bootstrap_level_name = (
-            cli_level or 
-            os.environ.get('UTMS_LOG_LEVEL', 'INFO')
-        ).upper()
+        bootstrap_level_name = (cli_level or os.environ.get("UTMS_LOG_LEVEL", "INFO")).upper()
         bootstrap_level = getattr(logging, bootstrap_level_name, logging.INFO)
         cls._default_level = bootstrap_level
 
@@ -42,7 +40,7 @@ class LoggerManager:
         logger.setLevel(bootstrap_level)
         logger.addHandler(cls._console_handler)
         logger.addHandler(cls._temp_file_handler)
-        cls._loggers['bootstrap'] = logger
+        cls._loggers["bootstrap"] = logger
 
         logger.info("Bootstrap logging initialized")
 
@@ -59,8 +57,7 @@ class LoggerManager:
                 module_name = frame.f_globals["__name__"]
                 package = frame.f_globals.get("__package__", "")
                 if package and not (
-                    package.startswith("importlib") or 
-                    package == "utms.core.logger"
+                    package.startswith("importlib") or package == "utms.core.logger"
                 ):
                     name = module_name
                     break
@@ -104,15 +101,15 @@ class LoggerManager:
     def configure_file_logging(cls, utms_dir: str) -> None:
         """Set up proper file logging once config dir is available."""
         # Set up log directory
-        logs_dir = Path(utms_dir) / 'logs'
+        logs_dir = Path(utms_dir) / "logs"
         logs_dir.mkdir(exist_ok=True)
-        cls._log_file = logs_dir / 'utms.log'
+        cls._log_file = logs_dir / "utms.log"
 
         # Migrate bootstrap logs if they exist
         if cls._temp_log_file and cls._temp_log_file.exists():
             try:
                 bootstrap_content = cls._temp_log_file.read_text()
-                
+
                 # Close temp handler
                 if cls._temp_file_handler:
                     cls._temp_file_handler.close()
@@ -121,7 +118,7 @@ class LoggerManager:
                             logger.removeHandler(cls._temp_file_handler)
 
                 # Write bootstrap logs to main log
-                with open(cls._log_file, 'a') as f:
+                with open(cls._log_file, "a") as f:
                     f.write("\n=== Bootstrap Logs ===\n")
                     f.write(bootstrap_content)
                     f.write("=== End Bootstrap Logs ===\n\n")
@@ -178,18 +175,20 @@ class LoggerManager:
         """Set log level for components matching pattern."""
         if isinstance(level, str):
             level = getattr(logging, level.upper())
-            
+
         cls._component_patterns[pattern] = level
-        
+
         # Update existing loggers that match the pattern
         for name, logger in cls._loggers.items():
             if re.search(pattern, name):
                 logger.setLevel(level)
                 for handler in logger.handlers:
                     handler.setLevel(level)
-            
-        logger = cls.get_logger('core.logger')
-        logger.info(f"Set log level to {logging.getLevelName(level)} for components matching '{pattern}'")
+
+        logger = cls.get_logger("core.logger")
+        logger.info(
+            f"Set log level to {logging.getLevelName(level)} for components matching '{pattern}'"
+        )
 
     @classmethod
     def get_component_levels(cls) -> Dict[str, str]:
@@ -204,13 +203,15 @@ class LoggerManager:
         """Reset components matching pattern to default level."""
         if pattern in cls._component_patterns:
             del cls._component_patterns[pattern]
-            
+
             # Reset matching loggers to default
             for name, logger in cls._loggers.items():
                 if re.search(pattern, name):
                     logger.setLevel(cls._default_level)
                     for handler in logger.handlers:
                         handler.setLevel(cls._default_level)
-            
-        logger = cls.get_logger('core.logger')
-        logger.info(f"Reset components matching '{pattern}' to default ({logging.getLevelName(cls._default_level)})")
+
+        logger = cls.get_logger("core.logger")
+        logger.info(
+            f"Reset components matching '{pattern}' to default ({logging.getLevelName(cls._default_level)})"
+        )

@@ -7,8 +7,8 @@ from utms.utms_types import (
     OptionalInteger,
     OptionalTimeStampList,
     TimeLength,
-    TimeStamp,
     TimeRange,
+    TimeStamp,
     TimeStampList,
 )
 

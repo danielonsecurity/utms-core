@@ -11,7 +11,7 @@
 
 # class TimeExpressionParser:
 #     """Converts human-readable time expressions to Hy expressions"""
-    
+
 #     def __init__(self):
 #         self.token_pattern = re.compile(
 #             r'(?P<number>[+-]?(?:\d*\.)?\d+(?:e[+-]?\d+)?)'
@@ -119,7 +119,7 @@
 #                     operator_stack.pop()
 #             elif token in self.operators:
 #                 # Process operators with higher or equal precedence
-#                 while (operator_stack and operator_stack[-1] != '(' and 
+#                 while (operator_stack and operator_stack[-1] != '(' and
 #                        self.operators.get(operator_stack[-1], 0) >= self.operators.get(token, 0)):
 #                     op = operator_stack.pop()
 #                     b = output_queue.pop()
@@ -150,8 +150,6 @@
 #         return output_queue[0]
 
 
-
-
 #     def restructure_expression(self, expr: hy.models.Expression) -> hy.models.Expression:
 #         """Convert postfix expression to prefix (Hy) expression"""
 #         # If there's only one element, return it directly
@@ -174,7 +172,6 @@
 #                 stack.append(token)
 
 #         return stack[0] if stack else None
-
 
 
 #     def parse(self, expression: str) -> hy.models.Expression:
@@ -208,4 +205,3 @@
 #         context = self.create_evaluation_context()
 #         result = evaluate_hy_expression(hy_expr, context)
 #         return result
-    

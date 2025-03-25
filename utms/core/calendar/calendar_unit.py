@@ -4,11 +4,9 @@ from decimal import Decimal
 from types import FunctionType
 
 from utms.core.calendar.utils import get_day_of_week
-from utms.core.logger import get_logger
-from utms.utils import (
-    get_datetime_from_timestamp,
-    get_timezone_from_seconds,
-)
+from utms.core.mixins import LoggerMixin
+from utms.core.time import DecimalTimeLength, DecimalTimeStamp
+from utms.utils import get_datetime_from_timestamp, get_timezone_from_seconds
 from utms.utms_types import ArbitraryArgs, ArbitraryKwargs
 from utms.utms_types import CalendarUnit as CalendarUnitProtocol
 from utms.utms_types import (
@@ -28,12 +26,9 @@ from utms.utms_types import (
     is_timelength,
     is_timestamp,
 )
-from utms.core.time import DecimalTimeStamp, DecimalTimeLength
-
-logger = get_logger()
 
 
-class CalendarUnit(CalendarUnitProtocol):
+class CalendarUnit(CalendarUnitProtocol, LoggerMixin):
     class Attributes(UnitAttributes):
         def __init__(self, name: str, kwargs: UnitKwargs):
             self.name = name
@@ -126,7 +121,9 @@ class CalendarUnit(CalendarUnitProtocol):
             try:
                 return func_with_globals(timestamp, *args, **kwargs)
             except TypeError:
-                logger.debug("Couldn't convert into proper data types for %s.%s", self.name, prop)
+                self.logger.debug(
+                    "Couldn't convert into proper data types for %s.%s", self.name, prop
+                )
                 raise
         if isinstance(value, (int, float, str, Decimal, list)):
             return value
@@ -139,7 +136,7 @@ class CalendarUnit(CalendarUnitProtocol):
         try:
             value = self.get_value("start", timestamp, **kwargs)
         except TypeError:
-            logger.debug("kwargs for %s.start not accepted: %s", self.name, kwargs)
+            self.logger.debug("kwargs for %s.start not accepted: %s", self.name, kwargs)
             value = self.get_value("start", timestamp)
         if isinstance(value, (int, float, Decimal)):
             return DecimalTimeStamp(value)
@@ -154,7 +151,7 @@ class CalendarUnit(CalendarUnitProtocol):
         try:
             value = self.get_value("length", timestamp, **kwargs)
         except TypeError:
-            logger.debug("kwargs for %s.length not accepted: %s", self.name, kwargs)
+            self.logger.debug("kwargs for %s.length not accepted: %s", self.name, kwargs)
             value = self.get_value("length", timestamp)
         if isinstance(value, (int, float, Decimal)):
             return DecimalTimeLength(value)
@@ -169,7 +166,7 @@ class CalendarUnit(CalendarUnitProtocol):
         try:
             value = self.get_value("timezone", timestamp, **kwargs)
         except TypeError:
-            logger.debug("kwargs for %s.timezone not accepted: %s", self.name, kwargs)
+            self.logger.debug("kwargs for %s.timezone not accepted: %s", self.name, kwargs)
             value = self.get_value("timezone", timestamp)
         if isinstance(value, (int, float, Decimal)):
             return DecimalTimeLength(value)
@@ -183,7 +180,7 @@ class CalendarUnit(CalendarUnitProtocol):
         try:
             value = self.get_value("names", timestamp, **kwargs)
         except TypeError:
-            logger.debug("kwargs for %s.names not accepted: %s", self.name, kwargs)
+            self.logger.debug("kwargs for %s.names not accepted: %s", self.name, kwargs)
             value = self.get_value("names", timestamp)
         if is_names_list(value):
             return value
@@ -195,7 +192,7 @@ class CalendarUnit(CalendarUnitProtocol):
         try:
             value = self.get_value("offset", timestamp, **kwargs)
         except TypeError:
-            logger.debug("kwargs for %s.offset not accepted: %s", self.name, kwargs)
+            self.logger.debug("kwargs for %s.offset not accepted: %s", self.name, kwargs)
             value = self.get_value("offset", timestamp)
         if is_number(value):
             return Decimal(value)
@@ -207,7 +204,7 @@ class CalendarUnit(CalendarUnitProtocol):
         try:
             value = self.get_value("index", timestamp, **kwargs)
         except TypeError:
-            logger.debug("kwargs for %s.index not accepted: %s", self.name, kwargs)
+            self.logger.debug("kwargs for %s.index not accepted: %s", self.name, kwargs)
             value = self.get_value("index", timestamp)
         if isinstance(value, (int)):
             return value
@@ -228,16 +225,16 @@ class CalendarUnit(CalendarUnitProtocol):
         names = self.get_names()
         length = self.get_length(timestamp)
         if not is_timelength(length):
-            logger.error("%s must be a number", length)
+            self.logger.error("%s must be a number", length)
             raise ValueError(f"{length} length must be a number")
         start = self.get_start(timestamp)
         if not is_timestamp(start):
-            logger.error("%s must be a number, not a %s", start, type(start))
+            self.logger.error("%s must be a number, not a %s", start, type(start))
             raise ValueError(f"{start} length must be a number, instead it's {type(start)}")
 
         if not index and names and length and start:
             if not is_names_list(names):
-                logger.error("%s must be a list", names)
+                self.logger.error("%s must be a list", names)
                 raise ValueError(f"{names} must be a list")
 
             names_len = len(names)

@@ -5,8 +5,9 @@ from typing import List, Optional
 from utms.core.formats import TimeUncertainty
 from utms.utils import ColorFormatter
 
-from ..mixins.model import ModelMixin
 from ..formats import registry as format_registry
+from ..mixins.model import ModelMixin
+
 
 @dataclass
 class FormatSpec:
@@ -65,12 +66,14 @@ class Anchor(ModelMixin):
     def __eq__(self, other):
         if not isinstance(other, Anchor):
             return False
-        return self.label == other.label    
+        return self.label == other.label
 
     def format(self, total_seconds: Decimal, units: "FixedUnitManagerProtocol") -> str:
         """Format the anchor value using specified formats."""
         output = []
-        self.logger.debug("Processing formats: %s", self.formats)  # Note: changed from self._formats
+        self.logger.debug(
+            "Processing formats: %s", self.formats
+        )  # Note: changed from self._formats
 
         for format_spec in self.formats:
             self.logger.debug("Processing format spec: %s", format_spec)
@@ -127,4 +130,3 @@ class Anchor(ModelMixin):
                     formatted = prefix + ", ".join(parts)
                     output.append(formatted)
         return "\n".join(output)
-    

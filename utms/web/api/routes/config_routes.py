@@ -1,28 +1,23 @@
-from fastapi import APIRouter, Body, HTTPException, Request
+from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from utms.web.api import templates
 from utms.core.config import Config
+from utms.web.api import templates
+from utms.web.dependencies import get_config
 
 router = APIRouter()
-config = Config()
-
-@router.get("/config", response_class=HTMLResponse)
-async def config_page(request: Request):
-    return templates.TemplateResponse(
-        "config.html", {"request": request, "config": config.data, "active_page": "config"}
-    )
 
 
 @router.get("/api/config", response_class=JSONResponse)
-async def get_config():
-    return config.data
+async def get_config_data(config: Config = Depends(get_config)):
+    return config.config
 
 
 @router.put("/api/config/{key}", response_class=JSONResponse)
-async def update_config(key: str, value: str = Body(...)):
+async def update_config(key: str, value: str = Body(...), config: Config = Depends(get_config)):
     try:
-        config.set_value(key, value)
+        config.config[key] = value
+        config.config.save()
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

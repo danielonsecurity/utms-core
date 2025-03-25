@@ -4,11 +4,16 @@ import hy
 from hy.compiler import hy_eval
 
 from utms.core.logger import get_logger
+from utms.utms_types.hy.types import (
+    EvaluatedResult,
+    ExpressionList,
+    HyExpression,
+    HyLazy,
+    LocalsDict,
+    is_symbol,
+)
 
-from utms.utms_types.hy.types import EvaluatedResult, ExpressionList, HyExpression, HyLazy, LocalsDict, is_symbol
-
-
-logger = get_logger("core.hy.evaluation")
+logger = get_logger()
 
 
 def evaluate_hy_file(hy_file_path: str) -> ExpressionList:

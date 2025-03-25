@@ -2,17 +2,15 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Optional
 
-from utms.utms_types.calendar.protocols import CalendarUnit as CalendarUnitProtocol
-from utms.utms_types import TimeRange, TimeStamp
 from utms.core.time import DecimalTimeStamp
+from utms.utms_types import TimeRange, TimeStamp
+from utms.utms_types.calendar.protocols import CalendarUnit as CalendarUnitProtocol
 
 
 def get_timezone(unit, timestamp=None):
     timezone_offset_seconds = unit.get_value("timezone", timestamp)
 
     return timezone(timedelta(seconds=float(timezone_offset_seconds)))
-
-
 
 
 def get_day_of_week(

@@ -7,4 +7,3 @@ def get_seconds_since_midnight() -> int:
     midnight = now.replace(hour=0, minute=0, second=0, microsecond=0)
     seconds_since_midnight = (now - midnight).seconds
     return seconds_since_midnight
-

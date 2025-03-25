@@ -37,6 +37,7 @@ def hy_to_python(data: Any) -> Any:
 
     return data
 
+
 def python_to_hy(value: Any) -> str:
     """Format a Python value as a Hy expression."""
     if value is None:
@@ -61,7 +62,6 @@ def python_to_hy(value: Any) -> str:
         return "{\n" + "\n".join(items) + "\n}"
     return str(value)
 
+
 def list_to_dict(flat_list):
     return dict(zip(flat_list[::2], flat_list[1::2]))
-
-

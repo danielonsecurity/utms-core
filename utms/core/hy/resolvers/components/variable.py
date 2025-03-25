@@ -1,11 +1,8 @@
 import datetime
 
-from utms.utils import get_ntp_date, get_timezone_from_seconds
-from utms.core.logger import get_logger
-from utms.utms_types import Context, HyExpression, LocalsDict, ResolvedValue, is_expression
 from utms.core.hy.resolvers.base import HyResolver
-
-logger = get_logger()
+from utms.utils import get_ntp_date, get_timezone_from_seconds
+from utms.utms_types import Context, HyExpression, LocalsDict, ResolvedValue, is_expression
 
 
 class VariableResolver(HyResolver):
@@ -25,5 +22,5 @@ class VariableResolver(HyResolver):
         for name, value in self._resolved_vars.items():
             locals_dict[name] = value  # original name with hyphen
             locals_dict[name.replace("-", "_")] = value  # underscore version
-        logger.debug("Locals dict contains: %s", locals_dict.keys())
+        self.logger.debug("Locals dict contains: %s", locals_dict.keys())
         return locals_dict
