@@ -33,7 +33,7 @@ class ConfigManager(BaseManager[Config], ConfigManagerProtocol):
     def get_configs_by_type(self, is_dynamic: bool) -> List[Config]:
         """Get configs filtered by dynamic status."""
         return [
-            config for config in self._items.values() 
+            config for config in self._items.values()
             if config.is_dynamic == is_dynamic
         ]
 

@@ -37,7 +37,7 @@ class Config(ModelMixin):
     def format(self) -> str:
         """
         Format the config value for display.
-        
+
         This method can be expanded to handle different types of config values.
         """
         if self.is_dynamic and self.original:

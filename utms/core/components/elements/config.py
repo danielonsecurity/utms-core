@@ -71,9 +71,9 @@ class ConfigComponent(SystemComponent):
 
         # Create a node with the custom-set-config type
         config_node = plugin.parse(
-            ["custom-set-config"] + 
+            ["custom-set-config"] +
             [
-                [key, config.value] 
+                [key, config.value]
                 for key, config in self._items.items()
             ]
         )
@@ -81,23 +81,23 @@ class ConfigComponent(SystemComponent):
         return config_node
 
     def create_config(
-        self, 
-        key: str, 
-        value: Any, 
-        is_dynamic: bool = False, 
+        self,
+        key: str,
+        value: Any,
+        is_dynamic: bool = False,
         original: Optional[str] = None
     ) -> Config:
         """Create a new config entry."""
         config = self._config_manager.create(
-            key=key, 
-            value=value, 
-            is_dynamic=is_dynamic, 
+            key=key,
+            value=value,
+            is_dynamic=is_dynamic,
             original=original
         )
-        
+
         # Save immediately to persist the change
         self.save()
-        
+
         return config
 
     def get_config(self, key: str) -> Optional[Config]:
@@ -119,15 +119,15 @@ class ConfigComponent(SystemComponent):
         config = self.get_config(key)
         if not config:
             raise ValueError(f"Config key {key} not found")
-        
+
         # Update the value
         self._config_manager.create(
-            key=key, 
-            value=value, 
-            is_dynamic=config.is_dynamic, 
+            key=key,
+            value=value,
+            is_dynamic=config.is_dynamic,
             original=config.original
         )
-        
+
         # Save the updated configuration
         self.save()
 
@@ -136,7 +136,7 @@ class ConfigComponent(SystemComponent):
         config = self.get_config(old_key)
         if not config:
             raise ValueError(f"Config key {old_key} not found")
-        
+
         # Create new config with same properties
         self._config_manager.create(
             key=new_key,
@@ -144,9 +144,9 @@ class ConfigComponent(SystemComponent):
             is_dynamic=config.is_dynamic,
             original=config.original
         )
-        
+
         # Remove old config
         self._config_manager.remove(old_key)
-        
+
         # Save the updated configuration
         self.save()

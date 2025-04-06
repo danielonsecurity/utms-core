@@ -122,4 +122,3 @@ class ConfigManagerProtocol(Protocol):
     def __contains__(self, key: str) -> bool:
         """Check if a config key exists."""
         ...
-        

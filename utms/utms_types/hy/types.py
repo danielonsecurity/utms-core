@@ -89,7 +89,7 @@ NamesList: TypeAlias = Optional[Union[HyList, PyList[str]]]
 class EvaluationRecord:
     """
     Represents a single evaluation of a dynamic expression
-    
+
     Attributes:
         value: The resolved value of the expression
         timestamp: When the evaluation occurred
@@ -107,7 +107,7 @@ class EvaluationRecord:
 class DynamicExpressionInfo:
     """
     Comprehensive tracking of a dynamic expression's lifecycle
-    
+
     Attributes:
         original: The original, base dynamic expression
         is_dynamic: Whether the expression is considered dynamic
@@ -120,36 +120,36 @@ class DynamicExpressionInfo:
     is_dynamic: bool = True
     history: List[EvaluationRecord] = field(default_factory=list)
     created_at: datetime = field(default_factory=datetime.now)
-    
+
     @property
     def last_evaluated(self) -> Optional[datetime]:
         """Get the timestamp of the most recent evaluation"""
         return self.history[-1].timestamp if self.history else None
-    
+
     @property
     def evaluation_count(self) -> int:
         """Get the total number of evaluations"""
         return len(self.history)
-    
+
     @property
     def latest_value(self) -> Optional[Any]:
         """Get the most recently evaluated value"""
         return self.history[-1].value if self.history else None
-    
+
     def add_evaluation(
-        self, 
-        value: Any, 
+        self,
+        value: Any,
         original_expr: Optional[Any] = None,
         metadata: Optional[dict] = None
     ) -> EvaluationRecord:
         """
         Add a new evaluation to the expression's history
-        
+
         Args:
             value: The resolved value
             original_expr: Optional specific expression used for this evaluation
             metadata: Optional additional context for the evaluation
-        
+
         Returns:
             The created EvaluationRecord
         """
@@ -160,19 +160,19 @@ class DynamicExpressionInfo:
         )
         self.history.append(record)
         return record
-    
+
     def get_evaluations_since(self, timestamp: datetime) -> List[EvaluationRecord]:
         """
         Retrieve evaluations that occurred after a specific timestamp
-        
+
         Args:
             timestamp: The cutoff time
-        
+
         Returns:
             List of evaluation records after the given timestamp
         """
         return [record for record in self.history if record.timestamp > timestamp]
-    
+
     def __repr__(self):
         return (
             f"DynamicExpressionInfo("
@@ -181,11 +181,11 @@ class DynamicExpressionInfo:
             f"evaluations={len(self.history)}, "
             f"last_evaluated={self.last_evaluated})"
         )
-    
+
     def to_dict(self) -> dict:
         """
         Convert the DynamicExpressionInfo to a dictionary representation
-        
+
         Useful for serialization and API responses
         """
         return {

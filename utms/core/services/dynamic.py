@@ -10,7 +10,7 @@ from utms.core.mixins.service import ServiceMixin
 @dataclass
 class DynamicRegistry:
     _data: Dict[str, Dict[str, Dict[str, DynamicExpressionInfo]]] = field(default_factory=dict)
-    
+
     def add(
         self,
         component_type: str,
@@ -24,7 +24,7 @@ class DynamicRegistry:
         if component_label not in self._data[component_type]:
             self._data[component_type][component_label] = {}
         self._data[component_type][component_label][attribute] = dynamic_info
-    
+
     def get(
         self,
         component_type: str,
@@ -36,7 +36,7 @@ class DynamicRegistry:
             return self._data[component_type][component_label][attribute]
         except KeyError:
             return None
-    
+
     def get_component(
         self,
         component_type: str,
@@ -47,14 +47,14 @@ class DynamicRegistry:
             return self._data[component_type][component_label]
         except KeyError:
             return {}
-    
+
     def get_type(
         self,
         component_type: str
     ) -> Dict[str, Dict[str, DynamicExpressionInfo]]:
         """Get all dynamic expressions for an component type"""
         return self._data.get(component_type, {})
-    
+
     def clear(
         self,
         component_type: Optional[str] = None,
@@ -73,7 +73,7 @@ class DynamicRegistry:
                 del self._data[component_type]
         else:
             self._data.clear()
-    
+
     def __iter__(self):
         """Iterate over all entries"""
         for component_type, entities in self._data.items():
@@ -86,23 +86,23 @@ class DynamicRegistry:
 class DynamicResolutionService(ServiceMixin):
     """
     Central service for managing dynamic expression resolution
-    
+
     Responsibilities:
     - Coordinate dynamic expression resolution across different component types
     - Provide a unified interface for re-evaluation
     - Track and manage dynamic expressions
     """
-    
+
     def __init__(self, resolver: Optional[HyResolver] = None):
         """
         Initialize the dynamic resolution service
-        
+
         Args:
             resolver: Optional custom resolver, defaults to base HyResolver
         """
         self.resolver = resolver or HyResolver()
         self.registry = DynamicRegistry()
-    
+
     def evaluate(
         self,
         component_type: str,
@@ -113,14 +113,14 @@ class DynamicResolutionService(ServiceMixin):
     ) -> Tuple[Any, DynamicExpressionInfo]:
         """
         Evaluate an expression and track its result
-        
+
         Args:
             component_type: Type of component (e.g., 'anchor', 'config')
             component_label: Identifier of the component (e.g., 'MONTHSTART', 'random-number')
             attribute: Name of the attribute being evaluated (e.g., 'start', 'value')
             expression: The expression to evaluate
             context: Optional context for evaluation
-        
+
         Returns:
             Tuple of (resolved_value, dynamic_expression_info)
         """
@@ -183,29 +183,29 @@ class DynamicResolutionService(ServiceMixin):
     ) -> Dict[str, Any]:
         """
         Re-evaluate all dynamic expressions, optionally filtered by component type and/or id
-        
+
         Returns:
             Dictionary of updated values
         """
         results = {}
-        
+
         # Determine which entities to process
         if component_type:
             types_to_process = [component_type]
         else:
             types_to_process = list(self._registry.keys())
-            
+
         for type_name in types_to_process:
             results[type_name] = {}
-            
+
             if component_label:
                 labels_to_process = [component_label]
             else:
                 labels_to_process = list(self._registry[type_name].keys())
-                
+
             for ent_label in labels_to_process:
                 results[type_name][ent_label] = {}
-                
+
                 for attr, dynamic_info in self._registry[type_name][ent_label].items():
                     try:
                         value, _ = self.resolver.resolve(
@@ -219,7 +219,7 @@ class DynamicResolutionService(ServiceMixin):
                             type_name, ent_label, attr, str(e)
                         )
                         results[type_name][ent_label][attr] = f"Error: {str(e)}"
-        
+
         return results
 
     def clear_history(
@@ -239,7 +239,7 @@ class DynamicResolutionService(ServiceMixin):
             if dynamic_info and dynamic_info.history:
                 if before:
                     dynamic_info.history = [
-                        record for record in dynamic_info.history 
+                        record for record in dynamic_info.history
                         if record.timestamp >= before
                     ]
                 else:
@@ -249,7 +249,7 @@ class DynamicResolutionService(ServiceMixin):
             for dynamic_info in self.get_component_dynamic_info(component_type, component_label).values():
                 if before:
                     dynamic_info.history = [
-                        record for record in dynamic_info.history 
+                        record for record in dynamic_info.history
                         if record.timestamp >= before
                     ]
                 else:
@@ -260,7 +260,7 @@ class DynamicResolutionService(ServiceMixin):
                 for dynamic_info in component_dict.values():
                     if before:
                         dynamic_info.history = [
-                            record for record in dynamic_info.history 
+                            record for record in dynamic_info.history
                             if record.timestamp >= before
                         ]
                     else:

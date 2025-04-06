@@ -62,7 +62,7 @@ class ConfigLoader(ComponentLoader[Config, ConfigManager]):
                 context=self.context.variables if self.context else None
             )
             self.logger.debug(f"Resolved dynamic value for {key}: {resolved_value}")
-            
+
         else:
             resolved_value = value
             self.logger.debug(f"Using static value for {key}: {resolved_value}")

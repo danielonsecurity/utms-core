@@ -15,8 +15,8 @@ async def get_config_data(config: Config = Depends(get_config)):
 
 @router.put("/api/config/{key}", response_class=JSONResponse)
 async def update_config(
-    key: str, 
-    value: Union[str, int, float, list] = Body(...), 
+    key: str,
+    value: Union[str, int, float, list] = Body(...),
     config: Config = Depends(get_config)
 ):
     try:
@@ -42,7 +42,7 @@ async def update_config(
                     "is_dynamic": True,
                     "evaluated_value": f"Evaluation Error: {str(eval_error)}"
                 }
-        
+
         # For non-dynamic values, return standard response
         return {
             "value": value,
@@ -53,25 +53,25 @@ async def update_config(
 
 @router.put("/api/config/rename", response_class=JSONResponse)
 async def rename_config_key(
-    old_key: str = Body(...), 
-    new_key: str = Body(...), 
+    old_key: str = Body(...),
+    new_key: str = Body(...),
     config: Config = Depends(get_config)
 ):
     try:
         # Check if the old key exists
         if old_key not in config.config:
             raise ValueError(f"Config key {old_key} not found")
-        
+
         # Get the value of the old key
         value = config.config[old_key]
-        
+
         # Remove the old key and add the new key with the same value
         del config.config[old_key]
         config.config[new_key] = value
-        
+
         # Save the updated configuration
         config.config.save()
-        
+
         return {
             "old_key": old_key,
             "new_key": new_key,

@@ -32,4 +32,3 @@ class ConfigResolver(HyResolver):
             return result
 
         return super()._resolve_expression(expr, context, local_names)
-

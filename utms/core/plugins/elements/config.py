@@ -50,17 +50,17 @@ class ConfigNodePlugin(NodePlugin):
     def format(self, node: HyNode) -> List[str]:
         """Format config definition back to Hy code."""
         lines = ["(custom-set-config"]
-        
+
         for setting in node.children:
             value_node = setting.children[0]
-            
+
             # Use original expression for dynamic values
             if value_node.is_dynamic and value_node.original:
                 value_str = value_node.original
             else:
                 value_str = format_value(value_node.value)
-            
+
             lines.append(f"  ({setting.value} {value_str})")
-        
+
         lines.append(")")
         return lines

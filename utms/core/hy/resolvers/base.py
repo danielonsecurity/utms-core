@@ -45,7 +45,7 @@ class HyResolver(ExpressionResolver, LocalsProvider, ResolverMixin):
     ) -> Tuple[Any, DynamicExpressionInfo]:
         """
         Main resolution method that handles both static and dynamic expressions
-        
+
         Returns:
             Tuple[resolved_value, dynamic_info]
         """
@@ -58,7 +58,7 @@ class HyResolver(ExpressionResolver, LocalsProvider, ResolverMixin):
         try:
             # Perform the actual resolution
             resolved_value = self._resolve_value(expr, context, local_names)
-            
+
             # Record the evaluation
             dynamic_info.add_evaluation(
                 resolved_value,
@@ -67,9 +67,9 @@ class HyResolver(ExpressionResolver, LocalsProvider, ResolverMixin):
                     'locals': str(local_names) if local_names else None
                 }
             )
-            
+
             return resolved_value, dynamic_info
-            
+
         except Exception as e:
             # Record failed evaluation
             dynamic_info.add_evaluation(
@@ -102,9 +102,9 @@ class HyResolver(ExpressionResolver, LocalsProvider, ResolverMixin):
                 if isinstance(value, list):
                     result = evaluate_hy_expression(
                         HyExpression([
-                            hy.models.Symbol(x) if isinstance(x, str) else x 
+                            hy.models.Symbol(x) if isinstance(x, str) else x
                             for x in value
-                        ]), 
+                        ]),
                         local_names
                     )
                 else:
@@ -114,9 +114,9 @@ class HyResolver(ExpressionResolver, LocalsProvider, ResolverMixin):
                 if isinstance(value, list):
                     result = evaluate_hy_expression(
                         HyExpression([
-                            hy.models.Symbol(x) if isinstance(x, str) else x 
+                            hy.models.Symbol(x) if isinstance(x, str) else x
                             for x in value
-                        ]), 
+                        ]),
                         local_names
                     )
                 else:
@@ -328,7 +328,7 @@ class HyResolver(ExpressionResolver, LocalsProvider, ResolverMixin):
                 self.logger.debug("Found object with underscore: %s", obj)
                 if isinstance(obj, (HyExpression, HySymbol)):
                     obj = evaluate_hy_expression(obj, locals_dict)
-                    self.logger.debug("Evaluated to: %s", obj)                
+                    self.logger.debug("Evaluated to: %s", obj)
                 return obj
             self.logger.debug("Symbol not found in locals")
             raise NameError(f"name '{obj_name}' is not defined")

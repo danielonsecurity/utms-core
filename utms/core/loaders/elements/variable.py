@@ -77,7 +77,7 @@ class VariableLoader(ComponentLoader[Variable, VariableManager]):
         variable = Variable(
             name=label,
             property=HyProperty(
-                value=resolved_value, 
+                value=resolved_value,
                 original=original,
                 is_dynamic=is_dynamic
             ),

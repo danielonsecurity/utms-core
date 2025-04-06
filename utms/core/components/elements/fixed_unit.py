@@ -38,7 +38,7 @@ class FixedUnitComponent(SystemComponent):
 
                 # Create context
                 context = LoaderContext(
-                    config_dir=self._config_dir, 
+                    config_dir=self._config_dir,
                     variables=self._items  # Pass existing items if any
                 )
 
@@ -57,7 +57,7 @@ class FixedUnitComponent(SystemComponent):
     def save(self) -> None:
         """Save fixed units to fixed_units.hy"""
         fixed_units_file = Path(self._config_dir) / "fixed_units.hy"
-        
+
         # Get the fixed unit plugin
         plugin = plugin_registry.get_node_plugin("def-fixed-unit")
         if not plugin:
@@ -65,7 +65,7 @@ class FixedUnitComponent(SystemComponent):
 
         # Create nodes from current items
         nodes = self._data_to_nodes(self._items)
-        
+
         # Convert to Hy code and save
         content = self._ast_manager.to_hy(nodes)
         fixed_units_file.write_text(content)
@@ -87,11 +87,11 @@ class FixedUnitComponent(SystemComponent):
             # Add properties
             properties = [
                 hy.models.Expression([
-                    hy.models.Symbol("name"), 
+                    hy.models.Symbol("name"),
                     hy.models.String(unit.name)
                 ]),
                 hy.models.Expression([
-                    hy.models.Symbol("value"), 
+                    hy.models.Symbol("value"),
                     hy.models.Float(float(unit.value))
                 ])
             ]
