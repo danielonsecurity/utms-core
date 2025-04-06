@@ -11,7 +11,7 @@ from .registry import plugin_registry
 
 
 def discover_plugins(
-    base_package: str = "utms.core.plugins.nodes", plugin_types: Optional[List[Type]] = None
+    base_package: str = "utms.core.plugins.elements", plugin_types: Optional[List[Type]] = None
 ) -> List[Type]:
     """
     Automatically discover and load plugins from a specified package.

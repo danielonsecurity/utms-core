@@ -5,7 +5,7 @@ from typing import List, Tuple
 
 import hy
 
-from utms.core.hy import evaluate_hy_expression
+from utms.core.hy.evaluation import evaluate_hy_expression
 from utms.core.time import DecimalTimeLength
 
 

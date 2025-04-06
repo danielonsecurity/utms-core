@@ -1,221 +1,290 @@
-import { useEffect, useState, useRef } from "react";
-import { Card } from "../../components/common/Card/Card";
+import { useState, useEffect, useCallback } from "react";
 import { configApi } from "../../api/configApi";
-import { ConfigData } from "../../types/config";
+import { ConfigData, ConfigValue } from "../../types/config";
+import { ConfigCard } from "../../components/config/ConfigCard";
+import { CreateConfigModal } from "../../components/config/CreateConfigModal";
 
-const ConfigItem = ({
-  configKey,
-  value,
-  choices,
-}: {
-  configKey: string;
-  value: string | string[];
-  choices?: string[];
-}) => {
-  const handleSave = async (key: string, index?: number) => {
+export const Config = () => {
+  const [config, setConfig] = useState<ConfigData | null>(null);
+  const [labelSearch, setLabelSearch] = useState("");
+  const [valueSearch, setValueSearch] = useState("");
+  const [showDynamicOnly, setShowDynamicOnly] = useState(false);
+  const [sortType, setSortType] = useState("label-asc");
+  const [editingLabel, setEditingLabel] = useState<string | null>(null);
+  const [newLabel, setNewLabel] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const loadConfig = useCallback(async () => {
     try {
-      if (typeof index === "number") {
-        const inputValue = (
-          document.getElementById(`${key}_${index}`) as
-            | HTMLInputElement
-            | HTMLSelectElement
-        ).value;
-        await configApi.updateListItem(key, index, inputValue);
-      } else {
-        const inputValue = (
-          document.getElementById(key) as HTMLInputElement | HTMLSelectElement
-        ).value;
-        await configApi.updateConfig(key, inputValue);
-      }
-      alert("Saved successfully");
+      const data = await configApi.getConfig();
+      console.log("config.data=", data);
+      setConfig(data);
     } catch (error) {
-      alert("Error saving: " + (error as Error).message);
+      alert("Failed to load config: " + (error as Error).message);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadConfig();
+  }, [loadConfig]);
+
+  const handleLabelEdit = async (oldKey: string) => {
+    if (!newLabel || newLabel === oldKey) {
+      setEditingLabel(null);
+      return;
+    }
+
+    try {
+      await configApi.renameConfigKey(oldKey, newLabel);
+      await loadConfig();
+      setEditingLabel(null);
+    } catch (error) {
+      alert(
+        `Error renaming: ${error instanceof Error ? error.message : error}`,
+      );
     }
   };
 
-  const handleAddItem = async (key: string) => {
-    try {
-      await configApi.addNewListItem(key);
-      window.location.reload();
-    } catch (error) {
-      alert("Error adding item: " + (error as Error).message);
-    }
-  };
+  const filteredAndSortedConfig = config
+    ? Object.entries(config)
+        .filter(([key]) => !key.endsWith("-choices"))
+        .filter(([key, value]) => {
+          // Label search
+          const matchesLabel = key
+            .toLowerCase()
+            .includes(labelSearch.toLowerCase());
 
-  const handleSelectChange = async (key: string, index?: number) => {
-    const selectId = index !== undefined ? `${key}_${index}` : key;
-    const select = document.getElementById(selectId) as HTMLSelectElement;
+          // Value search (both original and evaluated)
+          const originalValue = value.value;
+          const matchesValue = String(originalValue)
+            .toLowerCase()
+            .includes(valueSearch.toLowerCase());
 
-    if (select.value === "__new__") {
-      const newValue = prompt("Enter new value:");
-      if (newValue) {
-        const option = document.createElement("option");
-        option.value = newValue;
-        option.textContent = newValue;
-        select.insertBefore(option, select.lastElementChild);
-        select.value = newValue;
+          // Dynamic filter
+          const matchesDynamicFilter = !showDynamicOnly || value.is_dynamic;
 
-        try {
-          if (index !== undefined) {
-            await configApi.updateListItem(key, index, newValue);
-          } else {
-            await configApi.updateConfig(key, newValue);
+          return matchesLabel && matchesValue && matchesDynamicFilter;
+        })
+        .sort(([labelA], [labelB]) => {
+          switch (sortType) {
+            case "label-asc":
+              return labelA.localeCompare(labelB);
+            case "label-desc":
+              return labelB.localeCompare(labelA);
+            default:
+              return 0;
           }
-        } catch (error) {
-          alert("Error saving: " + (error as Error).message);
-          select.value = select.querySelector("option:checked")?.value || "";
-        }
-      } else {
-        select.value = select.querySelector("option:checked")?.value || "";
-      }
-    }
-  };
+        })
+    : [];
 
   return (
-    <div className="config__item card">
-      <div className="card__header">
-        <label className="config__label" htmlFor={configKey}>
-          {configKey}
-        </label>
-      </div>
-      <div className="card__body">
-        {Array.isArray(value) ? (
-          <div className="config__list">
-            {value.map((item, index) => (
-              <div key={index} className="config__list-item">
-                {choices ? (
-                  <select
-                    id={`${configKey}_${index}`}
-                    className="config__select"
-                    defaultValue={item}
-                    onChange={() => handleSelectChange(configKey, index)}
-                  >
-                    {choices.map((choice) => (
-                      <option key={choice} value={choice}>
-                        {choice}
-                      </option>
-                    ))}
-                    <option value="__new__">Add New...</option>
-                  </select>
-                ) : (
-                  <input
-                    type="text"
-                    className="config__input"
-                    id={`${configKey}_${index}`}
-                    defaultValue={item}
-                  />
-                )}
-                <button
-                  className="config__btn config__btn--save"
-                  onClick={() => handleSave(configKey, index)}
-                >
-                  <i className="material-icons">save</i>
-                </button>
-              </div>
-            ))}
-            <button
-              className="config__btn config__btn--add"
-              onClick={() => handleAddItem(configKey)}
-            >
-              <i className="material-icons">add</i>
-              Add Item
-            </button>
+    <div className="config">
+      <div className="config__controls">
+        <button
+          className="btn btn--create"
+          onClick={() => setIsModalOpen(true)}
+        >
+          <i className="material-icons">add</i>Create Config
+        </button>
+        <div className="config__search">
+          <div className="config__search-field">
+            <i className="material-icons config__search-icon">label</i>
+            <input
+              type="text"
+              className="config__search-input"
+              placeholder="Search by label..."
+              value={labelSearch}
+              onChange={(e) => setLabelSearch(e.target.value)}
+            />
           </div>
-        ) : (
-          <div className="config__field">
-            {choices ? (
-              <select
-                id={configKey}
-                className="config__select"
-                defaultValue={value}
-                onChange={() => handleSelectChange(configKey)}
-              >
-                {choices.map((choice) => (
-                  <option key={choice} value={choice}>
-                    {choice}
-                  </option>
-                ))}
-                <option value="__new__">Add New...</option>
-              </select>
-            ) : (
+          <div className="config__search-field">
+            <i className="material-icons config__search-icon">title</i>
+            <input
+              type="text"
+              className="config__search-input"
+              placeholder="Search by value..."
+              value={valueSearch}
+              onChange={(e) => setValueSearch(e.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="config__controls-row">
+          <div className="config__filters">
+            <label className="config__dynamic-toggle">
               <input
-                type="text"
-                className="config__input"
-                id={configKey}
-                defaultValue={value}
+                type="checkbox"
+                checked={showDynamicOnly}
+                onChange={() => setShowDynamicOnly(!showDynamicOnly)}
               />
-            )}
-            <button
-              className="config__btn config__btn--save"
-              onClick={() => handleSave(configKey)}
-            >
-              <i className="material-icons">save</i>
-            </button>
+              Show Dynamic Only
+            </label>
           </div>
-        )}
+
+          <div className="sort">
+            <select
+              className="sort__select"
+              value={sortType}
+              onChange={(e) => setSortType(e.target.value)}
+            >
+              <option value="label-asc">Label A-Z</option>
+              <option value="label-desc">Label Z-A</option>
+            </select>
+          </div>
+        </div>
       </div>
+
+      <div className="config__grid">
+        {filteredAndSortedConfig.map(([key, value]) => (
+          <ConfigCard
+            key={key}
+            configKey={key}
+            value={value}
+            onUpdate={loadConfig}
+          />
+        ))}
+      </div>
+
+      <CreateConfigModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onCreateSuccess={loadConfig}
+      />
     </div>
   );
 };
 
-export const Config = () => {
-  console.log("Config component rendering");
-  const [config, setConfig] = useState<ConfigData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const controllerRef = useRef<AbortController | null>(null);
+const ConfigItem = ({
+  configKey,
+  value,
+  onUpdate,
+}: {
+  configKey: string;
+  value: ConfigValue;
+  onUpdate: () => Promise<void>;
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [localLabel, setLocalLabel] = useState(configKey);
+  const [localValue, setLocalValue] = useState(
+    value.is_dynamic && value.original ? value.original : value.value,
+  );
 
-  useEffect(() => {
-    if (controllerRef.current) {
-      controllerRef.current.abort();
+  const handleSave = async () => {
+    try {
+      // Rename key if changed
+      if (localLabel !== configKey) {
+        await configApi.renameConfigKey(configKey, localLabel);
+      }
+
+      // Update value
+      await configApi.updateConfig(localLabel, localValue);
+
+      await onUpdate();
+      setIsEditing(false);
+    } catch (error) {
+      alert(`Error saving: ${error instanceof Error ? error.message : error}`);
     }
-    controllerRef.current = new AbortController();
+  };
+  const renderValue = () => {
+    if (value.is_dynamic) {
+      return (
+        <>
+          <div className="config-card__row">
+            <span className="config-card__label">Evaluated Value:</span>
+            <span className="config-card__value">{value.value}</span>
+          </div>
+          <div className="config-card__row">
+            <span className="config-card__label">Original Expression:</span>
+            <span
+              className={`config-card__value ${isEditing ? "edit-target editing" : ""}`}
+              contentEditable={isEditing}
+              onInput={(e) =>
+                setLocalValue((e.target as HTMLSpanElement).textContent || "")
+              }
+            >
+              {value.original}
+            </span>
+          </div>
+        </>
+      );
+    }
 
-    const loadConfig = async () => {
-      try {
-        console.log("Starting config load");
-        const data = await configApi.getConfig(controllerRef.current!.signal);
-        console.log("Config loaded successfully:", data);
-        setConfig(data);
-      } catch (err) {
-        if (err.name !== "AbortError") {
-          console.error("Error in config component:", err);
-          setError(err instanceof Error ? err.message : "Unknown error");
-        }
-      }
-    };
-
-    loadConfig();
-
-    return () => {
-      if (controllerRef.current) {
-        controllerRef.current.abort();
-        controllerRef.current = null;
-      }
-    };
-  }, []);
-
-  if (error) {
     return (
-      <div style={{ color: "red", padding: "20px" }}>
-        Error loading config: {error}
+      <div className="config-card__row">
+        <span className="config-card__label">Value:</span>
+        <span
+          className={`config-card__value ${isEditing ? "edit-target editing" : ""}`}
+          contentEditable={isEditing}
+          onInput={(e) =>
+            setLocalValue((e.target as HTMLSpanElement).textContent || "")
+          }
+        >
+          {String(value.value)}
+        </span>
       </div>
     );
-  }
-
-  if (!config) return <div>Loading...</div>;
+  };
 
   return (
-    <div className="config">
-      {Object.entries(config)
-        .filter(([key]) => !key.endsWith("-choices"))
-        .map(([key, value]) => (
-          <ConfigItem
-            key={key}
-            configKey={key}
-            value={value}
-            choices={config[`${key}-choices`] as string[] | undefined}
-          />
-        ))}
+    <div className="config-card card" data-config={configKey}>
+      <div className="card__header">
+        <h3
+          className={`card__title ${isEditing ? "edit-target editing" : ""}`}
+          contentEditable={isEditing}
+          onInput={(e) =>
+            setLocalLabel((e.target as HTMLHeadingElement).textContent || "")
+          }
+        >
+          {localLabel}
+        </h3>
+        <div className="config-card__controls">
+          {!isEditing ? (
+            <button
+              className="btn btn--icon btn--edit"
+              onClick={() => setIsEditing(true)}
+              title="Edit config"
+            >
+              <i className="material-icons">edit</i>
+            </button>
+          ) : (
+            <div className="config-card__edit-controls">
+              <button className="btn btn--icon btn--save" onClick={handleSave}>
+                <i className="material-icons">save</i>
+              </button>
+              <button
+                className="btn btn--icon btn--cancel"
+                onClick={() => {
+                  setIsEditing(false);
+                  setLocalLabel(configKey);
+                  setLocalValue(value.value);
+                }}
+              >
+                <i className="material-icons">close</i>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      <div className="card__body">
+        <div className="config-card__info">
+          {renderValue()}
+
+          {value.is_dynamic && (
+            <div className="config-card__row">
+              <span className="config-card__label">Original Expression:</span>
+              <span
+                className={`config-card__value ${isEditing ? "edit-target editing" : ""}`}
+                contentEditable={isEditing}
+                onInput={(e) =>
+                  setLocalValue((e.target as HTMLSpanElement).textContent || "")
+                }
+              >
+                {String(value.value)}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

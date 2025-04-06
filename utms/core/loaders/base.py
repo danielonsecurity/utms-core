@@ -31,6 +31,7 @@ class ComponentLoader(ABC, Generic[T, M], LoaderMixin):
 
     def __init__(self, manager: M):
         self._manager = manager
+        self.context = None
 
     @abstractmethod
     def parse_definitions(self, nodes: List[HyNode]) -> Dict[str, dict]:
@@ -68,6 +69,7 @@ class ComponentLoader(ABC, Generic[T, M], LoaderMixin):
             Dictionary mapping labels to initialized objects
         """
         self.logger.debug("Starting processing with context: %s", context)
+        self.context = context
 
         try:
             # Parse nodes into intermediate definitions

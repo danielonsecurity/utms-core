@@ -1,4 +1,4 @@
-import { ConfigData } from "../types/config";
+import { ConfigData, ConfigValue } from "../types/config";
 
 export const configApi = {
   getConfig: async (signal?: AbortSignal): Promise<ConfigData> => {
@@ -8,13 +8,31 @@ export const configApi = {
     return response.json();
   },
 
-  updateConfig: async (key: string, value: string): Promise<void> => {
+  updateConfig: async (
+    key: string,
+    value: string | number | string[],
+  ): Promise<ConfigValue> => {
     const response = await fetch(`/api/config/${key}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(value),
     });
-    if (!response.ok) throw new Error("Failed to update configuration");
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to update configuration: ${errorText}`);
+    }
+  },
+
+  renameConfigKey: async (oldKey: string, newKey: string): Promise<void> => {
+    const response = await fetch("/api/config/rename", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ old_key: oldKey, new_key: newKey }),
+    });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Failed to rename config key: ${errorText}`);
+    }
   },
 
   updateListItem: async (

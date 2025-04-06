@@ -4,6 +4,99 @@
     gap: var(--spacing-lg);
     padding: var(--spacing-md);
 }
+
+/* Controls section */
+.config__controls {
+    padding: var(--spacing-md);
+    background: white;
+    border-radius: var(--border-radius);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: var(--spacing-md);
+}
+
+.config__controls-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--spacing-md);
+}
+
+.config__search {
+    display: flex;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-md);
+}
+
+.config__search-field {
+    display: flex;
+    align-items: center;
+    background: white;
+    border: 1px solid var(--gray-300);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    flex: 1;
+}
+
+.config__search-icon {
+    color: var(--text-color);
+    margin-right: var(--spacing-sm);
+}
+
+.config__search-input {
+    border: none;
+    outline: none;
+    width: 100%;
+    font-size: var(--font-size-base);
+    margin: 0;
+}
+
+
+/* Config card specific styles */
+
+.config-card {
+    transition: transform 0.2s ease;
+}
+
+.config-card:hover {
+    transform: translateY(-2px);
+}
+
+.config-card__controls {
+    display: flex;
+    gap: var(--spacing-sm);
+}
+
+.config-card__info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.config-card__row {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-sm);
+}
+
+.config-card__row--code {
+    background-color: #f4f4f4;
+    border-top: 1px solid #e0e0e0;
+    padding: 8px;
+    font-family: monospace;
+}
+
+.config-card__label {
+    font-weight: 500;
+    min-width: 80px;
+    color: var(--text-color);
+}
+
+.config-card__value {
+    flex: 1;
+    font-family: 'Roboto Mono', monospace;
+}
+
+
 .config__item {
     background: white;
     border-radius: var(--border-radius);
@@ -60,4 +153,71 @@
 
 .config__btn:hover {
     background: var(--accent-color);
+}
+
+
+
+Collapse
+.config__value-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+
+.config__original-expression {
+  width: 100%;
+  margin-top: 10px;
+  background-color: #f4f4f4;
+  border-radius: 4px;
+  padding: 10px;
+  font-family: monospace;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.config__btn--show-code {
+  background-color: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+}
+
+.config__btn--show-code:hover {
+  color: #333;
+}
+
+.config-card__edit-controls {
+    display: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.config-card__edit-controls.visible {
+    display: inline-flex !important;
+    opacity: 1;
+}
+
+.config-card__edit-controls.visible,
+.btn--edit.visible {
+    display: inline-flex;
+}
+
+/* Style for editable fields */
+.edit-target {
+    padding: var(--spacing-xs);
+    border-radius: var(--border-radius-sm);
+    transition: background-color 0.2s ease;
+}
+
+.edit-target.editing {
+    background: white;
+    color: var(--text-color);
+    border: 1px solid var(--primary-color);
+    min-width: 50px;
+}
+
+.edit-target.editing:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(21, 101, 192, 0.2);
 }

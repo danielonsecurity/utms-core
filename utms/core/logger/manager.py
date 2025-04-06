@@ -149,9 +149,9 @@ class LoggerManager:
         logger.info(f"File logging configured in {logs_dir}")
 
     @classmethod
-    def configure_from_config(cls, config_level: str) -> None:
+    def configure_from_config(cls, config_level: Dict[str, str]) -> None:
         """Update logging configuration from loaded config."""
-        level = getattr(logging, config_level.upper(), logging.INFO)
+        level = getattr(logging, config_level.value.upper(), logging.INFO)
         cls._default_level = level
 
         # Update all loggers and their handlers

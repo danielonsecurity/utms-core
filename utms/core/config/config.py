@@ -2,12 +2,12 @@ import os
 
 import appdirs
 
-from utms.core.components.anchor import AnchorComponent
 from utms.core.components.base import ComponentManager, SystemComponent
-from utms.core.components.config import ConfigComponent
-from utms.core.components.fixed_units import FixedUnitComponent
-from utms.core.components.patterns import PatternComponent
-from utms.core.components.variables import VariableComponent
+from utms.core.components.elements.anchor import AnchorComponent
+from utms.core.components.elements.config import ConfigComponent
+from utms.core.components.elements.fixed_unit import FixedUnitComponent
+from utms.core.components.elements.pattern import PatternComponent
+from utms.core.components.elements.variable import VariableComponent
 from utms.core.logger import LoggerManager
 from utms.core.mixins import LoggerMixin
 from utms.core.plugins.discovery import discover_plugins

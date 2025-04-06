@@ -40,7 +40,7 @@ from .calendar.types import (
     is_timestamp,
     to_unit_type,
 )
-from .config.protocols import ConfigProtocol
+from .config.protocols import ConfigProtocol, ConfigManagerProtocol
 from .config.types import (
     ConfigData,
     ConfigPath,
@@ -59,6 +59,7 @@ from .hy.types import (
     Context,
     EvaluatedResult,
     ExpressionList,
+    DynamicExpressionInfo,
     HyDict,
     HyExpression,
     HyInteger,
