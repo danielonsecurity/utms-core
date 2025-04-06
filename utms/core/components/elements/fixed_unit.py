@@ -1,10 +1,12 @@
-import hy
 import os
-from pathlib import Path
 from argparse import Namespace
 from decimal import Decimal
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import hy
+
+from utms.core.components.base import SystemComponent
 from utms.core.hy.ast import HyAST
 from utms.core.loaders.base import LoaderContext
 from utms.core.loaders.elements.fixed_unit import FixedUnitLoader
@@ -12,8 +14,6 @@ from utms.core.managers.elements.fixed_unit import FixedUnitManager
 from utms.core.models.fixed_unit import FixedUnit
 from utms.core.plugins import plugin_registry
 from utms.utms_types import HyNode
-
-from utms.core.components.base import SystemComponent
 
 
 class FixedUnitComponent(SystemComponent):
@@ -38,8 +38,7 @@ class FixedUnitComponent(SystemComponent):
 
                 # Create context
                 context = LoaderContext(
-                    config_dir=self._config_dir,
-                    variables=self._items  # Pass existing items if any
+                    config_dir=self._config_dir, variables=self._items  # Pass existing items if any
                 )
 
                 # Process nodes using loader
@@ -79,30 +78,25 @@ class FixedUnitComponent(SystemComponent):
         nodes = []
         for label, unit in data.items():
             # Create expression parts
-            expr_parts = [
-                hy.models.Symbol("def-fixed-unit"),
-                hy.models.Symbol(label)
-            ]
+            expr_parts = [hy.models.Symbol("def-fixed-unit"), hy.models.Symbol(label)]
 
             # Add properties
             properties = [
-                hy.models.Expression([
-                    hy.models.Symbol("name"),
-                    hy.models.String(unit.name)
-                ]),
-                hy.models.Expression([
-                    hy.models.Symbol("value"),
-                    hy.models.Float(float(unit.value))
-                ])
+                hy.models.Expression([hy.models.Symbol("name"), hy.models.String(unit.name)]),
+                hy.models.Expression(
+                    [hy.models.Symbol("value"), hy.models.Float(float(unit.value))]
+                ),
             ]
 
             # Add groups if they exist
             if unit.groups:
                 properties.append(
-                    hy.models.Expression([
-                        hy.models.Symbol("groups"),
-                        hy.models.List([hy.models.String(group) for group in unit.groups])
-                    ])
+                    hy.models.Expression(
+                        [
+                            hy.models.Symbol("groups"),
+                            hy.models.List([hy.models.String(group) for group in unit.groups]),
+                        ]
+                    )
                 )
 
             # Add properties to expression

@@ -1,23 +1,24 @@
+from typing import Any, Union
+
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from typing import Union, Any
 
 from utms.core.config import Config
+from utms.core.hy import evaluate_hy_expression
 from utms.web.api import templates
 from utms.web.dependencies import get_config
-from utms.core.hy import evaluate_hy_expression
 
 router = APIRouter()
+
 
 @router.get("/api/config", response_class=JSONResponse)
 async def get_config_data(config: Config = Depends(get_config)):
     return config.config
 
+
 @router.put("/api/config/{key}", response_class=JSONResponse)
 async def update_config(
-    key: str,
-    value: Union[str, int, float, list] = Body(...),
-    config: Config = Depends(get_config)
+    key: str, value: Union[str, int, float, list] = Body(...), config: Config = Depends(get_config)
 ):
     try:
         breakpoint()
@@ -26,36 +27,28 @@ async def update_config(
         config.config.save()
 
         # Check if the value is a dynamic Hy expression
-        if isinstance(value, str) and value.startswith('('):
+        if isinstance(value, str) and value.startswith("("):
             try:
                 # Evaluate the Hy expression
                 evaluated_value = evaluate_hy_expression(value)
                 breakpoint()
-                return {
-                    "value": value,
-                    "is_dynamic": True,
-                    "evaluated_value": str(evaluated_value)
-                }
+                return {"value": value, "is_dynamic": True, "evaluated_value": str(evaluated_value)}
             except Exception as eval_error:
                 return {
                     "value": value,
                     "is_dynamic": True,
-                    "evaluated_value": f"Evaluation Error: {str(eval_error)}"
+                    "evaluated_value": f"Evaluation Error: {str(eval_error)}",
                 }
 
         # For non-dynamic values, return standard response
-        return {
-            "value": value,
-            "is_dynamic": False
-        }
+        return {"value": value, "is_dynamic": False}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
 @router.put("/api/config/rename", response_class=JSONResponse)
 async def rename_config_key(
-    old_key: str = Body(...),
-    new_key: str = Body(...),
-    config: Config = Depends(get_config)
+    old_key: str = Body(...), new_key: str = Body(...), config: Config = Depends(get_config)
 ):
     try:
         # Check if the old key exists
@@ -72,10 +65,6 @@ async def rename_config_key(
         # Save the updated configuration
         config.config.save()
 
-        return {
-            "old_key": old_key,
-            "new_key": new_key,
-            "status": "success"
-        }
+        return {"old_key": old_key, "new_key": new_key, "status": "success"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

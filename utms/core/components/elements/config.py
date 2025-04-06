@@ -59,7 +59,7 @@ class ConfigComponent(SystemComponent):
         with open(config_file, "w") as f:
             f.write(content + "\n")
 
-    def _create_config_node(self) -> 'HyNode':
+    def _create_config_node(self) -> "HyNode":
         """
         Create a HyNode representing the entire configuration
         using the registered config plugin
@@ -71,28 +71,17 @@ class ConfigComponent(SystemComponent):
 
         # Create a node with the custom-set-config type
         config_node = plugin.parse(
-            ["custom-set-config"] +
-            [
-                [key, config.value]
-                for key, config in self._items.items()
-            ]
+            ["custom-set-config"] + [[key, config.value] for key, config in self._items.items()]
         )
 
         return config_node
 
     def create_config(
-        self,
-        key: str,
-        value: Any,
-        is_dynamic: bool = False,
-        original: Optional[str] = None
+        self, key: str, value: Any, is_dynamic: bool = False, original: Optional[str] = None
     ) -> Config:
         """Create a new config entry."""
         config = self._config_manager.create(
-            key=key,
-            value=value,
-            is_dynamic=is_dynamic,
-            original=original
+            key=key, value=value, is_dynamic=is_dynamic, original=original
         )
 
         # Save immediately to persist the change
@@ -122,10 +111,7 @@ class ConfigComponent(SystemComponent):
 
         # Update the value
         self._config_manager.create(
-            key=key,
-            value=value,
-            is_dynamic=config.is_dynamic,
-            original=config.original
+            key=key, value=value, is_dynamic=config.is_dynamic, original=config.original
         )
 
         # Save the updated configuration
@@ -139,10 +125,7 @@ class ConfigComponent(SystemComponent):
 
         # Create new config with same properties
         self._config_manager.create(
-            key=new_key,
-            value=config.value,
-            is_dynamic=config.is_dynamic,
-            original=config.original
+            key=new_key, value=config.value, is_dynamic=config.is_dynamic, original=config.original
         )
 
         # Remove old config

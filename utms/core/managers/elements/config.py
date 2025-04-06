@@ -1,9 +1,8 @@
 from typing import Any, Dict, List, Optional, Union
 
-from utms.utms_types import ConfigManagerProtocol
-
-from utms.core.models.config import Config
 from utms.core.managers.base import BaseManager
+from utms.core.models.config import Config
+from utms.utms_types import ConfigManagerProtocol
 
 
 class ConfigManager(BaseManager[Config], ConfigManagerProtocol):
@@ -32,17 +31,11 @@ class ConfigManager(BaseManager[Config], ConfigManagerProtocol):
 
     def get_configs_by_type(self, is_dynamic: bool) -> List[Config]:
         """Get configs filtered by dynamic status."""
-        return [
-            config for config in self._items.values()
-            if config.is_dynamic == is_dynamic
-        ]
+        return [config for config in self._items.values() if config.is_dynamic == is_dynamic]
 
     def get_configs_by_prefix(self, prefix: str) -> List[Config]:
         """Get configs with keys starting with a specific prefix."""
-        return [
-            config for config in self._items.values()
-            if config.key.startswith(prefix)
-        ]
+        return [config for config in self._items.values() if config.key.startswith(prefix)]
 
     def serialize(self) -> Dict[str, Dict[str, Any]]:
         """Convert configs to serializable format."""

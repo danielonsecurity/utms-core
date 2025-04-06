@@ -3,13 +3,12 @@ from typing import Any, Dict, List, Optional
 import hy
 
 from utms.core.hy.resolvers.elements.config import ConfigResolver
-from utms.utils import hy_to_python
-from utms.utms_types import HyNode
-from utms.core.services.dynamic import DynamicResolutionService
-
 from utms.core.loaders.base import ComponentLoader, LoaderContext
 from utms.core.managers.elements.config import ConfigManager
 from utms.core.models.config import Config
+from utms.core.services.dynamic import DynamicResolutionService
+from utms.utils import hy_to_python
+from utms.utms_types import HyNode
 
 
 class ConfigLoader(ComponentLoader[Config, ConfigManager]):
@@ -55,11 +54,11 @@ class ConfigLoader(ComponentLoader[Config, ConfigManager]):
         # Resolve the value if it's an expression
         if isinstance(value, (hy.models.Expression, hy.models.Symbol)):
             resolved_value, dynamic_info = self._dynamic_service.evaluate(
-                component_type='config',
+                component_type="config",
                 component_label=key,
-                attribute='value',
+                attribute="value",
                 expression=value,
-                context=self.context.variables if self.context else None
+                context=self.context.variables if self.context else None,
             )
             self.logger.debug(f"Resolved dynamic value for {key}: {resolved_value}")
 

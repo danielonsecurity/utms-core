@@ -1,16 +1,13 @@
-from dataclasses import dataclass
+import uuid
+from dataclasses import dataclass, field
+from datetime import datetime
 from decimal import Decimal
 from typing import Any, Callable
 from typing import Dict
 from typing import Dict as PyDict
+from typing import List
 from typing import List as PyList
 from typing import Optional, TypeAlias, TypeGuard, Union
-
-from dataclasses import dataclass, field
-from typing import Any, Optional, List
-from datetime import datetime
-import uuid
-
 
 from hy.models import Dict, Expression, Integer, Keyword, Lazy, List, String, Symbol
 
@@ -84,7 +81,6 @@ PropertyDict: TypeAlias = Dict[str, PropertyValue]
 NamesList: TypeAlias = Optional[Union[HyList, PyList[str]]]
 
 
-
 @dataclass
 class EvaluationRecord:
     """
@@ -97,11 +93,13 @@ class EvaluationRecord:
         record_id: Unique identifier for the record
         metadata: Additional context or metadata about the evaluation
     """
+
     value: Any
     timestamp: datetime = field(default_factory=datetime.now)
     original_expr: Optional[Any] = None
     record_id: str = field(default_factory=lambda: str(uuid.uuid4()))
     metadata: dict = field(default_factory=dict)
+
 
 @dataclass
 class DynamicExpressionInfo:
@@ -116,6 +114,7 @@ class DynamicExpressionInfo:
         last_evaluated: Timestamp of the most recent evaluation
         evaluation_count: Number of times the expression has been evaluated
     """
+
     original: Any
     is_dynamic: bool = True
     history: List[EvaluationRecord] = field(default_factory=list)
@@ -137,10 +136,7 @@ class DynamicExpressionInfo:
         return self.history[-1].value if self.history else None
 
     def add_evaluation(
-        self,
-        value: Any,
-        original_expr: Optional[Any] = None,
-        metadata: Optional[dict] = None
+        self, value: Any, original_expr: Optional[Any] = None, metadata: Optional[dict] = None
     ) -> EvaluationRecord:
         """
         Add a new evaluation to the expression's history
@@ -154,9 +150,7 @@ class DynamicExpressionInfo:
             The created EvaluationRecord
         """
         record = EvaluationRecord(
-            value=value,
-            original_expr=original_expr or self.original,
-            metadata=metadata or {}
+            value=value, original_expr=original_expr or self.original, metadata=metadata or {}
         )
         self.history.append(record)
         return record
@@ -201,10 +195,10 @@ class DynamicExpressionInfo:
                     "value": record.value,
                     "timestamp": record.timestamp.isoformat(),
                     "original_expr": str(record.original_expr),
-                    "metadata": record.metadata
+                    "metadata": record.metadata,
                 }
                 for record in self.history
-            ]
+            ],
         }
 
 

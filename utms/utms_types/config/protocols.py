@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional, Protocol, Union, Iterator
+from typing import Any, Dict, Iterator, List, Optional, Protocol, Union
 
 from ..anchor.protocols import AnchorManagerProtocol
 from ..unit.protocols import FixedUnitManagerProtocol
@@ -70,6 +70,7 @@ class ConfigProtocol(Protocol):
     def _traverse(self, key: str) -> tuple[Any, Union[str, int]]:
         """Traverse configuration using parsed key."""
 
+
 class ConfigManagerProtocol(Protocol):
     """Protocol defining the interface for ConfigManager class."""
 
@@ -79,23 +80,23 @@ class ConfigManagerProtocol(Protocol):
         value: Any,
         is_dynamic: bool = False,
         original: Optional[str] = None,
-    ) -> 'ConfigProtocol':
+    ) -> "ConfigProtocol":
         """Create a new config entry."""
         ...
 
-    def get(self, key: str) -> Optional['ConfigProtocol']:
+    def get(self, key: str) -> Optional["ConfigProtocol"]:
         """Retrieve config by key."""
         ...
 
-    def remove(self, key: str) -> Optional['ConfigProtocol']:
+    def remove(self, key: str) -> Optional["ConfigProtocol"]:
         """Remove config by key."""
         ...
 
-    def get_configs_by_type(self, is_dynamic: bool) -> List['ConfigProtocol']:
+    def get_configs_by_type(self, is_dynamic: bool) -> List["ConfigProtocol"]:
         """Get configs filtered by dynamic status."""
         ...
 
-    def get_configs_by_prefix(self, prefix: str) -> List['ConfigProtocol']:
+    def get_configs_by_prefix(self, prefix: str) -> List["ConfigProtocol"]:
         """Get configs with keys starting with a specific prefix."""
         ...
 
@@ -107,11 +108,11 @@ class ConfigManagerProtocol(Protocol):
         """Load configs from serialized data."""
         ...
 
-    def __iter__(self) -> Iterator['ConfigProtocol']:
+    def __iter__(self) -> Iterator["ConfigProtocol"]:
         """Iterate over all configs."""
         ...
 
-    def __getitem__(self, key: str) -> 'ConfigProtocol':
+    def __getitem__(self, key: str) -> "ConfigProtocol":
         """Dictionary-style access to configs."""
         ...
 

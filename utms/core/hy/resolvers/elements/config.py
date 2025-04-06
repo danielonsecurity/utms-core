@@ -1,6 +1,13 @@
 from utms.core.hy.resolvers.base import HyResolver
 from utms.utils import hy_to_python
-from utms.utms_types import Context, HyExpression, LocalsDict, ResolvedValue, is_expression, DynamicExpressionInfo
+from utms.utms_types import (
+    Context,
+    DynamicExpressionInfo,
+    HyExpression,
+    LocalsDict,
+    ResolvedValue,
+    is_expression,
+)
 
 
 class ConfigResolver(HyResolver):

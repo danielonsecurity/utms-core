@@ -1,18 +1,19 @@
-import hy
 import datetime
 import time
 from types import FunctionType, ModuleType  # pylint: disable=no-name-in-module
-
 from typing import Any, Tuple
+
+import hy
+
 from utms.core.hy import evaluate_hy_expression
 from utms.core.hy.utils import is_dynamic_content
 from utms.core.mixins import ResolverMixin
 from utms.utms_types import (
     Context,
+    DynamicExpressionInfo,
     EvaluatedResult,
     ExpressionList,
     ExpressionResolver,
-    DynamicExpressionInfo,
     HyExpression,
     HyKeyword,
     HyList,
@@ -50,10 +51,7 @@ class HyResolver(ExpressionResolver, LocalsProvider, ResolverMixin):
             Tuple[resolved_value, dynamic_info]
         """
         # Create dynamic expression info first
-        dynamic_info = DynamicExpressionInfo(
-            original=expr,
-            is_dynamic=is_dynamic_content(expr)
-        )
+        dynamic_info = DynamicExpressionInfo(original=expr, is_dynamic=is_dynamic_content(expr))
 
         try:
             # Perform the actual resolution
@@ -63,9 +61,9 @@ class HyResolver(ExpressionResolver, LocalsProvider, ResolverMixin):
             dynamic_info.add_evaluation(
                 resolved_value,
                 metadata={
-                    'context': str(context) if context else None,
-                    'locals': str(local_names) if local_names else None
-                }
+                    "context": str(context) if context else None,
+                    "locals": str(local_names) if local_names else None,
+                },
             )
 
             return resolved_value, dynamic_info
@@ -73,16 +71,9 @@ class HyResolver(ExpressionResolver, LocalsProvider, ResolverMixin):
         except Exception as e:
             # Record failed evaluation
             dynamic_info.add_evaluation(
-                None,
-                metadata={
-                    'error_type': type(e).__name__,
-                    'error_message': str(e)
-                }
+                None, metadata={"error_type": type(e).__name__, "error_message": str(e)}
             )
             raise
-
-
-
 
     def _resolve_value(
         self, expr: HyValue, context: Context = None, local_names: LocalsDict = None
@@ -101,11 +92,10 @@ class HyResolver(ExpressionResolver, LocalsProvider, ResolverMixin):
                 print(value)
                 if isinstance(value, list):
                     result = evaluate_hy_expression(
-                        HyExpression([
-                            hy.models.Symbol(x) if isinstance(x, str) else x
-                            for x in value
-                        ]),
-                        local_names
+                        HyExpression(
+                            [hy.models.Symbol(x) if isinstance(x, str) else x for x in value]
+                        ),
+                        local_names,
                     )
                 else:
                     result = value
@@ -113,11 +103,10 @@ class HyResolver(ExpressionResolver, LocalsProvider, ResolverMixin):
                 value = local_names[symbol_name.replace("-", "_")]
                 if isinstance(value, list):
                     result = evaluate_hy_expression(
-                        HyExpression([
-                            hy.models.Symbol(x) if isinstance(x, str) else x
-                            for x in value
-                        ]),
-                        local_names
+                        HyExpression(
+                            [hy.models.Symbol(x) if isinstance(x, str) else x for x in value]
+                        ),
+                        local_names,
                     )
                 else:
                     result = value
@@ -137,16 +126,9 @@ class HyResolver(ExpressionResolver, LocalsProvider, ResolverMixin):
         self.logger.debug("Resolved expression: %s", result)
         return result
 
-
-
-    def get_locals_dict(
-        self, context: Context, local_names: LocalsDict = None
-    ) -> LocalsDict:
+    def get_locals_dict(self, context: Context, local_names: LocalsDict = None) -> LocalsDict:
         """Base locals dictionary with default globals"""
-        locals_dict = {
-            **self.default_globals,
-            **(self.get_additional_globals() or {})
-        }
+        locals_dict = {**self.default_globals, **(self.get_additional_globals() or {})}
 
         # Add context if provided
         if context:
@@ -158,7 +140,6 @@ class HyResolver(ExpressionResolver, LocalsProvider, ResolverMixin):
 
         self.logger.debug("Final locals dictionary: %s", list(locals_dict.keys()))
         return locals_dict
-
 
     def _resolve_symbol(
         self, expr: HySymbol, _: Context, local_names: LocalsDict = None

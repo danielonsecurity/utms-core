@@ -2,10 +2,10 @@ from typing import Any, Dict, List
 
 import hy
 
+from utms.core.hy.utils import format_value, is_dynamic_content
 from utms.core.plugins import NodePlugin
 from utms.utils import hy_to_python
 from utms.utms_types import HyNode
-from utms.core.hy.utils import is_dynamic_content, format_value
 
 
 class ConfigNodePlugin(NodePlugin):
@@ -26,7 +26,9 @@ class ConfigNodePlugin(NodePlugin):
 
     def parse(self, expr) -> HyNode:
         """Parse a custom-set-config expression"""
-        node = HyNode(type=self.node_type, value=None, original=hy.repr(expr).strip("'"), children=[])
+        node = HyNode(
+            type=self.node_type, value=None, original=hy.repr(expr).strip("'"), children=[]
+        )
 
         for setting in expr[1:]:
             if isinstance(setting, hy.models.Expression):
@@ -34,16 +36,20 @@ class ConfigNodePlugin(NodePlugin):
                 value = setting[1]
                 is_dynamic = is_dynamic_content(value)
 
-                node.children.append(HyNode(
-                    type="config-setting",
-                    value=key,
-                    children=[HyNode(
-                        type="value",
-                        value=value,
-                        original=hy.repr(value) if is_dynamic else None,
-                        is_dynamic=is_dynamic,
-                    )]
-                ))
+                node.children.append(
+                    HyNode(
+                        type="config-setting",
+                        value=key,
+                        children=[
+                            HyNode(
+                                type="value",
+                                value=value,
+                                original=hy.repr(value) if is_dynamic else None,
+                                is_dynamic=is_dynamic,
+                            )
+                        ],
+                    )
+                )
 
         return node
 

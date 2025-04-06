@@ -4,8 +4,8 @@ from utms.core.hy.resolvers.elements.variable import VariableResolver
 from utms.core.loaders.base import ComponentLoader, LoaderContext
 from utms.core.managers.elements.variable import VariableManager
 from utms.core.models.variable import Variable
-from utms.utms_types import HyNode, HyProperty
 from utms.core.services.dynamic import DynamicResolutionService
+from utms.utms_types import HyNode, HyProperty
 
 
 class VariableLoader(ComponentLoader[Variable, VariableManager]):
@@ -15,7 +15,6 @@ class VariableLoader(ComponentLoader[Variable, VariableManager]):
         super().__init__(manager)
         self._resolver = VariableResolver()
         self._dynamic_service = DynamicResolutionService(resolver=self._resolver)
-
 
     def parse_definitions(self, nodes: List[HyNode]) -> Dict[str, dict]:
         """Parse HyNodes into variable definitions.
@@ -56,11 +55,11 @@ class VariableLoader(ComponentLoader[Variable, VariableManager]):
         # Use dynamic service for resolution if it's a dynamic expression
         if is_dynamic:
             resolved_value, dynamic_info = self._dynamic_service.evaluate(
-                component_type='variable',
+                component_type="variable",
                 component_label=label,
-                attribute='value',
+                attribute="value",
                 expression=value,
-                context=self.context.variables if self.context else None
+                context=self.context.variables if self.context else None,
             )
             self.logger.debug(f"Resolved dynamic value for {label}: {resolved_value}")
 
@@ -76,15 +75,10 @@ class VariableLoader(ComponentLoader[Variable, VariableManager]):
         # Create Variable with HyProperty
         variable = Variable(
             name=label,
-            property=HyProperty(
-                value=resolved_value,
-                original=original,
-                is_dynamic=is_dynamic
-            ),
+            property=HyProperty(value=resolved_value, original=original, is_dynamic=is_dynamic),
         )
 
         return variable
-
 
     def process(self, nodes: List[HyNode], context: LoaderContext) -> Dict[str, Variable]:
         """Process nodes into Variables with resolution context.
