@@ -237,17 +237,28 @@ class HyResolver(ExpressionResolver, LocalsProvider, ResolverMixin):
         locals_dict: LocalsDict,
     ) -> ResolvedValue:
         """Evaluate expression, handling dot operator if present."""
+        self.logger.debug("Dot operator expression: %s", expr)
+        self.logger.debug("Dot Resolved subexpressions: %s", resolved_subexprs)
         if self._is_dot_operator(expr):
-            obj = self._resolve_dot_operator_object(expr[1], locals_dict)
+            # Handle nested dot operator expressions
+            if isinstance(expr[1], HyExpression) and self._is_dot_operator(expr[1]):
+                obj = self._evaluate_with_dot_operator(expr[1], resolved_subexprs[1:], locals_dict)
+            else:
+                obj = self._resolve_dot_operator_object(expr[1], locals_dict)
+
             if isinstance(obj, DynamicExpressionInfo):
                 obj = obj.latest_value
-            method = self._resolve_dot_operator_property(obj, str(expr[2]))
 
-            # If there are additional arguments, call the method with them
-            if len(expr) > 3:
+            # Get the method/attribute
+            method = getattr(obj, str(expr[2]))
+
+            # If it's a method and there are arguments, call it
+            if callable(method) and len(expr) > 3:
                 args = [self._resolve_value(arg, None, locals_dict) for arg in expr[3:]]
                 return method(*args)
             return method
+
+
 
         # If first element is a type/class, call it directly with the resolved arguments
         if isinstance(resolved_subexprs[0], type):

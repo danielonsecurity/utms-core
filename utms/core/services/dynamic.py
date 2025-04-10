@@ -1,3 +1,4 @@
+import hy
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
@@ -5,6 +6,7 @@ from typing import Any, Dict, Optional, Tuple
 from utms.core.hy.resolvers.base import HyResolver
 from utms.core.mixins.service import ServiceMixin
 from utms.utms_types import DynamicExpressionInfo
+from utms.core.hy import evaluate_hy_expression
 
 
 @dataclass
@@ -122,16 +124,49 @@ class DynamicResolutionService(ServiceMixin):
             attribute,
             expression,
         )
+
         locals_dict = self.resolver.get_locals_dict(context)
         if context:
             locals_dict.update(context)
-        resolved_value, dynamic_info = self.resolver.resolve(
-            expression, context=context, local_names=locals_dict
-        )
-        self.logger.debug(f"Resolved to: {resolved_value}")
 
-        self.registry.add(component_type, component_label, attribute, dynamic_info)
-        return resolved_value, dynamic_info
+        try:
+            # Handle both string and Expression inputs
+            if isinstance(expression, str):
+                hy_expr = hy.read(expression)
+            else:
+                hy_expr = expression  # Already a Hy Expression
+            # Evaluate the expression
+            resolved_value = evaluate_hy_expression(hy_expr, locals_dict)
+
+            # Create or get existing dynamic info
+            dynamic_info = self.registry.get(component_type, component_label, attribute)
+            if not dynamic_info:
+                dynamic_info = DynamicExpressionInfo(
+                    original=expression,
+                    is_dynamic=True
+                )
+
+            # Add the evaluation to history
+            dynamic_info.add_evaluation(
+                value=resolved_value,
+                metadata={
+                    "component_type": component_type,
+                    "component_label": component_label,
+                    "attribute": attribute,
+                    "context": context
+                }
+            )
+
+            self.logger.debug(f"Resolved to: {resolved_value}")
+
+            self.registry.add(component_type, component_label, attribute, dynamic_info)
+            return resolved_value, dynamic_info
+        except Exception as e:
+            self.logger.error(f"Error evaluating expression: {e}")
+            raise
+
+
+
 
     def get_dynamic_info(
         self, component_type: str, component_label: str, attribute: str

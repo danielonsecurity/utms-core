@@ -8,6 +8,7 @@ from utms.utms_types.hy.types import (
     EvaluatedResult,
     ExpressionList,
     HyExpression,
+    HySymbol,
     HyLazy,
     LocalsDict,
     is_symbol,
@@ -40,13 +41,43 @@ def evaluate_hy_expression(expr: HyExpression, locals_dict: LocalsDict = None) -
 
     # Add Python builtins
     locals_dict["__builtins__"] = globals()["__builtins__"]
+    logger.debug("Expression to evaluate: %s", expr)
+    logger.debug("Expression type: %s", type(expr))
 
     # Handle function definitions
-    if len(expr) > 0:
-        first_element = expr[0]
-        if is_symbol(first_element) and str(first_element) == "fn":
-            func_name: str = f"_utms_{uuid.uuid4().hex}"
-            locals_dict[func_name] = hy_eval(expr, locals_dict)
-            return locals_dict[func_name]
+    if isinstance(expr, HyExpression) and len(expr) > 0 and isinstance(expr[0], HySymbol):
+        if str(expr[0]) == '.':
+            logger.debug("Handling dot operator expression")
 
-    return hy_eval(expr, locals_dict)
+            # Get the object
+            obj_name = str(expr[1])
+            logger.debug("Object name: %s", obj_name)
+
+            obj = locals_dict.get(obj_name)
+            if obj is None:
+                obj = locals_dict.get(obj_name.replace("-", "_"))
+            
+            logger.debug("Found object: %s", obj)
+            if obj is None:
+                raise NameError(f"name '{obj_name}' is not defined")
+
+            # Get the method/attribute
+            method = getattr(obj, str(expr[2]))
+            logger.debug("Found method: %s", method)
+
+            # If it's a method and there are arguments, call it
+            if callable(method) and len(expr) > 3:
+                args = [evaluate_hy_expression(arg, locals_dict) if isinstance(arg, (HyExpression, HySymbol)) else arg for arg in expr[3:]]
+                logger.debug("Calling method with args: %s", args)
+                return method(*args)
+            return method
+
+    try:
+        result = hy_eval(expr, locals_dict)
+        logger.debug("Evaluation result: %s", result)
+        return result
+    except Exception as e:
+        logger.error("Evaluation error: %s", str(e))
+        raise
+
+    
