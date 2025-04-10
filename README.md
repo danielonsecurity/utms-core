@@ -1,12 +1,12 @@
 
-# UTMS - Universal Time Measurement System - Rethinking Time
+# UTMS - Universal Time Modeling System - Rethinking Time
 **WIP**: The published code is just the core idea (the
 PoC with a web UI, hy configuration engine, and much more is being
 worked on in dev branch, and will be published soon when it's usable). 
 
 #### 🚀 **Revolutionizing How We Measure Time**
 
-The **Universal Time Measurement System (UTMS)** is a bold reimagining
+The **Universal Time Modeling System (UTMS)** is a bold reimagining
 of how humanity measures and communicates time. By leveraging the
 fundamental, universal nature of **Planck time units**, this system
 transcends the limitations of Earth-centric timekeeping, providing a
