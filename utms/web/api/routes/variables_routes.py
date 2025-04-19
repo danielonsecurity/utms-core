@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Body, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from utms.core.config import Config
+from utms.core.config import UTMSConfig as Config
 from utms.web.api import templates
 
 router = APIRouter()

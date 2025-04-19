@@ -1,6 +1,6 @@
 from functools import lru_cache
 
-from utms.core.config import Config
+from utms.core.config import UTMSConfig as Config
 
 
 @lru_cache()

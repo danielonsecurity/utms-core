@@ -44,7 +44,8 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
 from prompt_toolkit.styles import Style
 
-from utms import AI, VERSION, Config
+from utms import AI, VERSION
+from utms import UTMSConfig as Config
 from utms.cli.commands.core import CommandManager
 from utms.cli.commands.register import register_all_commands
 from utms.core.logger import LoggerManager, get_logger

@@ -18,7 +18,8 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import List, Optional
 
-from utms import AI, Config
+from utms import AI
+from utms import UTMSConfig as Config
 
 from ..core import Command, CommandManager
 from .helper import (

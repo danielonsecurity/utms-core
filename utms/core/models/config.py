@@ -22,8 +22,8 @@ class Config(ModelMixin):
         return (
             f"Config(key={self.key}, "
             f"value={self.value}, "
-            f"is_dynamic={self.is_dynamic}), "
-            f"original={self.original}"
+            f"is_dynamic={self.is_dynamic}, "
+            f"original={self.original})"
         )
 
     def __hash__(self):

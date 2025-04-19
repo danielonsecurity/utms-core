@@ -1,6 +1,8 @@
 import os
 from typing import Any, Dict, List, Optional, Union
 
+import hy
+
 from utms.core.components.base import SystemComponent
 from utms.core.hy.ast import HyAST
 from utms.core.loaders.base import LoaderContext
@@ -66,14 +68,17 @@ class ConfigComponent(SystemComponent):
         """
         # Get the config plugin
         plugin = plugin_registry.get_node_plugin("custom-set-config")
-        if not plugin:
-            raise ValueError("Config plugin not found")
+        config_entries = []
+        for key, config in self._items.items():
+            if config.is_dynamic and config.original:
+                # For dynamic configs, use the original expression
+                value = hy.read(config.original)
+            else:
+                # For static configs, use the value
+                value = config.value
+            config_entries.append([key, value])
 
-        # Create a node with the custom-set-config type
-        config_node = plugin.parse(
-            ["custom-set-config"] + [[key, config.value] for key, config in self._items.items()]
-        )
-
+        config_node = plugin.parse(["custom-set-config"] + config_entries)
         return config_node
 
     def create_config(

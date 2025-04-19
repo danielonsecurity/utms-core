@@ -4,7 +4,7 @@ import hy
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
-from utms.core.config import Config
+from utms.core.config import UTMSConfig as Config
 from utms.core.formats import TimeUncertainty
 from utms.core.models.anchor import FormatSpec
 from utms.utils import hy_to_python

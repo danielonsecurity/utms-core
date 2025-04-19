@@ -21,7 +21,7 @@ Usage:
 
 import argparse
 
-from utms import Config
+from utms import UTMSConfig as Config
 
 from ..core import Command, CommandManager
 from .helper import add_anchor_list_argument

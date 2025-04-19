@@ -59,10 +59,9 @@ import requests
 from colorama import Fore, Style
 from google.api_core.exceptions import ResourceExhausted
 
+from utms.core.config import constants
+from utms.core.config.config import UTMSConfig
 from utms.utils import print_parsed_date
-
-from ..config import constants
-from ..config.config import Config
 
 
 class AI:
@@ -81,7 +80,7 @@ class AI:
             Generates a date based on the provided input text using the Gemini AI model.
     """
 
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: UTMSConfig) -> None:
         """Initializes the AI class by setting up the Gemini API configuration
         and loading the model.
 

@@ -14,5 +14,5 @@ LoggerManager.bootstrap()
 
 from .core import constants
 from .core.ai import AI
-from .core.config import Config
+from .core.config import UTMSConfig
 from .core.config.constants import VERSION

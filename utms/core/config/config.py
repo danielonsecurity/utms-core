@@ -17,7 +17,7 @@ from utms.utms_types import ConfigProtocol
 from . import constants
 
 
-class Config(ConfigProtocol, LoggerMixin):
+class UTMSConfig(ConfigProtocol, LoggerMixin):
     _instance = None
     _initialized = False
 

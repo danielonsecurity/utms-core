@@ -30,26 +30,26 @@ class ConfigNodePlugin(NodePlugin):
             type=self.node_type, value=None, original=hy.repr(expr).strip("'"), children=[]
         )
 
+        # Skip the first element (custom-set-config)
         for setting in expr[1:]:
-            if isinstance(setting, hy.models.Expression):
+            if isinstance(setting, (list, hy.models.List, hy.models.Expression)):
                 key = str(setting[0])
                 value = setting[1]
                 is_dynamic = is_dynamic_content(value)
 
-                node.children.append(
-                    HyNode(
-                        type="config-setting",
-                        value=key,
-                        children=[
-                            HyNode(
-                                type="value",
-                                value=value,
-                                original=hy.repr(value) if is_dynamic else None,
-                                is_dynamic=is_dynamic,
-                            )
-                        ],
-                    )
+                child_node = HyNode(
+                    type="config-setting",
+                    value=key,
+                    children=[
+                        HyNode(
+                            type="value",
+                            value=value,
+                            original=hy.repr(value).strip("'") if is_dynamic else None,
+                            is_dynamic=is_dynamic,
+                        )
+                    ],
                 )
+                node.children.append(child_node)
 
         return node
 

@@ -28,7 +28,7 @@ class ConfigLoader(ComponentLoader[Config, ConfigManager]):
                 continue
 
             # Skip the first node (custom-set-config symbol)
-            for setting in node.children[1:]:
+            for setting in node.children:
                 key = str(setting.value)
                 value_node = setting.children[0]
 

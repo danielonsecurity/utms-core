@@ -24,7 +24,8 @@ import pdb
 import shlex
 from typing import Dict, Optional
 
-from utms import VERSION, Config
+from utms import VERSION
+from utms import UTMSConfig as Config
 from utms.cli.commands.core.command import Command
 from utms.cli.commands.core.hierarchy import CommandHierarchy
 from utms.core.logger import LoggerManager, get_logger

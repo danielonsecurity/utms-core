@@ -23,7 +23,8 @@ import argparse
 from datetime import datetime
 from decimal import Decimal
 
-from utms import AI, Config
+from utms import AI
+from utms import UTMSConfig as Config
 from utms.core.time.utils import print_time
 
 from ..core import Command, CommandManager

@@ -1,2 +1,2 @@
 from . import constants
-from .config import Config
+from .config import UTMSConfig
