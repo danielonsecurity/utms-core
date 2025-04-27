@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import Any, Dict, Optional
 
-from utms.utms_types import FixedUnitManagerProtocol
+from utms.utms_types import UnitManagerProtocol
 
 from ...utils import ColorFormatter
 from .base import DateTimeFormatterBase, FormatterProtocol
@@ -17,7 +17,7 @@ class CalendarFormatter(DateTimeFormatterBase):
     def format(
         self,
         total_seconds: Decimal,
-        units: FixedUnitManagerProtocol,
+        units: UnitManagerProtocol,
         uncertainty: TimeUncertainty,
         options: dict,
     ) -> str:

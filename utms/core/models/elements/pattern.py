@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Optional
 
-from ..mixins.pattern import PatternMixin
+from utms.core.mixins.pattern import PatternMixin
 
 
 @dataclass

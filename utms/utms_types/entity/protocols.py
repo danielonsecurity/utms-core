@@ -1,4 +1,4 @@
-from typing import Any, Dict, Protocol
+from typing import Any, Dict, Protocol, Optional, List
 
 from .types import AttributeDefinition
 
@@ -29,3 +29,27 @@ class TimeRange(Protocol):
 
     def contains(self, timestamp: "TimeStamp") -> bool: ...
     def overlaps(self, other: "TimeRange") -> bool: ...
+
+class TimeEntityManagerProtocol(Protocol):
+    """Protocol for time entity manager"""
+    
+    def create(
+        self,
+        name: str,
+        entity_type: str,
+        attributes: Optional[Dict[str, Any]],
+        dynamic_fields: Optional[Dict[str, Dict[str, Any]]],
+    ) -> "TimeEntityProtocol": ...
+    
+    def get_by_name_and_type(self, name: str, entity_type: str) -> Optional["TimeEntityProtocol"]: ...
+    
+    def get_by_type(self, entity_type: str) -> List["TimeEntityProtocol"]: ...
+    
+    def get_by_attribute(self, attr_name: str, attr_value: Any) -> List["TimeEntityProtocol"]: ...
+    
+    def get_by_dynamic_field(self, field_name: str, is_dynamic: bool) -> List["TimeEntityProtocol"]: ...
+    
+    def serialize(self) -> Dict[str, Dict[str, Any]]: ...
+    
+    def deserialize(self, data: Dict[str, Dict[str, Any]]) -> None: ...
+    

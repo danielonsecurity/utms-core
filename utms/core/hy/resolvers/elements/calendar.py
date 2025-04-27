@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import time
 
 from utms.core.calendar.utils import get_day_of_week

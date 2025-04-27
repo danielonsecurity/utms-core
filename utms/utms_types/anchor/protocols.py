@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Dict, Iterator, List, Optional, Protocol, Union, runtime_checkable
 
-from ..unit import FixedUnitManagerProtocol
+from ..unit import UnitManagerProtocol
 
 
 class AnchorConfigProtocol(Protocol):
@@ -37,7 +37,7 @@ class AnchorProtocol(Protocol):
     @property
     def groups(self) -> List[str]: ...
 
-    def breakdown(self, total_seconds: Decimal, units: FixedUnitManagerProtocol) -> str:
+    def breakdown(self, total_seconds: Decimal, units: UnitManagerProtocol) -> str:
         """Break down duration into multiple unit formats."""
         ...
 
@@ -50,7 +50,7 @@ class AnchorProtocol(Protocol):
         ...
 
     def _calculate_breakdown(
-        self, total_seconds: Decimal, breakdown_units: List[str], units: FixedUnitManagerProtocol
+        self, total_seconds: Decimal, breakdown_units: List[str], units: UnitManagerProtocol
     ) -> List[str]:
         """Calculate breakdown for given units."""
         ...
@@ -60,7 +60,7 @@ class AnchorManagerProtocol(Protocol):
     """Protocol defining the interface for AnchorManager class."""
 
     @property
-    def units(self) -> FixedUnitManagerProtocol: ...
+    def units(self) -> UnitManagerProtocol: ...
 
     def add_anchor(self, anchor_config: AnchorConfigProtocol) -> None:
         """Add new anchor using configuration."""

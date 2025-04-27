@@ -106,6 +106,6 @@ class ComponentLoader(ABC, Generic[T, M], LoaderMixin):
             True if node is valid
         """
         if node.type != expected_type:
-            self.logger.debug("Skipping node of type %s (expected %s)", node.type, expected_type)
+            self.logger.warning("Skipping node of type %s (expected %s)", node.type, expected_type)
             return False
         return True

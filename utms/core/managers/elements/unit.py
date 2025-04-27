@@ -4,36 +4,36 @@ from typing import Dict, List, Optional, Union
 
 from utms.core.time.plt import seconds_to_hplt, seconds_to_pplt
 from utms.utils import format_value
-from utms.utms_types import FixedUnitManagerProtocol
+from utms.utms_types import UnitManagerProtocol
 
-from utms.core.models.fixed_unit import FixedUnit
+from utms.core.models import Unit
 from utms.core.managers.base import BaseManager
 
 
-class FixedUnitManager(BaseManager[FixedUnit], FixedUnitManagerProtocol):
-    """Manages fixed units with their properties and relationships."""
+class UnitManager(BaseManager[Unit], UnitManagerProtocol):
+    """Manages  units with their properties and relationships."""
 
     def create(
         self, label: str, name: str, value: Union[str, Decimal], groups: Optional[List[str]] = None
-    ) -> FixedUnit:
-        """Create a new fixed unit."""
+    ) -> Unit:
+        """Create a new  unit."""
         if label in self._items:
             raise ValueError(f"Unit with label '{label}' already exists")
 
-        fixed_unit = FixedUnit(label=label, name=name, value=Decimal(value), groups=groups or [])
-        self.add(label, fixed_unit)
+        unit = Unit(label=label, name=name, value=Decimal(value), groups=groups or [])
+        self.add(label, unit)
         self._sort_units()
-        return fixed_unit
+        return unit
 
     def _sort_units(self) -> None:
         """Sort the units by their value (in seconds)."""
         self._items = dict(sorted(self._items.items(), key=lambda item: item[1].value))
 
-    def get_units_by_group(self, group: str) -> List[FixedUnit]:
+    def get_units_by_group(self, group: str) -> List[Unit]:
         """Get all units belonging to a specific group."""
         return [unit for unit in self._items.values() if group in unit.groups]
 
-    def get_units_by_groups(self, groups: List[str], match_all: bool = False) -> List[FixedUnit]:
+    def get_units_by_groups(self, groups: List[str], match_all: bool = False) -> List[Unit]:
         """Get units belonging to multiple groups."""
         if match_all:
             return [
@@ -108,7 +108,7 @@ class FixedUnitManager(BaseManager[FixedUnit], FixedUnitManagerProtocol):
                 )
 
     def print(self, args: Namespace) -> None:
-        """Print all fixed units sorted by their value in seconds."""
+        """Print all  units sorted by their value in seconds."""
         plt = bool(getattr(args, "plt", False))
 
         if plt:

@@ -10,10 +10,10 @@ from utms.utms_types import HyNode
 logger = get_logger()
 
 
-class FixedUnitNodePlugin(NodePlugin):
+class UnitNodePlugin(NodePlugin):
     @property
     def name(self) -> str:
-        return "Fixed Unit Node Plugin"
+        return "Unit Node Plugin"
 
     @property
     def version(self) -> str:
@@ -21,13 +21,13 @@ class FixedUnitNodePlugin(NodePlugin):
 
     @property
     def node_type(self) -> str:
-        return "def-fixed-unit"
+        return "def-unit"
 
     def initialize(self, system_context: Dict[str, Any]):
         pass
 
     def parse(self, expr) -> HyNode:
-        """Parse a fixed unit definition."""
+        """Parse a unit definition."""
         if len(expr) < 2:
             return None
 
@@ -63,18 +63,18 @@ class FixedUnitNodePlugin(NodePlugin):
                 )
 
         return HyNode(
-            type="def-fixed-unit",
+            type="def-unit",
             value=label,
             children=properties,
             original=hy.repr(expr),
         )
 
     def format(self, node: HyNode) -> List[str]:
-        """Format fixed unit definition back to Hy code."""
+        """Format unit definition back to Hy code."""
         lines = []
         indent = "  "
 
-        lines.append(f"(def-fixed-unit {node.value}")
+        lines.append(f"(def-unit {node.value}")
 
         for prop in node.children:
             if prop.type == "property":

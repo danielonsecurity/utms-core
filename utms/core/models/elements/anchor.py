@@ -5,8 +5,8 @@ from typing import List, Optional
 from utms.core.formats import TimeUncertainty
 from utms.utils import ColorFormatter
 
-from ..formats import registry as format_registry
-from ..mixins.model import ModelMixin
+from utms.core.formats import registry as format_registry
+from utms.core.mixins.model import ModelMixin
 
 
 @dataclass

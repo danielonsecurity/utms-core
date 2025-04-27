@@ -4,6 +4,6 @@ from .elements.anchor import AnchorResolver
 from .elements.calendar import CalendarResolver
 from .elements.config import ConfigResolver
 from .elements.event import EventResolver
-from .elements.fixed_unit import FixedUnitResolver
+from .elements.unit import UnitResolver
 from .elements.pattern import PatternResolver
 from .elements.variable import VariableResolver

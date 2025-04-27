@@ -57,6 +57,8 @@ def handle_resolve_command(args: argparse.Namespace, config: Config) -> None:
     input_string = " ".join(args.input)
     parsed_timestamp = ai.resolve_date(input_string)
 
+    breakpoint()
+
     if isinstance(parsed_timestamp, (datetime, Decimal)):
         print_time(parsed_timestamp, config, args.anchor_list, args.units, args.plt)
 

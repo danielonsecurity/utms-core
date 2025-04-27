@@ -15,7 +15,7 @@ from utms.utms_types import (
 )
 
 
-class FixedUnitResolver(HyResolver):
+class UnitResolver(HyResolver):
     def get_locals_dict(self, context: Context, local_names: LocalsDict = None) -> LocalsDict:
         locals_dict = {}
 

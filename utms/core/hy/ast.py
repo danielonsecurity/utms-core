@@ -55,20 +55,29 @@ class HyAST(LoggerMixin):
     def _parse_expressions(self, expressions: List, comments: dict) -> List[HyNode]:
         """Convert Hy expressions into our AST nodes."""
         nodes = []
+        self.logger.debug("Parsing %s expressions", len(expressions))
 
         for expr in expressions:
             if isinstance(expr, hy.models.Expression):
                 expr_type = str(expr[0])
+                self.logger.debug("Looking for plugin for expression type: %s", expr_type)
+                self.logger.debug("Available plugins: %s", plugin_registry.list_node_plugins())
                 plugin = plugin_registry.get_node_plugin(expr_type)
                 if plugin:
+                    self.logger.debug("Found plugin for %s %s", expr_type, plugin)
                     try:
                         node = plugin.parse(expr)
                         if node:
+                            self.logger.debug("Successfully parsed node: %s", node)
                             nodes.append(node)
+
                     except Exception as e:
                         self.logger.error(f"Error parsing {expr_type} with plugin: {e}")
+                        import traceback
+                        self.logger.error(traceback.format_exc())
                 else:
                     self.logger.warning(f"No plugin found for expression type: {expr_type}")
+                    self.logger.debug("Available plugins: %s", plugin_registry.list_node_plugins())
 
         return nodes
 

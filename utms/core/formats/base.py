@@ -4,7 +4,7 @@ from enum import Enum
 from typing import Any, Dict, List, Optional, Protocol
 
 from ...utils import ColorFormatter
-from ...utms_types import FixedUnitManagerProtocol
+from ...utms_types import UnitManagerProtocol
 from .config import TimeUncertainty
 
 
@@ -14,7 +14,7 @@ class FormatterProtocol(Protocol):
     def format(
         self,
         total_seconds: Decimal,
-        units: FixedUnitManagerProtocol,
+        units: UnitManagerProtocol,
         uncertainty: TimeUncertainty,
         options: Optional[Dict[str, Any]],
     ) -> str:

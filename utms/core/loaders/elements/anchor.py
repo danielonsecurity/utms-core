@@ -11,7 +11,7 @@ from utms.utms_types import HyNode
 from utms.core.formats import TimeUncertainty
 from utms.core.loaders.base import ComponentLoader, LoaderContext
 from utms.core.managers.elements.anchor import AnchorManager
-from utms.core.models.anchor import Anchor, FormatSpec
+from utms.core.models import Anchor, FormatSpec
 from utms.core.services.dynamic import DynamicResolutionService
 
 

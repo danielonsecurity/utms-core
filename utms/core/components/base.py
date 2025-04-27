@@ -52,7 +52,7 @@ class SystemComponent(MutableMapping, ComponentMixin):
         return None
 
 
-class ComponentManager:
+class ComponentManager(ComponentMixin):
     """Manages system components with lazy loading"""
 
     def __init__(self, config_dir: str):
@@ -62,6 +62,7 @@ class ComponentManager:
 
     def register(self, name: str, component_class: Type[SystemComponent]) -> None:
         """Register a component without loading it"""
+        self.logger.debug("Component %s registered", name)
         self._components[name] = component_class(self._config_dir, self)
         self._loaded[name] = False
 

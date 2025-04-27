@@ -13,12 +13,69 @@ from utms.utms_types import (
 class ConfigResolver(HyResolver):
     def __init__(self) -> None:
         super().__init__()
-        self.config_data = {}
+        self._resolved_configs = {}
+
+    def resolve(
+        self, 
+        expression: HyExpression, 
+        context: Context = None, 
+        local_names: LocalsDict = None
+    ) -> tuple[ResolvedValue, DynamicExpressionInfo]:
+        """Resolve a config expression for any field."""
+        # First, get the result from the parent class
+        resolved_value, dynamic_info = super().resolve(expression, context, local_names)
+        
+        # If this is a named config field (from context), store its resolved value
+        if context and 'current_label' in context and 'current_field' in context:
+            config_name = context['current_label']
+            field_name = context['current_field']
+            
+            # Create a compound key for the field
+            field_key = f"{config_name}.{field_name}"
+            
+            if isinstance(resolved_value, DynamicExpressionInfo):
+                self._resolved_configs[field_key] = resolved_value.latest_value
+            else:
+                self._resolved_configs[field_key] = resolved_value
+
+            self.logger.debug(f"Stored resolved value for {field_key}: {self._resolved_configs[field_key]}")
+
+        return resolved_value, dynamic_info
 
     def get_locals_dict(self, context: Context, local_names: LocalsDict = None) -> LocalsDict:
         """Provide config-specific context for Hy evaluation"""
         locals_dict = super().get_locals_dict(context, local_names or {})
-        # Add any config-specific globals here if needed
+        
+        # Add all resolved configs to the locals dict
+        for name, value in self._resolved_configs.items():
+            if isinstance(value, DynamicExpressionInfo):
+                actual_value = value.latest_value
+            else:
+                actual_value = value
+                
+            # Add both with hyphens and underscores for compatibility
+            locals_dict[name] = actual_value
+            locals_dict[name.replace("-", "_")] = actual_value
+            
+            # Also add the field-specific versions if this is a compound key
+            if "." in name:
+                config_name, field_name = name.split(".", 1)
+                if config_name not in locals_dict:
+                    locals_dict[config_name] = {}
+                if not isinstance(locals_dict[config_name], dict):
+                    locals_dict[config_name] = {"value": locals_dict[config_name]}
+                locals_dict[config_name][field_name] = actual_value
+                
+                # Underscore version
+                config_name_us = config_name.replace("-", "_")
+                field_name_us = field_name.replace("-", "_")
+                if config_name_us not in locals_dict:
+                    locals_dict[config_name_us] = {}
+                if not isinstance(locals_dict[config_name_us], dict):
+                    locals_dict[config_name_us] = {"value": locals_dict[config_name_us]}
+                locals_dict[config_name_us][field_name_us] = actual_value
+        
+        self.logger.debug("Locals dict contains: %s", locals_dict.keys())
         return locals_dict
 
     def _resolve_expression(

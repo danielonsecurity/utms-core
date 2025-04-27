@@ -99,8 +99,9 @@ class AI:
         """
         self.config = config
         config_component = config.config
+        breakpoint()
         if "gemini-api-key" in config_component:
-            api_key = config_component.get("gemini-api-key").value
+            api_key = config_component.get("gemini-api-key").value.value
         else:
             breakpoint()
             api_key = input("Gemini API key: ")
@@ -108,17 +109,17 @@ class AI:
 
         genai.configure(api_key=api_key, transport="rest")
         self.ai_config = genai.GenerationConfig(
-            max_output_tokens=int(config_component.get("gemini-max-output-tokens").value),
-            temperature=float(config_component.get("gemini-temperature").value),
-            top_p=float(config_component.get("gemini-top-p").value),
-            top_k=int(config_component.get("gemini-top-k").value),
+            max_output_tokens=int(config_component.get("gemini-max-output-tokens").value.value),
+            temperature=float(config_component.get("gemini-temperature").value.value),
+            top_p=float(config_component.get("gemini-top-p").value.value),
+            top_k=int(config_component.get("gemini-top-k").value.value),
         )
 
         with open(
             os.path.join(config.utms_dir, "system_prompt.txt"), "r", encoding="utf-8"
         ) as file:
             self.model = genai.GenerativeModel(
-                "models/" + config_component.get("gemini-model").value,
+                "models/" + config_component.get("gemini-model").value.value,
                 system_instruction=file.read().format(datetime_now=datetime.now().isoformat()),
             )
 

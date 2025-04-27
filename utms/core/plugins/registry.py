@@ -1,9 +1,10 @@
 from typing import Dict, List, Optional, Type
 
 from .base import NodePlugin, UTMSPlugin
+from utms.core.mixins.base import LoggerMixin
 
 
-class PluginRegistry:
+class PluginRegistry(LoggerMixin):
     """
     Central registry for managing UTMS plugins.
 
@@ -31,13 +32,23 @@ class PluginRegistry:
         Raises:
             ValueError if plugin already exists and overwrite is False
         """
-        instance = plugin_class()
-        node_type = instance.node_type
+        self.logger.debug("Registering plugin class %s", plugin_class.__name__)
+        try:
+            instance = plugin_class()
+            node_type = instance.node_type
+            self.logger.debug("Created instance with node type %s", node_type)
 
-        if node_type in self._node_plugins and not overwrite:
-            raise ValueError(f"Node plugin for {node_type} already registered")
+            if node_type in self._node_plugins and not overwrite:
+                self.logger.debug("Plugin for %s already registered", node_type)
+                raise ValueError(f"Node plugin for {node_type} already registered")
 
-        self._node_plugins[node_type] = plugin_class
+            self._node_plugins[node_type] = plugin_class
+            self.logger.debug("Registered plugin class for %s", node_type)
+            self.logger.debug("Current plugins: %s", list(self._node_plugins.keys()))
+        except Exception as e:
+            self.logger.error("Error registering plugin %s", e)
+            import traceback
+            print(traceback.format_exc())
 
     def register_generic_plugin(self, plugin_class: Type[UTMSPlugin], overwrite: bool = False):
         """
@@ -68,12 +79,22 @@ class PluginRegistry:
         Returns:
             Instantiated NodePlugin or None if not found
         """
+        self.logger.debug("Looking for plugin for node_type %s", node_type)
+        self.logger.debug("Available plugins: %s", list(self._node_plugins.keys()))
         plugin_class = self._node_plugins.get(node_type)
         if plugin_class:
+            self.logger.debug("Found plugin class for %s: %s", node_type, plugin_class.__name__)
             # Cache and return plugin instance
             if node_type not in self._active_node_plugins:
-                self._active_node_plugins[node_type] = plugin_class()
+                try:
+                    self._active_node_plugins[node_type] = plugin_class()
+                except Exception as e:
+                    self.logger.error("Error creating plugin instance %s", e)
+                    import traceback
+                    self.logger.error(traceback.format_exc())
+                    return None
             return self._active_node_plugins[node_type]
+        self.logger.warning("No plugin found for node_type %s", node_type)
         return None
 
     def get_generic_plugin(self, plugin_name: str) -> Optional[UTMSPlugin]:

@@ -11,6 +11,7 @@ from typing import Optional, TypeAlias, TypeGuard, Union
 
 from hy.models import Dict, Expression, Integer, Keyword, Lazy, List, String, Symbol
 
+
 HyExpression: TypeAlias = Expression
 HySymbol: TypeAlias = Symbol
 HyKeyword: TypeAlias = Keyword
@@ -62,12 +63,12 @@ class HyNode:
     value: Any  # The actual value/content
     children: Optional[List["HyNode"]] = None
     comment: Optional[str] = None  # Associated comment if any
-    original: Any = None  # Original Hy expression
+    original: Optional[str] = None  # Original Hy expression
     is_dynamic: bool = False
+    field_name: Optional[str] = None  # Added field to track which field this node represents
 
     def __post_init__(self):
         self.children = self.children or []
-
 
 ExpressionList: TypeAlias = PyList[HyExpression]
 

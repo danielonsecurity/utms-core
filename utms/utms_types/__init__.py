@@ -82,5 +82,8 @@ from .hy.types import (
     is_string,
     is_symbol,
 )
-from .unit.protocols import FixedUnitManagerProtocol, UnitProtocol
+from .unit.protocols import UnitManagerProtocol, UnitProtocol
 from .unit.types import UnitConfig
+from .variable.protocols import VariableManagerProtocol
+from .entity.protocols import TimeEntityProtocol, TimeEntityManagerProtocol
+from .field import TypedValue, FieldType, infer_type

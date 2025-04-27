@@ -1,11 +1,14 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
+
+import hy
 
 from utms.core.hy.resolvers.elements.variable import VariableResolver
 from utms.core.loaders.base import ComponentLoader, LoaderContext
 from utms.core.managers.elements.variable import VariableManager
-from utms.core.models.variable import Variable
+from utms.core.models import Variable
 from utms.core.services.dynamic import DynamicResolutionService
-from utms.utms_types import HyNode, HyProperty
+from utms.utils import hy_to_python
+from utms.utms_types import HyNode
 
 
 class VariableLoader(ComponentLoader[Variable, VariableManager]):
@@ -17,14 +20,7 @@ class VariableLoader(ComponentLoader[Variable, VariableManager]):
         self._dynamic_service = DynamicResolutionService(resolver=self._resolver)
 
     def parse_definitions(self, nodes: List[HyNode]) -> Dict[str, dict]:
-        """Parse HyNodes into variable definitions.
-
-        Args:
-            nodes: List of HyNodes to parse
-
-        Returns:
-            Dictionary mapping variable names to their properties
-        """
+        """Parse HyNodes into variable definitions."""
         variables = {}
 
         for node in nodes:
@@ -36,55 +32,109 @@ class VariableLoader(ComponentLoader[Variable, VariableManager]):
                 self.logger.warning(f"Variable {var_name} has no value")
                 continue
 
-            value_node = node.children[0]
-            variables[var_name] = {
-                "value": value_node.value,
-                "is_dynamic": value_node.is_dynamic,
-                "original": value_node.original if value_node.is_dynamic else None,
+            # Initialize variable properties
+            variable_props = {
+                "key": var_name,
+                "value": None,
+                "dynamic_fields": {}
             }
+
+            # Process each child node (currently just value, but could be extended)
+            for child_node in node.children:
+                field_name = getattr(child_node, "field_name", "value")
+                
+                # Store the field value
+                variable_props[field_name] = child_node.value
+                
+                # If the field is dynamic, store its information
+                if child_node.is_dynamic:
+                    variable_props["dynamic_fields"][field_name] = {
+                        "original": child_node.original,
+                        "value": child_node.value
+                    }
+
+            variables[var_name] = variable_props
 
         return variables
 
-    def create_object(self, label: str, properties: Dict[str, Any]) -> Variable:
+    def create_object(self, key: str, properties: Dict[str, Any]) -> Variable:
+        """Create a Variable from properties."""
+        # Get the value and dynamic fields
         value = properties["value"]
-        is_dynamic = properties.get("is_dynamic", False)
-        original = properties.get("original")
+        dynamic_fields = properties.get("dynamic_fields", {})
+        
+        self.logger.debug(f"Creating variable {key} with value: {value}")
+        self.logger.debug(f"Dynamic fields: {dynamic_fields}")
 
-        self.logger.debug(f"Creating variable {label} with value: {value}")
+        # Resolve dynamic expressions for each field
+        for field_name, field_info in dynamic_fields.items():
+            original_expr = field_info["original"]
+            field_value = properties[field_name]
+            
+            # Only resolve if it's an expression
+            if isinstance(field_value, (hy.models.Expression, hy.models.Symbol)):
+                resolved_value, dynamic_info = self._dynamic_service.evaluate(
+                    component_type="variable",
+                    component_label=key,
+                    attribute=field_name,
+                    expression=field_value,
+                    context=self.context.variables if self.context else None,
+                )
+                self.logger.debug(f"Resolved dynamic {field_name} for {key}: {resolved_value}")
+                
+                # Update the value in properties
+                properties[field_name] = hy_to_python(resolved_value)
+                
+                # Update the dynamic field info
+                dynamic_fields[field_name]["value"] = properties[field_name]
+            else:
+                self.logger.debug(f"Using static {field_name} for {key}: {field_value}")
+                properties[field_name] = hy_to_python(field_value)
 
-        # Use dynamic service for resolution if it's a dynamic expression
-        if is_dynamic:
-            resolved_value, dynamic_info = self._dynamic_service.evaluate(
-                component_type="variable",
-                component_label=label,
-                attribute="value",
-                expression=value,
-                context=self.context.variables if self.context else None,
-            )
-            self.logger.debug(f"Resolved dynamic value for {label}: {resolved_value}")
-
-            # Store just the dynamic_info in resolver's vars
-            self._resolver._resolved_vars[label] = dynamic_info
-        else:
-            resolved_value = value
-            self.logger.debug(f"Using static value for {label}: {resolved_value}")
-
-            # Store just the value for static vars
-            self._resolver._resolved_vars[label] = resolved_value
-
-        # Create Variable with HyProperty
-        variable = Variable(
-            name=label,
-            property=HyProperty(value=resolved_value, original=original, is_dynamic=is_dynamic),
+        # Create variable object
+        return self._manager.create(
+            key=key,
+            value=properties["value"],
+            dynamic_fields=dynamic_fields,
         )
 
-        return variable
-
     def process(self, nodes: List[HyNode], context: LoaderContext) -> Dict[str, Variable]:
-        """Process nodes into Variables with resolution context.
+        """Process variable nodes into Variable objects, updating context after each one."""
+        # Initialize variables dictionary if not present
+        if context and context.variables is None:
+            context.variables = {}
 
-        Override to handle variable-specific context
-        """
-        objects = super().process(nodes, context)
-        self._manager._resolved_vars = {name: var.value for name, var in objects.items()}
+        # First, parse definitions to get the order
+        definitions = self.parse_definitions(nodes)
+
+        # Process variables one by one to maintain dependency order
+        objects = {}
+        for label, properties in definitions.items():
+            try:
+                # Create a temporary list with just this node
+                node_list = [n for n in nodes if self.validate_node(n, "def-var") and n.value == label]
+                if not node_list:
+                    continue
+
+                # Process just this one node using the parent method
+                temp_result = super().process(node_list, context)
+
+                # Get the created object
+                if label in temp_result:
+                    obj = temp_result[label]
+                    objects[label] = obj
+
+                    # Update context with the newly resolved variable
+                    if context and context.variables is not None:
+                        context.variables[label] = obj.value
+                        # Also add underscore version for Python compatibility
+                        context.variables[label.replace("-", "_")] = obj.value
+
+            except Exception as e:
+                self.logger.error(f"Error processing variable {label}: {e}")
+                raise
+
+        # Load all objects into manager
+        self._manager.load_objects(objects)
+
         return objects

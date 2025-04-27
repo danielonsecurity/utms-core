@@ -2,9 +2,9 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
 from utms.utms_types import HyNode
+from utms.core.mixins.plugin import PluginMixin
 
-
-class UTMSPlugin(ABC):
+class UTMSPlugin(ABC, PluginMixin):
     """
     Base plugin interface for all UTMS plugins.
     Provides a generic, system-wide plugin contract.

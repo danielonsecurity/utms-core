@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 
 from utms.core.logger import get_logger
 from utms.utils import color_scientific_format
-from utms.utms_types import FixedUnitManagerProtocol
+from utms.utms_types import UnitManagerProtocol
 
 from ...utils import ColorFormatter
 from .base import FormatterProtocol, FormattingOptions, NotationType
@@ -18,7 +18,7 @@ class ScientificFormatter(FormatterProtocol):
     def format(
         self,
         total_seconds: Decimal,
-        units: FixedUnitManagerProtocol,
+        units: UnitManagerProtocol,
         uncertainty: TimeUncertainty,
         options: dict,
     ) -> str:

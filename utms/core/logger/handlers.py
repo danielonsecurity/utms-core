@@ -12,7 +12,7 @@ from .colors import LogFormatter
 def create_console_handler(level: int) -> logging.Handler:
     """Create console handler with basic formatting."""
     handler = logging.StreamHandler(sys.stdout)
-    formatter = LogFormatter("%(levelname)s: %(name)s - %(message)s")
+    formatter = LogFormatter("%(asctime)s [%(levelname)s]: %(name)s - %(message)s")
     formatter.is_console = True
     handler.setFormatter(formatter)
     handler.setLevel(level)

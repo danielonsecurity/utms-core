@@ -35,7 +35,7 @@ class UnitProtocol(Protocol):
     def __repr__(self) -> str: ...
 
 
-class FixedUnitManagerProtocol(Protocol):
+class UnitManagerProtocol(Protocol):
     """Protocol defining the interface for UnitManager class."""
 
     def add_unit(self, name: str, abbreviation: str, value: Decimal, groups) -> None:

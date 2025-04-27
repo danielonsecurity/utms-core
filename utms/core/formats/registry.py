@@ -1,7 +1,7 @@
 from decimal import Decimal
 from typing import Dict, Type
 
-from utms.utms_types import FixedUnitManagerProtocol
+from utms.utms_types import UnitManagerProtocol
 
 from .base import FormatterProtocol
 from .calendar import CalendarFormatter
@@ -44,7 +44,7 @@ class FormatRegistry:
         self,
         format_name: str,
         total_seconds: Decimal,
-        units: FixedUnitManagerProtocol,
+        units: UnitManagerProtocol,
         uncertainty: TimeUncertainty,
         options,
     ) -> str:

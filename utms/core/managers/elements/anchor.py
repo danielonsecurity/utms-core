@@ -5,7 +5,7 @@ from utms.utils import format_value
 from utms.utms_types import AnchorManagerProtocol
 
 from utms.core.formats import TimeUncertainty
-from utms.core.models.anchor import Anchor, FormatSpec
+from utms.core.models import Anchor, FormatSpec
 from utms.core.managers.base import BaseManager
 
 

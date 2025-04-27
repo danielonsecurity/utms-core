@@ -5,12 +5,13 @@ import appdirs
 from utms.core.components.base import ComponentManager, SystemComponent
 from utms.core.components.elements.anchor import AnchorComponent
 from utms.core.components.elements.config import ConfigComponent
-from utms.core.components.elements.fixed_unit import FixedUnitComponent
+from utms.core.components.elements.unit import UnitComponent
 from utms.core.components.elements.pattern import PatternComponent
 from utms.core.components.elements.variable import VariableComponent
+from utms.core.components.elements.time_entity import TimeEntityComponent
 from utms.core.logger import LoggerManager
 from utms.core.mixins import LoggerMixin
-from utms.core.plugins.discovery import discover_plugins
+from utms.core.plugins.discovery import discover_plugins, initialize_plugins
 from utms.core.services.resource import ResourceService
 from utms.utms_types import ConfigProtocol
 
@@ -32,6 +33,7 @@ class UTMSConfig(ConfigProtocol, LoggerMixin):
             self._utms_dir = appdirs.user_config_dir(constants.APP_NAME, constants.COMPANY_NAME)
             os.makedirs(self.utms_dir, exist_ok=True)
             discover_plugins()
+            initialize_plugins()
 
             self.logger.debug("Config directory %s", self.utms_dir)
 
@@ -58,8 +60,9 @@ class UTMSConfig(ConfigProtocol, LoggerMixin):
         self._component_manager.register("config", ConfigComponent)
         self._component_manager.register("variables", VariableComponent)
         self._component_manager.register("patterns", PatternComponent)
-        self._component_manager.register("units", FixedUnitComponent)
+        self._component_manager.register("units", UnitComponent)
         self._component_manager.register("anchors", AnchorComponent)
+        self._component_manager.register("entities", TimeEntityComponent)
 
         self.logger.debug("Components registered")
 
@@ -85,9 +88,13 @@ class UTMSConfig(ConfigProtocol, LoggerMixin):
         return self.get_component("variables")
 
     @property
-    def units(self) -> FixedUnitComponent:
+    def units(self) -> UnitComponent:
         return self.get_component("units")
 
     @property
     def anchors(self) -> AnchorComponent:
         return self.get_component("anchors")
+
+    @property
+    def entities(self) -> TimeEntityComponent:
+        return self.get_component("entities")

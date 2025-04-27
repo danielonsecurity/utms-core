@@ -10,10 +10,10 @@ from utms.web.api.routes import (
     anchors_routes,
     clock_routes,
     config_routes,
-    dynamic_routes,
     resolve_routes,
     units_routes,
     variables_routes,
+    entities_routes,
 )
 from utms.web.dependencies import get_config
 
@@ -42,7 +42,7 @@ app.mount("/static", StaticFiles(directory="utms/web/static"), name="static")
 templates = Jinja2Templates(directory="utms/web/templates")
 
 # Include routers
-app.include_router(dynamic_routes.router)
+app.include_router(entities_routes.router)
 app.include_router(config_routes.router)
 app.include_router(variables_routes.router)
 app.include_router(anchors_routes.router)

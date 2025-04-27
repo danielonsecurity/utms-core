@@ -6,7 +6,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Optional, Protocol, Union
 
 from utms.utms_types.base.protocols import TimeLength, TimeRange, TimeStamp
-from utms.utms_types.unit import FixedUnitManagerProtocol
+from utms.utms_types.unit import UnitManagerProtocol
 
 
 class DecimalTimeStamp(TimeStamp):

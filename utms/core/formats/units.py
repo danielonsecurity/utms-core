@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 
 from utms.core.config import constants
 from utms.core.logger import get_logger
-from utms.utms_types import FixedUnitManagerProtocol
+from utms.utms_types import UnitManagerProtocol
 
 from ...utils import ColorFormatter
 from .base import FormatterProtocol, FormattingOptions, NotationType
@@ -62,12 +62,13 @@ class UnitsFormatter(FormatterProtocol):
     def format(
         self,
         total_seconds: Decimal,
-        units: FixedUnitManagerProtocol,
+        units: UnitManagerProtocol,
         uncertainty: TimeUncertainty,
         options: dict,
     ) -> str:
         opts = FormattingOptions(**options)
         # Get the units to use
+
         if opts.units:
             # Use specifically requested units
             unit_list = [units.get(u) for u in opts.units]
@@ -107,7 +108,7 @@ class UnitsFormatter(FormatterProtocol):
         self,
         total_seconds: Decimal,
         result: Dict[str, Decimal],
-        units: FixedUnitManagerProtocol,
+        units: UnitManagerProtocol,
         uncertainty: TimeUncertainty,
         opts: FormattingOptions,
     ) -> str:
@@ -117,7 +118,7 @@ class UnitsFormatter(FormatterProtocol):
         return self._format_units(result, units, opts)
 
     def _format_units(
-        self, result: Dict[str, Decimal], units: FixedUnitManagerProtocol, opts: FormattingOptions
+        self, result: Dict[str, Decimal], units: UnitManagerProtocol, opts: FormattingOptions
     ) -> str:
         parts = []
         style = opts.style
@@ -165,7 +166,7 @@ class UnitsFormatter(FormatterProtocol):
             return " ".join(parts)
 
     def _get_meaningful_units(
-        self, total_seconds: Decimal, uncertainty: TimeUncertainty, units: FixedUnitManagerProtocol
+        self, total_seconds: Decimal, uncertainty: TimeUncertainty, units: UnitManagerProtocol
     ) -> List:
         decimal_units = sorted(
             units.get_units_by_groups(["decimal", "scientific", "second"], True),

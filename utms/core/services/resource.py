@@ -15,14 +15,14 @@ class ResourceService(ServiceMixin):
     """
 
     DEFAULT_RESOURCES = [
-        "anchors.hy",
-        "calendar_units.hy",
+        "anchors/",
+        "units/",
+        "entities/",
+        "patterns/",
         "config.hy",
-        "fixed_units.hy",
-        "patterns.hy",
         "system_prompt.txt",
-        "events.hy",
         "variables.hy",
+
     ]
 
     def __init__(self, config_dir: str):
@@ -37,55 +37,80 @@ class ResourceService(ServiceMixin):
             self.deploy_resource(resource, force)
 
     def deploy_resource(self, resource_name: str, force: bool = False) -> bool:
-        """Deploy a single resource file.
+        """Deploy a single resource file or directory.
 
         Args:
-            resource_name: Name of the resource file
-            force: If True, overwrite existing file
+            resource_name: Name of the resource file or directory (with trailing slash)
+            force: If True, overwrite existing file/directory
 
         Returns:
             bool: True if resource was deployed, False if already exists
         """
-        destination = self._config_dir / resource_name
+        destination = self._config_dir / resource_name.rstrip('/')
 
+        # Check if it's a directory (ends with /)
+        is_directory = resource_name.endswith('/')
+        
+        # If destination exists and we're not forcing, skip deployment
         if destination.exists() and not force:
             self.logger.debug("Resource %s already exists", resource_name)
             self._resource_status[resource_name] = True
             return False
 
         try:
-            source = importlib.resources.files("utms.resources") / resource_name
-            shutil.copy(str(source), str(destination))
-            self.logger.info("Deployed resource %s to %s", resource_name, destination)
+            source_base = importlib.resources.files("utms.resources")
+            source = source_base / resource_name.rstrip('/')
+            
+            if is_directory:
+                # Handle directory deployment
+                if not destination.exists():
+                    destination.mkdir(parents=True, exist_ok=True)
+                
+                # Copy all files from the source directory to the destination
+                if source.exists() and source.is_dir():
+                    for item in source.iterdir():
+                        if item.is_file():
+                            dest_file = destination / item.name
+                            if not dest_file.exists() or force:
+                                shutil.copy(str(item), str(dest_file))
+                                self.logger.debug("Deployed %s to %s", item.name, dest_file)
+                
+                self.logger.info("Deployed directory %s to %s", resource_name, destination)
+            else:
+                # Handle file deployment
+                shutil.copy(str(source), str(destination))
+                self.logger.info("Deployed file %s to %s", resource_name, destination)
+            
             self._resource_status[resource_name] = True
             return True
+            
         except Exception as e:
             self.logger.error("Failed to deploy resource %s: %s", resource_name, e)
             self._resource_status[resource_name] = False
             raise
 
     def get_resource_path(self, resource_name: str) -> Optional[Path]:
-        """Get the full path to a resource file.
+        """Get the full path to a resource file or directory.
 
         Args:
-            resource_name: Name of the resource file
+            resource_name: Name of the resource file or directory
 
         Returns:
             Optional[Path]: Full path to resource or None if not found
         """
-        path = self._config_dir / resource_name
+        path = self._config_dir / resource_name.rstrip('/')
         return path if path.exists() else None
 
     def check_resource(self, resource_name: str) -> bool:
-        """Check if a resource file exists.
+        """Check if a resource file or directory exists.
 
         Args:
-            resource_name: Name of the resource file
+            resource_name: Name of the resource file or directory
 
         Returns:
             bool: True if resource exists
         """
-        return (self._config_dir / resource_name).exists()
+        return (self._config_dir / resource_name.rstrip('/')).exists()
 
     def get_status(self) -> Dict[str, bool]:
         """Get deployment status of all resources.

@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 
 from utms.core.config import UTMSConfig as Config
 from utms.core.formats import TimeUncertainty
-from utms.core.models.anchor import FormatSpec
+from utms.core.models import FormatSpec
 from utms.utils import hy_to_python
 from utms.web.api import templates
 from utms.web.dependencies import get_config
