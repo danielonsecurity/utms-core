@@ -29,14 +29,16 @@ def format_value(value: Any) -> str:
     if isinstance(value, HyNode):
         if value.is_dynamic and value.original:
             return value.original
+    elif isinstance(value, hy.models.Expression):
+        return hy.repr(value).strip("'")
+    elif isinstance(value, bool):
+        return str(value).lower()
     elif isinstance(value, (hy.models.Integer, int)):
         return str(int(value))
     elif isinstance(value, (hy.models.Float, float)):
         return str(float(value))
     elif isinstance(value, Decimal):
         return str(value)
-    elif isinstance(value, bool):
-        return str(value).lower()
     elif isinstance(value, hy.models.List):
         items = [format_value(item) for item in value]
         return f"[{' '.join(items)}]"

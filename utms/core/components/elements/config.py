@@ -32,7 +32,6 @@ class ConfigComponent(SystemComponent):
         config_file = os.path.join(self._config_dir, "config.hy")
         if os.path.exists(config_file):
             try:
-                breakpoint()
                 nodes = self._ast_manager.parse_file(config_file)
 
                 # Create context with variables
@@ -72,7 +71,7 @@ class ConfigComponent(SystemComponent):
         # Get the config plugin
         plugin = plugin_registry.get_node_plugin("custom-set-config")
         config_entries = []
-        for key, config in self._items.items():
+        for key, config in self._config_manager.get_all().items():
             # Check if the value is dynamic
             if config.value.is_dynamic and config.value.original:
                 # For dynamic configs, use the original expression

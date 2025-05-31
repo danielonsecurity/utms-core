@@ -1,4 +1,5 @@
 import json
+import hy
 from enum import Enum
 from typing import Any, Dict, List, Optional, Union
 from decimal import Decimal
@@ -7,448 +8,9 @@ from utms.core.time.decimal import DecimalTimeStamp, DecimalTimeLength, DecimalT
 from utms.core.logger import get_logger
 from utms.utils import hy_to_python
 from utms.utms_types import HyExpression
+from utms.core.hy.utils import format_value
 
 logger = get_logger()
-
-class FieldType(Enum):
-    """Enum representing the supported field types for entity attributes."""
-    
-    STRING = "string"
-    INTEGER = "integer"
-    FLOAT = "float"
-    DECIMAL = "decimal"
-    BOOLEAN = "boolean"
-    TIMESTAMP = "timestamp"
-    TIMELENGTH = "timelength"
-    TIMERANGE = "timerange"
-    LIST = "list"
-    DICT = "dict"
-    CODE = "code"
-    ENUM = "enum"
-    
-    @classmethod
-    def from_string(cls, type_str: str) -> "FieldType":
-        """Convert a string to a FieldType enum value."""
-        try:
-            return cls(type_str.lower())
-        except ValueError:
-            return cls.STRING  # Default to string for unknown types
-    
-    def __str__(self) -> str:
-        """Return the string representation of the field type."""
-        return self.value
-
-
-class TypedValue:
-    """Class to store a value with its type information."""
-    
-    def __init__(
-        self, 
-        value: Any, 
-        field_type: Union[FieldType, str],
-        item_type: Optional[Union[FieldType, str]] = None,  # For collections
-        is_dynamic: bool = False,
-        original: Optional[str] = None,
-        enum_choices: Optional[List[Any]] = None  # Add enum_choices parameter
-    ):
-        # Convert string type to enum if needed
-        if isinstance(field_type, str):
-            field_type = FieldType.from_string(field_type)
-            
-        if isinstance(item_type, str) and item_type is not None:
-            item_type = FieldType.from_string(item_type)
-            
-        self.field_type = field_type
-        self.item_type = item_type
-        self.is_dynamic = is_dynamic
-        self.original = original
-        self.enum_choices = enum_choices or []  # Store the enum choices
-        
-        # Store the raw value before conversion
-        self._raw_value = value
-        
-        # Convert and store the value according to its type
-        self._value = self._convert_value(value)
-    
-    @property
-    def value(self) -> Any:
-        """Get the typed value."""
-        return self._value
-    
-    @value.setter
-    def value(self, new_value: Any) -> None:
-        """Set and convert the value based on the field type."""
-        self._raw_value = new_value
-        self._value = self._convert_value(new_value)
-
-
-    def __int__(self):
-        """Allow direct conversion to int."""
-        if self.field_type == FieldType.INTEGER:
-            return int(self.value)
-        elif self.field_type == FieldType.DECIMAL or self.field_type == FieldType.FLOAT:
-            return int(float(self.value))
-        elif self.field_type == FieldType.BOOLEAN:
-            return 1 if self.value else 0
-        elif self.field_type == FieldType.STRING:
-            try:
-                return int(self.value)
-            except (ValueError, TypeError):
-                raise TypeError(f"Cannot convert string '{self.value}' to int")
-        else:
-            raise TypeError(f"Cannot convert {self.field_type} to int")
-
-    def __float__(self):
-        """Allow direct conversion to float."""
-        if self.field_type == FieldType.INTEGER or self.field_type == FieldType.DECIMAL or self.field_type == FieldType.FLOAT:
-            return float(self.value)
-        elif self.field_type == FieldType.BOOLEAN:
-            return 1.0 if self.value else 0.0
-        elif self.field_type == FieldType.STRING:
-            try:
-                return float(self.value)
-            except (ValueError, TypeError):
-                raise TypeError(f"Cannot convert string '{self.value}' to float")
-        else:
-            raise TypeError(f"Cannot convert {self.field_type} to float")
-
-    def __bool__(self):
-        """Allow direct conversion to bool."""
-        if self.field_type == FieldType.BOOLEAN:
-            return self.value
-        elif self.field_type == FieldType.INTEGER or self.field_type == FieldType.DECIMAL or self.field_type == FieldType.FLOAT:
-            return bool(self.value)
-        elif self.field_type == FieldType.STRING:
-            return bool(self.value) and self.value.lower() not in ('false', 'no', '0', 'f', 'n', '')
-        elif self.value is None:
-            return False
-        else:
-            return bool(self.value)
-
-    def __eq__(self, other):
-        """Equality comparison."""
-        if isinstance(other, TypedValue):
-            return self.value == other.value
-        return self.value == other
-
-    def __ne__(self, other):
-        """Inequality comparison."""
-        return not self.__eq__(other)
-
-    def __lt__(self, other):
-        """Less than comparison."""
-        if isinstance(other, TypedValue):
-            return self.value < other.value
-        return self.value < other
-
-    def __le__(self, other):
-        """Less than or equal comparison."""
-        if isinstance(other, TypedValue):
-            return self.value <= other.value
-        return self.value <= other
-
-    def __gt__(self, other):
-        """Greater than comparison."""
-        if isinstance(other, TypedValue):
-            return self.value > other.value
-        return self.value > other
-
-    def __ge__(self, other):
-        """Greater than or equal comparison."""
-        if isinstance(other, TypedValue):
-            return self.value >= other.value
-        return self.value >= other
-
-    def __add__(self, other):
-        """Addition operator."""
-        if isinstance(other, TypedValue):
-            return self.value + other.value
-        return self.value + other
-
-    def __radd__(self, other):
-        """Reverse addition operator."""
-        return other + self.value
-
-    def __sub__(self, other):
-        """Subtraction operator."""
-        if isinstance(other, TypedValue):
-            return self.value - other.value
-        return self.value - other
-
-    def __rsub__(self, other):
-        """Reverse subtraction operator."""
-        return other - self.value
-
-    def __mul__(self, other):
-        """Multiplication operator."""
-        if isinstance(other, TypedValue):
-            return self.value * other.value
-        return self.value * other
-
-    def __rmul__(self, other):
-        """Reverse multiplication operator."""
-        return other * self.value
-
-    def __truediv__(self, other):
-        """Division operator."""
-        if isinstance(other, TypedValue):
-            return self.value / other.value
-        return self.value / other
-
-    def __rtruediv__(self, other):
-        """Reverse division operator."""
-        return other / self.value
-
-    def __iter__(self):
-        """Iterator support for list-like types."""
-        if isinstance(self.value, (list, tuple, dict)):
-            return iter(self.value)
-        raise TypeError(f"'{self.field_type}' object is not iterable")
-
-    def __getitem__(self, key):
-        """Index/key access for list/dict types."""
-        if isinstance(self.value, (list, tuple, dict)):
-            return self.value[key]
-        raise TypeError(f"'{self.field_type}' object is not subscriptable")
-
-    def __len__(self):
-        """Length support for list-like types."""
-        if isinstance(self.value, (list, tuple, dict, str)):
-            return len(self.value)
-        raise TypeError(f"Object of type '{self.field_type}' has no len()")
-
-    def __contains__(self, item):
-        """Container support (in operator)."""
-        if isinstance(self.value, (list, tuple, dict, str)):
-            return item in self.value
-        raise TypeError(f"'{self.field_type}' object is not a container")
-
-    def __hash__(self):
-        """Hash support for using in sets and as dictionary keys."""
-        try:
-            return hash((self.field_type, self.value))
-        except TypeError:
-            # Fall back for unhashable types
-            return id(self)
-
-
-    
-    def _convert_value(self, value: Any) -> Any:
-        """Convert a value to the correct type."""
-        if value is None:
-            return None
-            
-        try:
-            if self.field_type == FieldType.STRING:
-                return str(value)
-            elif self.field_type == FieldType.INTEGER:
-                if isinstance(value, bool):  # Handle boolean special case
-                    return 1 if value else 0
-                return int(value)
-            elif self.field_type == FieldType.FLOAT:
-                return float(value)
-            elif self.field_type == FieldType.DECIMAL:
-                return Decimal(str(value))
-            elif self.field_type == FieldType.BOOLEAN:
-                if isinstance(value, str):
-                    return value.lower() in ('true', 'yes', '1', 't', 'y')
-                return bool(value)
-            elif self.field_type == FieldType.TIMESTAMP:
-                if isinstance(value, DecimalTimeStamp):
-                    return value
-                return DecimalTimeStamp(value)
-            elif self.field_type == FieldType.TIMELENGTH:
-                if isinstance(value, DecimalTimeLength):
-                    return value
-                return DecimalTimeLength(value)
-            elif self.field_type == FieldType.TIMERANGE:
-                # TimeRange requires special handling
-                
-                if isinstance(value, DecimalTimeRange):
-                    return value
-                    
-                if isinstance(value, dict) and 'start' in value and 'duration' in value:
-                    start = value['start']
-                    if not isinstance(start, DecimalTimeStamp):
-                        start = DecimalTimeStamp(start)
-                        
-                    duration = value['duration']
-                    if not isinstance(duration, DecimalTimeLength):
-                        duration = DecimalTimeLength(duration)
-                        
-                    return DecimalTimeRange(start, duration)
-                    
-                # Default empty range
-                return DecimalTimeRange(DecimalTimeStamp(0), DecimalTimeLength(0))
-            elif self.field_type == FieldType.LIST:
-                # Convert to list if not already
-                if not isinstance(value, list):
-                    if isinstance(value, str):
-                        # Try to parse as JSON
-                        try:
-                            value = json.loads(value)
-                            if not isinstance(value, list):
-                                value = [value]
-                        except:
-                            value = [value]
-                    else:
-                        value = [value]
-                
-                # Convert list items if item_type is specified
-                if self.item_type:
-                    return [TypedValue(item, self.item_type).value for item in value]
-                return value
-            elif self.field_type == FieldType.DICT:
-                # Convert to dict if not already
-                if not isinstance(value, dict):
-                    if isinstance(value, str):
-                        # Try to parse as JSON
-                        try:
-                            value = json.loads(value)
-                            if not isinstance(value, dict):
-                                value = {"value": value}
-                        except:
-                            value = {"value": value}
-                    else:
-                        value = {"value": value}
-                
-                # Convert dict values if item_type is specified
-                if self.item_type:
-                    return {k: TypedValue(v, self.item_type).value for k, v in value.items()}
-                return value
-            elif self.field_type == FieldType.ENUM:
-                if not self.enum_choices:
-                    return None
-
-                value_str = str(value).lower() if value is not None else ""
-                for choice in self.enum_choices:
-                    if str(choice).lower() == value_str:
-                        return choice
-                return self.enum_choices[0]
-
-            elif self.field_type == FieldType.CODE:
-                # Store code as string, it will be evaluated separately
-                return value
-            else:
-                # Unknown type, return as is
-                return value
-        except Exception as e:
-            # Log the error and return None for conversion errors
-            logger.error(f"Error converting value {value} to type {self.field_type}: {e}")
-            return None
-    
-    def serialize(self) -> Dict[str, Any]:
-        """Convert to a serializable dictionary."""
-        result = {
-            "type": str(self.field_type),
-            "value": self._serialize_value()
-        }
-        
-        if self.item_type:
-            result["item_type"] = str(self.item_type)
-            
-        if self.is_dynamic:
-            result["is_dynamic"] = True
-            
-        if self.original:
-            result["original"] = self.original
-
-        if self.field_type == FieldType.ENUM and self.enum_choices:
-            result["enum_choices"] = self.enum_choices
-            
-        return result
-    
-    def _serialize_value(self) -> Any:
-        """Convert the value to a serializable format."""
-        if self.value is None:
-            return None
-            
-        # Handle special types
-        if self.field_type == FieldType.TIMESTAMP:
-            if isinstance(self.value, DecimalTimeStamp):
-                return float(self.value)
-            return self.value
-            
-        elif self.field_type == FieldType.TIMELENGTH:
-            if isinstance(self.value, DecimalTimeLength):
-                return float(self.value)
-            return self.value
-            
-        elif self.field_type == FieldType.TIMERANGE:
-            if isinstance(self.value, DecimalTimeRange):
-                return {
-                    "start": float(self.value.start),
-                    "duration": float(self.value.duration)
-                }
-            return self.value
-            
-        elif self.field_type == FieldType.DECIMAL:
-            if isinstance(self.value, Decimal):
-                return str(self.value)
-            return self.value
-            
-        elif self.field_type == FieldType.LIST:
-            # Recursively serialize list items if they're TypedValue objects
-            if isinstance(self.value, list):
-                return [
-                    item.serialize() if isinstance(item, TypedValue) else item
-                    for item in self.value
-                ]
-            return self.value
-            
-        elif self.field_type == FieldType.DICT:
-            # Recursively serialize dict values if they're TypedValue objects
-            if isinstance(self.value, dict):
-                return {
-                    k: v.serialize() if isinstance(v, TypedValue) else v
-                    for k, v in self.value.items()
-                }
-            return self.value
-            
-        else:
-            return self.value
-    
-    @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> "TypedValue":
-        """Create a TypedValue from a serialized dictionary."""
-        if not isinstance(data, dict):
-            # Handle primitive values
-            return cls(data, FieldType.STRING)
-            
-        field_type = data.get("type", FieldType.STRING)
-        value = data.get("value")
-        item_type = data.get("item_type")
-        is_dynamic = data.get("is_dynamic", False)
-        original = data.get("original")
-        enum_choices = data.get("enum_choices", [])
-        
-        # Handle special deserialization for collections
-        if field_type == FieldType.LIST and isinstance(value, list) and item_type:
-            # Check if items are serialized TypedValues
-            if value and isinstance(value[0], dict) and "type" in value[0]:
-                value = [cls.deserialize(item) for item in value]
-        
-        if field_type == FieldType.DICT and isinstance(value, dict) and item_type:
-            # Check if values are serialized TypedValues
-            for k, v in value.items():
-                if isinstance(v, dict) and "type" in v:
-                    value[k] = cls.deserialize(v)
-        
-        return cls(
-            value=value,
-            field_type=field_type,
-            item_type=item_type,
-            is_dynamic=is_dynamic,
-            original=original,
-            enum_choices=enum_choices
-        )
-# utms/utms_types/field/types.py
-from enum import Enum
-from typing import Any, Dict, List, Optional, Union
-from decimal import Decimal
-
-from utms.utms_types.base.protocols import TimeStamp, TimeLength, TimeRange
-
 
 class FieldType(Enum):
     """Enum representing the supported field types for entity attributes."""
@@ -591,51 +153,61 @@ class TypedValue:
                 return self.enum_choices[0]
                 
             elif self.field_type == FieldType.LIST:
-                # Convert to list if not already
-                if not isinstance(py_value, list):
-                    if isinstance(py_value, str):
-                        # Try to parse as JSON
-                        import json
+                # py_value here should already be a Python list from hy_to_python(value)
+                # if value was a HyList/HyExpression.
+                # If value was a string like "['a','b']", hy_to_python might not parse it as list.
+                # The original code had JSON parsing here, which might be needed if strings can represent lists.
+                current_list_val = py_value
+                if not isinstance(current_list_val, list):
+                    if isinstance(current_list_val, str):
                         try:
-                            py_value = json.loads(py_value)
-                            if not isinstance(py_value, list):
-                                py_value = [py_value]
-                        except:
-                            py_value = [py_value]
+                            loaded_json = json.loads(current_list_val)
+                            if isinstance(loaded_json, list): current_list_val = loaded_json
+                            else: current_list_val = [loaded_json] # Wrap non-list JSON into a list
+                        except json.JSONDecodeError:
+                            current_list_val = [current_list_val] # Treat as a single-item list
                     else:
-                        py_value = [py_value]
+                        current_list_val = [current_list_val] # Wrap non-list, non-string into a list
                 
-                # Convert list items if item_type is specified
-                if self.item_type:
-                    return [TypedValue(item, self.item_type).py_value for item in py_value]
-                return py_value
+                if self.item_type and current_list_val: # Ensure current_list_val is not empty
+                    # Recursively create TypedValue for items to ensure they are converted.
+                    # The .value access then gets the Python native type.
+                    return [TypedValue(item, self.item_type).value for item in current_list_val]
+                return current_list_val # Return list of Python natives
                 
             elif self.field_type == FieldType.DICT:
-                # Convert to dict if not already
-                if not isinstance(py_value, dict):
-                    if isinstance(py_value, str):
-                        # Try to parse as JSON
-                        import json
+                # py_value here should already be a Python dict from hy_to_python(value)
+                # if value was a HyDict.
+                current_dict_val = py_value
+                if not isinstance(current_dict_val, dict):
+                    if isinstance(current_dict_val, str):
                         try:
-                            py_value = json.loads(py_value)
-                            if not isinstance(py_value, dict):
-                                py_value = {"value": py_value}
-                        except:
-                            py_value = {"value": py_value}
+                            loaded_json = json.loads(current_dict_val)
+                            if isinstance(loaded_json, dict): current_dict_val = loaded_json
+                            else: current_dict_val = {"value": loaded_json}
+                        except json.JSONDecodeError:
+                             current_dict_val = {"value": current_dict_val} # Wrap into a dict
                     else:
-                        py_value = {"value": py_value}
-                
-                # Convert dict values if item_type is specified
-                if self.item_type:
-                    return {k: TypedValue(v, self.item_type).value for k, v in py_value.items()}
-                return py_value
+                        current_dict_val = {"value": current_dict_val} # Wrap non-dict, non-string into a dict
+
+                if self.item_type and current_dict_val:
+                    return {k: TypedValue(v, self.item_type).value for k, v in current_dict_val.items()}
+                return current_dict_val # Return dict of Python natives
                 
             elif self.field_type == FieldType.CODE:
-                # Store code as string, it will be evaluated separately
-                return value
+                # For dynamic CODE fields:
+                #   'value' passed to __init__ by the loader IS the resolved Python value.
+                #   'py_value' here is that resolved Python value. Correctly return it.
+                # For static CODE fields:
+                #   'value' passed to __init__ by the plugin is the raw HyObject (e.g. HyString, HyDict).
+                #   'py_value' here is the result of hy_to_python(rawHyObject).
+                #   This py_value (e.g. Python string, Python dict) should be stored.
+                return py_value # This now correctly stores the Python native version
                 
-            else:
-                # Unknown type, return as is
+            else: # Unknown FieldType
+                # py_value is the hy_to_python version. This is the safest to return.
+                logger.warning(f"Unknown FieldType '{self.field_type}' encountered for value '{value}'. "
+                               f"Storing hy_to_python converted value: '{py_value}'.")
                 return py_value
                 
         except Exception as e:
@@ -665,6 +237,25 @@ class TypedValue:
             
         return result
     
+    def serialize_for_persistence(self) -> str:
+        """
+        Serialize the value into a string suitable for persistence in a .hy file.
+        Follows the Chronoiconicity principle (code=data).
+        """
+        if self.is_dynamic and self.original:
+            return self.original
+
+        elif self.field_type == FieldType.CODE:
+            if isinstance(self.value, str):
+                if self.value.strip().startswith('(') and self.value.strip().endswith(')'):
+                     return self.value
+                else:
+                     return hy.repr(self.value)
+            else:
+                 return format_value(self.value)
+        return format_value(self.value)
+
+
     def _serialize_value(self) -> Any:
         """Convert the value to a serializable format."""
         if self.value is None:
@@ -837,6 +428,11 @@ def infer_type(value: Any) -> FieldType:
     if isinstance(value, float) or isinstance(value, Decimal):
         return FieldType.DECIMAL
     
+    if isinstance(value, hy.models.List):
+        return FieldType.LIST
+    if isinstance(value, hy.models.Dict):
+        return FieldType.DICT
+
     if isinstance(value, list):
         return FieldType.LIST
     

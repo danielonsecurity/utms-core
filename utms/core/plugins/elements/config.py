@@ -45,7 +45,7 @@ class ConfigNodePlugin(NodePlugin):
                     field_type = FieldType.from_string(type_str)
                 else:
                     field_type = infer_type(value)
-                
+
                 # Create typed value
                 typed_value = TypedValue(
                     value=value,
@@ -76,35 +76,28 @@ class ConfigNodePlugin(NodePlugin):
         lines = ["(custom-set-config"]
 
         for setting in node.children:
-            # Find the value node (should be the first child)
             value_node = next((child for child in setting.children if child.field_name == "value"), None)
             if not value_node:
                 continue
-
-            # Get typed value if available
-            typed_value = None
+            key = setting.value
             if isinstance(value_node.value, TypedValue):
                 typed_value = value_node.value
-                
-                # Format the value
-                if typed_value.is_dynamic and typed_value.original:
-                    value_str = typed_value.original
+                value_str = typed_value.serialize_for_persistence()
+                add_type_hint = False
+                if typed_value.field_type not in [FieldType.STRING] and not typed_value.is_dynamic:
+                    try:
+                        inferred_type = infer_type(typed_value.value)
+                    except Exception:
+                         inferred_type = FieldType.STRING
+                    if typed_value.field_type != inferred_type:
+                        add_type_hint = True
+                if add_type_hint:
+                    lines.append(f"  ({key} {value_str} {typed_value.field_type.value})")
                 else:
-                    value_str = format_value(typed_value.value)
-                    
-                # Add type information if not the default inferred type
-                default_type = infer_type(typed_value.value)
-                if typed_value.field_type != default_type:
-                    lines.append(f"  ({setting.value} {value_str} {typed_value.field_type.value})")
-                else:
-                    lines.append(f"  ({setting.value} {value_str})")
+                    lines.append(f"  ({key} {value_str})")
             else:
-                # Fallback to the old approach
-                if value_node.is_dynamic and value_node.original:
-                    value_str = value_node.original
-                else:
-                    value_str = format_value(value_node.value)
-                lines.append(f"  ({setting.value} {value_str})")
+                fallback_value_str = hy.repr(value_node.value)
+                lines.append(f"  ({key} {fallback_value_str})")
 
         lines.append(")")
         return lines
