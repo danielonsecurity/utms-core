@@ -13,6 +13,11 @@ class SystemComponent(MutableMapping, ComponentMixin):
         self._items = {}
         self._loaded = False
 
+    def clear(self) -> None:
+        """Clears all items from the manager."""
+        self._items = {}
+        self.logger.info(f"Manager '{type(self).__name__}' cleared all items.")
+
     def __getitem__(self, key):
         if not self._loaded:
             self.load()

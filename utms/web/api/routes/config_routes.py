@@ -1,16 +1,16 @@
+from datetime import datetime
 from decimal import Decimal
 from typing import Any, Dict, Union
-from datetime import datetime
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
 from utms.core.config import UTMSConfig as Config
-from utms.core.services.dynamic import dynamic_resolution_service
-from utms.web.dependencies import get_config
-from utms.utms_types.field.types import TypedValue, FieldType, infer_type
-from utms.web.api.models.config import ConfigFieldUpdatePayload
 from utms.core.logger import get_logger
+from utms.core.services.dynamic import dynamic_resolution_service
+from utms.utms_types.field.types import FieldType, TypedValue, infer_type
+from utms.web.api.models.config import ConfigFieldUpdatePayload
+from utms.web.dependencies import get_config
 
 router = APIRouter()
 logger = get_logger()
@@ -57,7 +57,6 @@ async def get_config_data(config: Config = Depends(get_config)):
         logger.debug(f"API data for '{cfg_key}': {item_data}")
         config_data[cfg_key] = item_data
 
-    breakpoint()
     return config_data
 
 
@@ -159,21 +158,26 @@ async def update_config_field(
 
             try:
                 typed_value = TypedValue(
-                    value=actual_value_from_payload, # The raw value from the payload
-                    field_type=field_type_enum,      # The determined FieldType enum
+                    value=actual_value_from_payload,  # The raw value from the payload
+                    field_type=field_type_enum,  # The determined FieldType enum
                     is_dynamic=False,
                     original=None,
-                    enum_choices=enum_choices if field_type_enum == FieldType.ENUM else None
+                    enum_choices=enum_choices if field_type_enum == FieldType.ENUM else None,
                     # item_type might be relevant if the payload contains list/dict items of a specific type
                 )
-                logger.info(f"Successfully created TypedValue for non-dynamic update. Type: {typed_value.field_type}, Value: {typed_value.value}")
+                logger.info(
+                    f"Successfully created TypedValue for non-dynamic update. Type: {typed_value.field_type}, Value: {typed_value.value}"
+                )
 
-            except Exception as e: # Catch any error during TypedValue instantiation or conversion
-                 logger.error(f"Error creating TypedValue for {key}/{field_name} with value '{actual_value_from_payload}' and type '{field_type_enum}': {e}", exc_info=True)
-                 raise HTTPException(
-                     status_code=400,
-                     detail=f"Invalid value '{actual_value_from_payload}' for specified type '{field_type_enum}'. Error: {e}"
-                 )
+            except Exception as e:  # Catch any error during TypedValue instantiation or conversion
+                logger.error(
+                    f"Error creating TypedValue for {key}/{field_name} with value '{actual_value_from_payload}' and type '{field_type_enum}': {e}",
+                    exc_info=True,
+                )
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid value '{actual_value_from_payload}' for specified type '{field_type_enum}'. Error: {e}",
+                )
 
         if field_name == "value":
             config.config.update_config(key, typed_value)
