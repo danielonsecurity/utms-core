@@ -1,7 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Any, Optional, Dict
+from typing import Any, Dict, Optional
 
 from utms.core.mixins.model import ModelMixin
+from utms.utms_types.field.types import TypedValue
 
 
 @dataclass
@@ -9,38 +10,30 @@ class Variable(ModelMixin):
     """Represents a variable with its properties."""
 
     key: str
-    value: Any
-    dynamic_fields: Dict[str, Dict[str, Any]] = field(default_factory=dict)
-
+    value: TypedValue
 
     def __post_init__(self):
-        # Initialize dynamic_fields if not provided
-        if self.dynamic_fields is None:
-            self.dynamic_fields = {}
+        if not isinstance(self.value, TypedValue):
+            self.logger.warning(
+                f"Variable '{self.key}' value was not initialized as a TypedValue. "
+                f"Wrapped it as a STRING TypedValue. This should be fixed upstream."
+            )
 
     def is_field_dynamic(self, field_name: str) -> bool:
-        """Check if a specific field is dynamic."""
-        return field_name in self.dynamic_fields
+        """Check if a specific field (only 'value' for now) is dynamic."""
+        if field_name == "value":
+            return self.value.is_dynamic
+        return False
 
     def get_original_expression(self, field_name: str) -> Optional[str]:
         """Get the original expression for a dynamic field."""
-        if not self.is_field_dynamic(field_name):
-            return None
-        return self.dynamic_fields.get(field_name, {}).get('original')
-
-    def set_dynamic_field(self, field_name: str, value: Any, original: str) -> None:
-        """Set a field as dynamic with its original expression."""
-        setattr(self, field_name, value)
-        self.dynamic_fields[field_name] = {
-            'original': original,
-            'value': value
-        }            
+        if field_name == "value":
+            return self.value.original
+        return None
 
     def __repr__(self) -> str:
-        dynamic_info = ""
-        if self.dynamic_fields:
-            dynamic_info = f", dynamic_fields={self.dynamic_fields}"
-        return f"Variable(key={self.key}, value={self.value}{dynamic_info})"
+        # Simplified repr
+        return f"Variable(key='{self.key}', value={repr(self.value)})"
 
     def __hash__(self):
         return hash(self.key)
@@ -52,8 +45,6 @@ class Variable(ModelMixin):
 
     def format_field(self, field_name: str) -> str:
         """Format a field value for display, showing dynamic info if applicable."""
-        value = getattr(self, field_name)
-        if self.is_field_dynamic(field_name):
-            original = self.get_original_expression(field_name)
-            return f"{value} (dynamic: {original})"
-        return str(value)
+        if field_name == "value":
+            return str(self.value)  # TypedValue.__str__ handles dynamic display
+        return str(getattr(self, field_name))  # For other potential fields

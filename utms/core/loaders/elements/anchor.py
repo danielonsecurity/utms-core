@@ -4,15 +4,14 @@ from typing import Any, Dict, List, Optional
 
 import hy
 
-from utms.core.hy.resolvers import AnchorResolver
-from utms.utils import hy_to_python
-from utms.utms_types import HyNode
-
 from utms.core.formats import TimeUncertainty
+from utms.core.hy.resolvers import AnchorResolver
 from utms.core.loaders.base import ComponentLoader, LoaderContext
 from utms.core.managers.elements.anchor import AnchorManager
 from utms.core.models import Anchor, FormatSpec
 from utms.core.services.dynamic import DynamicResolutionService
+from utms.utils import hy_to_python
+from utms.utms_types import HyNode
 
 
 class AnchorLoader(ComponentLoader[Anchor, AnchorManager]):
@@ -22,7 +21,6 @@ class AnchorLoader(ComponentLoader[Anchor, AnchorManager]):
         super().__init__(manager)
         self._resolver = AnchorResolver()
         self._dynamic_service = DynamicResolutionService()
-
 
     def parse_definitions(self, nodes: List[HyNode]) -> Dict[str, dict]:
         """Parse HyNodes into anchor definitions."""
@@ -65,11 +63,11 @@ class AnchorLoader(ComponentLoader[Anchor, AnchorManager]):
 
             if is_dynamic:
                 resolved_value, _ = self._dynamic_service.evaluate(
-                    component_type='anchor',
+                    component_type="anchor",
                     component_label=label,
                     attribute=prop_name,
                     expression=value,
-                    context=self.context.variables if self.context else None
+                    context=self.context.variables if self.context else None,
                 )
                 self.logger.debug(f"Resolved dynamic value for {prop_name}: {resolved_value}")
             else:
@@ -79,7 +77,7 @@ class AnchorLoader(ComponentLoader[Anchor, AnchorManager]):
             resolved_props[prop_name] = {
                 "value": resolved_value,
                 "is_dynamic": is_dynamic,
-                "original": original
+                "original": original,
             }
 
         # Convert specific types as needed

@@ -5,10 +5,10 @@ import appdirs
 from utms.core.components.base import ComponentManager, SystemComponent
 from utms.core.components.elements.anchor import AnchorComponent
 from utms.core.components.elements.config import ConfigComponent
-from utms.core.components.elements.unit import UnitComponent
+from utms.core.components.elements.entity import EntityComponent
 from utms.core.components.elements.pattern import PatternComponent
+from utms.core.components.elements.unit import UnitComponent
 from utms.core.components.elements.variable import VariableComponent
-from utms.core.components.elements.time_entity import TimeEntityComponent
 from utms.core.logger import LoggerManager
 from utms.core.mixins import LoggerMixin
 from utms.core.plugins.discovery import discover_plugins, initialize_plugins
@@ -62,7 +62,7 @@ class UTMSConfig(ConfigProtocol, LoggerMixin):
         self._component_manager.register("patterns", PatternComponent)
         self._component_manager.register("units", UnitComponent)
         self._component_manager.register("anchors", AnchorComponent)
-        self._component_manager.register("entities", TimeEntityComponent)
+        self._component_manager.register("entities", EntityComponent)
 
         self.logger.debug("Components registered")
 
@@ -96,5 +96,5 @@ class UTMSConfig(ConfigProtocol, LoggerMixin):
         return self.get_component("anchors")
 
     @property
-    def entities(self) -> TimeEntityComponent:
+    def entities(self) -> EntityComponent:
         return self.get_component("entities")

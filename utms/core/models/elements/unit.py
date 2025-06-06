@@ -2,9 +2,8 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from typing import Any, Dict, List, Optional
 
-from utms.utms_types import HyProperty, UnitConfig
-
 from utms.core.mixins.model import ModelMixin
+from utms.utms_types import HyProperty, UnitConfig
 
 
 @dataclass
@@ -15,14 +14,14 @@ class Unit(ModelMixin):
     name: Any
     value: Any
     groups: Optional[List[Any]] = None
-    
+
     # Track dynamic status for each field
     dynamic_fields: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
     def __post_init__(self):
         if self.groups is None:
             self.groups = []
-        
+
         # Initialize dynamic_fields if not provided
         if not self.dynamic_fields:
             self.dynamic_fields = {}
@@ -35,15 +34,12 @@ class Unit(ModelMixin):
         """Get the original expression for a dynamic field."""
         if not self.is_field_dynamic(field_name):
             return None
-        return self.dynamic_fields.get(field_name, {}).get('original')
+        return self.dynamic_fields.get(field_name, {}).get("original")
 
     def set_dynamic_field(self, field_name: str, value: Any, original: str) -> None:
         """Set a field as dynamic with its original expression."""
         setattr(self, field_name, value)
-        self.dynamic_fields[field_name] = {
-            'original': original,
-            'value': value
-        }
+        self.dynamic_fields[field_name] = {"original": original, "value": value}
 
     def __repr__(self) -> str:
         dynamic_info = ""

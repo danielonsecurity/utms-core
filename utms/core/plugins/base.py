@@ -1,8 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict, Optional
 
-from utms.utms_types import HyNode
 from utms.core.mixins.plugin import PluginMixin
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from utms.utms_types import HyNode
+
 
 class UTMSPlugin(ABC, PluginMixin):
     """

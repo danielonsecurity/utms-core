@@ -1,12 +1,11 @@
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Union
 
+from utms.core.formats import TimeUncertainty
+from utms.core.managers.base import BaseManager
+from utms.core.models import Anchor, FormatSpec
 from utms.utils import format_value
 from utms.utms_types import AnchorManagerProtocol
-
-from utms.core.formats import TimeUncertainty
-from utms.core.models import Anchor, FormatSpec
-from utms.core.managers.base import BaseManager
 
 
 class AnchorManager(BaseManager[Anchor], AnchorManagerProtocol):
@@ -40,7 +39,6 @@ class AnchorManager(BaseManager[Anchor], AnchorManagerProtocol):
 
     def _sort_anchors(self) -> None:
         """Sort the anchors by their value."""
-        breakpoint()
         self._items = dict(sorted(self._items.items(), key=lambda item: item[1].value))
 
     def get_anchors_by_group(self, group: str) -> List[Anchor]:

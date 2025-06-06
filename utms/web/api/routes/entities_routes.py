@@ -1,4 +1,3 @@
-# utms.web.api.routes.entities_routes.py
 from typing import Any, Dict, List, Optional, Union
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query  # Added Query
@@ -6,7 +5,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query  # Added Quer
 # from fastapi import Request
 from fastapi.responses import JSONResponse
 
-from utms.core.components.elements.time_entity import TimeEntityComponent
+from utms.core.components.elements.entity import EntityComponent
 from utms.core.config import UTMSConfig
 from utms.core.logger import get_logger
 from utms.utils import sanitize_filename
@@ -20,11 +19,11 @@ router = APIRouter()
 logger = get_logger()
 
 
-# Helper to get TimeEntityComponent (remains the same)
-def get_entities_component(main_config: UTMSConfig = Depends(get_config)) -> TimeEntityComponent:
+# Helper to get EntityComponent (remains the same)
+def get_entities_component(main_config: UTMSConfig = Depends(get_config)) -> EntityComponent:
     entities_component = main_config.get_component("entities")
-    if not isinstance(entities_component, TimeEntityComponent):
-        logger.error("Entities component not found or is not of type TimeEntityComponent.")
+    if not isinstance(entities_component, EntityComponent):
+        logger.error("Entities component not found or is not of type EntityComponent.")
         raise HTTPException(status_code=500, detail="Entities component not available.")
     if not entities_component._loaded:
         logger.info("Entities component not loaded, attempting to load now for API request.")
@@ -45,7 +44,7 @@ def get_entities_component(main_config: UTMSConfig = Depends(get_config)) -> Tim
     summary="Get all defined entity types with their schemas",
 )
 async def get_entity_types_with_details_api(
-    entities_component: TimeEntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_entities_component),
 ):
     # ... (remains the same as response #13)
     try:
@@ -67,7 +66,7 @@ async def get_entities_api(  # Renamed for clarity
     category: Optional[str] = Query(
         None, description="e.g., 'work', 'personal', 'default' (lowercase)"
     ),
-    entities_component: TimeEntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_entities_component),
 ):
     try:
         entities_list = []
@@ -120,23 +119,53 @@ async def get_entities_api(  # Renamed for clarity
 
 
 @router.get(
-    "/api/entities/{entity_type}/{name}",
+    "/api/entities/types/{entity_type_key}/categories",
+    response_model=List[str],
+    summary="List categories for an entity type",
+)
+async def list_entity_categories_api(
+    entity_type_key: str,
+    entities_component: EntityComponent = Depends(get_entities_component),
+):
+    try:
+        if not entities_component.entity_types.get(
+            entity_type_key.lower()
+        ):  # Check against lowercase
+            logger.warning(
+                f"Category listing: Entity type '{entity_type_key}' not found in component schemas."
+            )
+            raise HTTPException(
+                status_code=404, detail=f"Entity type '{entity_type_key}' not defined."
+            )
+        categories = entities_component.get_categories(entity_type_key.lower())  # Pass lowercase
+        return categories
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error listing categories for type '{entity_type_key}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+
+@router.get(
+    "/api/entities/{entity_type}/{category}/{name}",
     response_class=JSONResponse,
     summary="Get a specific entity by type and name",
 )
 async def get_single_entity_api(
     entity_type: str,
+    category: str,
     name: str,
-    # category: Optional[str] = Query(None, description="Category of the entity, if names are not unique across categories"),
-    # If names are unique per type across categories, category param isn't strictly needed here for GET.
-    # The component's get_entity assumes name is unique per type for now.
-    entities_component: TimeEntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_entities_component),
 ):
     try:
         # Component's get_entity assumes name is unique per type. If not, it needs category.
-        entity_model_instance = entities_component.get_entity(entity_type.lower(), name)
+        entity_model_instance = entities_component.get_entity(
+            entity_type.lower(), category.lower(), name
+        )
         if not entity_model_instance:
-            raise HTTPException(status_code=404, detail=f"Entity '{entity_type}:{name}' not found.")
+            raise HTTPException(
+                status_code=404, detail=f"Entity '{entity_type}:{category}:{name}' not found."
+            )
 
         serialized_attributes = {
             k: tv.serialize() for k, tv in entity_model_instance.get_all_attributes_typed().items()
@@ -144,13 +173,13 @@ async def get_single_entity_api(
         return {
             "name": entity_model_instance.name,
             "entity_type": entity_model_instance.entity_type,
-            "category": entity_model_instance.category,  # Include category
+            "category": entity_model_instance.category,
             "attributes": serialized_attributes,
         }
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching entity {entity_type}:{name}: {e}", exc_info=True)
+        logger.error(f"Error fetching entity {entity_type}:{category}:{name}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
@@ -164,7 +193,7 @@ async def create_new_entity_api(
         "default", embed=True, description="Category for the new entity (lowercase)"
     ),
     attributes_raw: Dict[str, Any] = Body(default_factory=dict, embed=True),
-    entities_component: TimeEntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_entities_component),
 ):
     logger.debug(
         f"API create_new_entity: name='{name}', type='{entity_type}', category='{category}', attrs='{attributes_raw}'"
@@ -206,33 +235,34 @@ async def create_new_entity_api(
 
 
 @router.put(
-    "/api/entities/{entity_type}/{name}/attributes/{attr_name}",
+    "/api/entities/{entity_type}/{category}/{name}/attributes/{attr_name}",
     response_class=JSONResponse,
     summary="Update an entity attribute",
 )
 async def update_entity_attribute_api(  # Renamed for clarity
     entity_type: str,
+    category: str,
     name: str,
     attr_name: str,
-    payload: AttributeUpdatePayload,  # Using Pydantic model
-    # category: Optional[str] = Query(None, description="Category, if needed to locate entity"),
-    # If name is unique per type, category isn't needed to find the entity for attribute update.
-    entities_component: TimeEntityComponent = Depends(get_entities_component),
+    payload: AttributeUpdatePayload,
+    entities_component: EntityComponent = Depends(get_entities_component),
 ):
-    # ... (This route's internal logic remains the same as response #13, which uses payload correctly)
     logger.debug(
-        f"API update_entity_attribute: {entity_type}:{name}.{attr_name} with payload: {payload.model_dump(mode='json')}"
+        f"API update_entity_attribute: {entity_type}:{category}:{name}.{attr_name} with payload: {payload.model_dump(mode='json')}"
     )
     try:
         entities_component.update_entity_attribute(
             entity_type=entity_type.lower(),
+            category=category.lower(),
             name=name,
             attr_name=attr_name,
             new_raw_value_from_api=payload.value,
             is_new_value_dynamic=payload.is_dynamic,
             new_original_expression=payload.original,
         )
-        updated_entity_model = entities_component.get_entity(entity_type.lower(), name)
+        updated_entity_model = entities_component.get_entity(
+            entity_type.lower(), category.lower(), name
+        )
         if not updated_entity_model:
             raise HTTPException(status_code=500, detail="Entity vanished after update.")
         updated_typed_value = updated_entity_model.get_attribute_typed(attr_name)
@@ -241,19 +271,25 @@ async def update_entity_attribute_api(  # Renamed for clarity
         return {
             "entity_name": name,
             "entity_type": entity_type.lower(),
+            "category": updated_entity_model.category,
             "attribute_name": attr_name,
-            "category": updated_entity_model.category,  # Include category in response
             "updated_attribute": updated_typed_value.serialize(),
         }
     except HTTPException:
         raise
     except ValueError as ve:
-        logger.warning(f"ValueError: {ve}", exc_info=True)
-        raise HTTPException(
-            status_code=400 if "not found" not in str(ve).lower() else 404, detail=str(ve)
+        logger.warning(
+            f"ValueError during attribute update for {entity_type}:{category}:{name}.{attr_name}: {ve}",
+            exc_info=True,
         )
+        detail_str = str(ve).lower()
+        status_code = 404 if "not found" in detail_str or "no such entity" in detail_str else 400
+        raise HTTPException(status_code=status_code, detail=str(ve))
     except Exception as e:
-        logger.error(f"Error updating attr: {e}", exc_info=True)
+        logger.error(
+            f"Error updating attr for {entity_type}:{category}:{name}.{attr_name}: {e}",
+            exc_info=True,
+        )
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -266,7 +302,7 @@ async def move_entity_category_api(
     entity_type: str,
     name: str,
     new_category: str = Body(..., embed=True, description="The new category name (lowercase)"),
-    entities_component: TimeEntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_entities_component),
 ):
     logger.debug(
         f"API move_entity_category: Moving '{entity_type}:{name}' to category '{new_category}'"
@@ -304,90 +340,90 @@ async def move_entity_category_api(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/api/entities/{entity_type}/{name}", status_code=204, summary="Delete an entity")
+@router.delete(
+    "/api/entities/{entity_type}/{category}/{name}", status_code=204, summary="Delete an entity"
+)
 async def delete_entity_api(  # Renamed
     entity_type: str,
+    category: str,
     name: str,
-    # category: Optional[str] = Query(None, description="Category, if needed to locate entity"),
-    # If name is unique per type, category isn't needed to find entity for deletion.
-    entities_component: TimeEntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_entities_component),
 ):
     # ... (remains same as response #13) ...
     try:
-        if not entities_component.get_entity(entity_type.lower(), name):
-            raise HTTPException(status_code=404, detail=f"Entity '{entity_type}:{name}' not found.")
-        entities_component.remove_entity(entity_type.lower(), name)
+        if not entities_component.get_entity(entity_type.lower(), category.lower(), name):
+            raise HTTPException(
+                status_code=404, detail=f"Entity '{entity_type}:{category}:{name}' not found."
+            )
+        entities_component.remove_entity(entity_type.lower(), category.lower(), name)
         return None
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting entity: {e}", exc_info=True)
+        logger.error(f"Error deleting entity {entity_type}:{category}:{name}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put(
-    "/api/entities/{entity_type}/{name}/rename",
+    "/api/entities/{entity_type}/{old_category}/{name}/rename",
     response_class=JSONResponse,
     summary="Rename an entity",
 )
-async def rename_entity_api(  # Renamed
+async def rename_entity_api(
     entity_type: str,
-    name: str,
+    old_category: str,
+    old_name: str,
     new_name: str = Body(..., embed=True),
-    # category: Optional[str] = Query(None, description="Category, if needed to locate entity for rename"),
-    # Rename logic in component preserves category. If name is unique per type, category not needed to find.
-    entities_component: TimeEntityComponent = Depends(get_entities_component),
+    new_category: Optional[str] = Body(
+        None, embed=True, description="Optional new category (lowercase)"
+    ),
+    entities_component: EntityComponent = Depends(get_entities_component),
 ):
-    # ... (remains same as response #13) ...
     logger.debug(
-        f"API rename_entity: type='{entity_type}', old_name='{name}', new_name='{new_name}'"
+        f"API rename_entity: type='{entity_type}', old_cat='{old_category}', old_name='{old_name}', "
+        f"new_name='{new_name}', new_cat='{new_category}'"
     )
     try:
-        entities_component.rename_entity(entity_type.lower(), name, new_name)
-        renamed_entity = entities_component.get_entity(entity_type.lower(), new_name)
+        entities_component.rename_entity(
+            entity_type_key=entity_type.lower(),
+            old_category_key=old_category.lower(),
+            old_name_key=old_name,
+            new_name_key=new_name,
+            new_category_key=new_category.lower() if new_category else None,
+        )
+        final_category = new_category.lower() if new_category else old_category.lower()
+        renamed_entity_model = entities_component.get_entity(
+            entity_type.lower(), final_category, new_name
+        )
+        if not renamed_entity_model:
+            raise HTTPException(status_code=500, detail="Entity vanished after rename operation.")
+
         return {
             "status": "success",
-            "message": f"Entity renamed.",
-            "old_name": name,
-            "new_name": new_name,
-            "entity_type": entity_type.lower(),
-            "category": renamed_entity.category if renamed_entity else None,
+            "message": f"Entity renamed/moved.",
+            "old_identifier": f"{entity_type.lower()}:{old_category.lower()}:{old_name}",
+            "new_identifier": f"{renamed_entity_model.entity_type}:{renamed_entity_model.category}:{renamed_entity_model.name}",
+            "entity": {  # Optionally return the full new entity
+                "name": renamed_entity_model.name,
+                "entity_type": renamed_entity_model.entity_type,
+                "category": renamed_entity_model.category,
+            },
         }
     except HTTPException:
         raise
     except ValueError as ve:
-        logger.warning(f"ValueError: {ve}", exc_info=True)
+        logger.warning(
+            f"ValueError during rename for {entity_type}:{old_category}:{old_name}: {ve}",
+            exc_info=True,
+        )
         raise HTTPException(
             status_code=400 if "not found" not in str(ve).lower() else 404, detail=str(ve)
         )
     except Exception as e:
-        logger.error(f"Error renaming entity: {e}", exc_info=True)
+        logger.error(
+            f"Error renaming entity {entity_type}:{old_category}:{old_name}: {e}", exc_info=True
+        )
         raise HTTPException(status_code=500, detail=str(e))
-
-
-# --- Category Management Routes ---
-@router.get(
-    "/api/entities/types/{entity_type_key}/categories",
-    response_model=List[str],
-    summary="List categories for an entity type",
-)
-async def list_entity_categories_api(
-    entity_type_key: str,  # lowercase, e.g. "task"
-    entities_component: TimeEntityComponent = Depends(get_entities_component),
-):
-    try:
-        # Ensure entity type exists
-        if not entities_component.entity_types.get(entity_type_key.lower()):
-            raise HTTPException(
-                status_code=404, detail=f"Entity type '{entity_type_key}' not found."
-            )
-        categories = entities_component.get_categories(entity_type_key.lower())
-        return categories
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error listing categories for type '{entity_type_key}': {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
 @router.post(
@@ -398,7 +434,7 @@ async def list_entity_categories_api(
 async def create_entity_category_api(
     entity_type_key: str,  # lowercase
     category_name: str = Body(..., embed=True, description="Name for the new category"),
-    entities_component: TimeEntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_entities_component),
 ):
     logger.debug(
         f"API create_entity_category: type='{entity_type_key}', new_category='{category_name}'"
@@ -443,7 +479,7 @@ async def rename_entity_category_api(
     entity_type_key: str,  # lowercase
     category_name: str,  # current category name (lowercase, sanitized form from URL)
     new_category_name: str = Body(..., embed=True, description="New name for the category"),
-    entities_component: TimeEntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_entities_component),
 ):
     logger.debug(
         f"API rename_entity_category: type='{entity_type_key}', old='{category_name}', new='{new_category_name}'"
@@ -488,7 +524,7 @@ async def delete_entity_category_api(
     move_entities_to_default: bool = Query(
         True, description="Move entities to 'default' category instead of deleting them."
     ),
-    entities_component: TimeEntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_entities_component),
 ):
     logger.debug(
         f"API delete_entity_category: type='{entity_type_key}', category='{category_name}', move_to_default={move_entities_to_default}"

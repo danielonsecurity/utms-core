@@ -1,22 +1,27 @@
 from decimal import Decimal
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from utms.core.hy.resolvers.base import HyResolver
 from utms.utils import hy_to_python
-from utms.utms_types import (
-    Context,
-    HyDict,
-    HyExpression,
-    HyList,
-    HySymbol,
-    LocalsDict,
-    ResolvedValue,
-    DynamicExpressionInfo
-)
+if TYPE_CHECKING:
+    from utms.utms_types import (
+        Context,
+        DynamicExpressionInfo,
+        ExpressionResolver,
+        HyDict,
+        HyExpression,
+        HyKeyword,
+        HyList,
+        HySymbol,
+        HyValue,
+        LocalsDict,
+        LocalsProvider,
+        ResolvedValue,
+    )
 
 
 class UnitResolver(HyResolver):
-    def get_locals_dict(self, context: Context, local_names: LocalsDict = None) -> LocalsDict:
+    def get_locals_dict(self, context: "Context", local_names: "LocalsDict" = None) -> "LocalsDict":
         locals_dict = {}
 
         if context:

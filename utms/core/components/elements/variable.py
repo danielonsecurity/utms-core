@@ -11,6 +11,8 @@ from utms.core.managers.elements.variable import VariableManager
 from utms.core.models import Variable
 from utms.core.plugins import plugin_registry
 from utms.utils import hy_to_python
+from utms.utms_types import HyNode
+from utms.utms_types.field.types import FieldType, TypedValue, infer_type
 
 
 class VariableComponent(SystemComponent):
@@ -47,44 +49,67 @@ class VariableComponent(SystemComponent):
     def save(self) -> None:
         """Save variables to variables.hy"""
         variables_file = os.path.join(self._config_dir, "variables.hy")
-        
+
         # Get the variable plugin
         plugin = plugin_registry.get_node_plugin("def-var")
         if not plugin:
             raise ValueError("Variable plugin not found")
-        
+
         # Create nodes for each variable
         lines = []
-        for key, variable in self._items.items():
-            # Create a node for this variable
-            value_node = None
-            
-            # Check if the value field is dynamic
-            if 'value' in variable.dynamic_fields and variable.dynamic_fields['value'].get('original'):
-                # For dynamic variables, use the original expression
-                value = hy.read(variable.dynamic_fields['value']['original'])
-            else:
-                # For static variables, use the value
-                value = variable.value
-                
-            node = plugin.parse(["def-var", key, value])
-            lines.extend(plugin.format(node))
-        
-        # Write to file with blank lines between variables
+        for key, variable_model in self._items.items():  # variable_model is now Variable object
+            typed_value_instance: TypedValue = variable_model.value
+            dummy_node_for_format = HyNode(
+                type="def-var",
+                value={"name": key, "typed_value_for_var_value": typed_value_instance},
+                children=[],
+                original=None,
+            )
+
+            lines.extend(plugin.format(dummy_node_for_format))
         with open(variables_file, "w") as f:
             f.write("\n\n".join(lines) + "\n")
 
     def create_variable(
-        self, key: str, value: Any, dynamic_fields: Optional[Dict[str, Dict[str, Any]]] = None
+        self,
+        key: str,
+        value: Any,  # This `value` can be raw Python or a Hy Expression (if from API)
+        is_dynamic: bool = False,  # New parameter for dynamic status
+        original_expression: Optional[str] = None,  # New parameter for original expression string
+        field_type: Optional[Union[FieldType, str]] = None,  # New parameter for declared field type
     ) -> Variable:
-        """Create a new variable."""
-        variable = self._variable_manager.create(
-            key=key, value=value, dynamic_fields=dynamic_fields or {}
-        )
+        """Create a new variable, now supporting TypedValue directly."""
 
-        # Save immediately to persist the change
+        if isinstance(value, TypedValue):
+            typed_value_for_manager = value
+        else:
+            if not field_type:
+                field_type = infer_type(value)
+
+            raw_value_for_typed_value = value
+            if (
+                is_dynamic
+                and isinstance(value, str)
+                and value.strip().startswith("(")
+                and value.strip().endswith(")")
+            ):
+                try:
+                    raw_value_for_typed_value = hy.read(value)
+                except Exception as e:
+                    self.logger.warning(
+                        f"Failed to hy.read expression '{value}' for variable '{key}': {e}"
+                    )
+
+            typed_value_for_manager = TypedValue(
+                value=raw_value_for_typed_value,
+                field_type=field_type,
+                is_dynamic=is_dynamic,
+                original=original_expression,
+            )
+
+        variable = self._variable_manager.create(key=key, value=typed_value_for_manager)
+
         self.save()
-
         return variable
 
     def get_variable(self, key: str) -> Optional[Variable]:
@@ -98,82 +123,79 @@ class VariableComponent(SystemComponent):
     def remove_variable(self, key: str) -> None:
         """Remove a variable by key."""
         self._variable_manager.remove(key)
-        # Save immediately to persist the change
         self.save()
 
-    def update_variable(self, key: str, value: Any, field_name: str = "value"):
-        """Update a specific variable field value"""
+    def update_variable(
+        self,
+        key: str,
+        new_value: Any,
+        is_dynamic: bool = False,
+        original_expression: Optional[str] = None,
+        field_type: Optional[Union[FieldType, str]] = None,
+    ):
+        """Update a variable's 'value' attribute."""
         variable = self.get_variable(key)
         if not variable:
             raise ValueError(f"Variable key {key} not found")
 
-        # Get the current dynamic fields
-        dynamic_fields = variable.dynamic_fields.copy()
-        
-        # If updating a dynamic field, preserve its dynamic status
-        if field_name in dynamic_fields:
-            dynamic_fields[field_name]["value"] = value
-        
-        # Create a new variable with updated field
-        new_variable = self._variable_manager.create(
-            key=key, 
-            value=variable.value if field_name != "value" else value,
-            dynamic_fields=dynamic_fields
-        )
-        
-        # Update the specific field
-        if field_name != "value":
-            setattr(new_variable, field_name, value)
-            
-        self._items = self._variable_manager._items
+        if isinstance(new_value, TypedValue):
+            updated_typed_value = new_value
+        else:
+            if not field_type:
+                field_type = variable.value.field_type if variable.value else infer_type(new_value)
 
-        # Save the updated variables
-        self.save()
+            raw_value_for_typed_value = new_value
+            if (
+                is_dynamic
+                and isinstance(new_value, str)
+                and new_value.strip().startswith("(")
+                and new_value.strip().endswith(")")
+            ):
+                try:
+                    raw_value_for_typed_value = hy.read(new_value)
+                except Exception as e:
+                    self.logger.warning(
+                        f"Failed to hy.read expression '{new_value}' for update '{key}': {e}"
+                    )
 
-    def set_dynamic_field(self, key: str, field_name: str, value: Any, original: str):
-        """Set a field as dynamic with its original expression"""
-        variable = self.get_variable(key)
-        if not variable:
-            raise ValueError(f"Variable key {key} not found")
-            
-        # Get the current dynamic fields
-        dynamic_fields = variable.dynamic_fields.copy()
-        
-        # Update or add the dynamic field
-        dynamic_fields[field_name] = {
-            "original": original,
-            "value": value
-        }
-        
-        # Create a new variable with the updated dynamic field
-        new_variable = self._variable_manager.create(
-            key=key,
-            value=value if field_name == "value" else variable.value,
-            dynamic_fields=dynamic_fields
-        )
-        
-        # Update the specific field
-        if field_name != "value":
-            setattr(new_variable, field_name, value)
+            elif not is_dynamic and isinstance(new_value, (hy.models.Expression, hy.models.Symbol)):
+                resolved_val, _ = self._loader._dynamic_service.evaluate(
+                    expression=new_value,
+                    context=self.get_component("variables").items(),
+                    component_type="variable_update",
+                    component_label=key,
+                    attribute="value",
+                )
+                raw_value_for_typed_value = (
+                    resolved_val  # Already converted by evaluate for non-hy return
+                )
+                field_type = infer_type(raw_value_for_typed_value)  # Re-infer type after resolution
 
-        # Save the updated variables
+            updated_typed_value = TypedValue(
+                value=raw_value_for_typed_value,
+                field_type=field_type,
+                is_dynamic=is_dynamic,
+                original=original_expression,
+            )
+
+        variable.value = updated_typed_value
+        self._variable_manager.create(key=key, value=updated_typed_value)
+
         self.save()
 
     def rename_variable_key(self, old_key: str, new_key: str):
-        """Rename a variable key"""
+        """Rename a variable key."""
         variable = self.get_variable(old_key)
         if not variable:
             raise ValueError(f"Variable key {old_key} not found")
 
-        # Create new variable with same properties
+        # Create new variable with same TypedValue
         self._variable_manager.create(
             key=new_key,
-            value=variable.value,
-            dynamic_fields=variable.dynamic_fields
+            value=variable.value,  # Pass the existing TypedValue
         )
 
         # Remove old variable
         self._variable_manager.remove(old_key)
 
-        # Save the updated variables
         self.save()

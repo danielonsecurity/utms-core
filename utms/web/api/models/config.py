@@ -1,5 +1,7 @@
-from pydantic import BaseModel
 from typing import Any, List, Optional
+
+from pydantic import BaseModel
+
 
 class DateTimeComponents(BaseModel):
     year: int
@@ -11,10 +13,11 @@ class DateTimeComponents(BaseModel):
     microsecond: int = 0
     tz_offset: Optional[str] = None
 
+
 class ConfigFieldUpdatePayload(BaseModel):
-    value: Any                
+    value: Any
     type: Optional[str] = None
     is_dynamic: Optional[bool] = False
-    original: Optional[str] = None     
+    original: Optional[str] = None
     enum_choices: Optional[List[Any]] = None
     list_item_type: Optional[str] = None

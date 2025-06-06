@@ -11,6 +11,7 @@ from .registry import plugin_registry
 
 logger = get_logger()
 
+
 def discover_plugins(
     base_package: str = "utms.core.plugins.elements", plugin_types: Optional[List[Type]] = None
 ) -> List[Type]:
@@ -44,7 +45,7 @@ def discover_plugins(
                         inspect.isclass(obj)
                         and any(issubclass(obj, plugin_type) for plugin_type in plugin_types)
                         and obj not in plugin_types
-                        and getattr(obj, '__discoverable__', True)
+                        and getattr(obj, "__discoverable__", True)
                     ):
 
                         # Determine plugin type and register accordingly

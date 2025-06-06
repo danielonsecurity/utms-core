@@ -1,10 +1,10 @@
 from .types import (
-    FieldType, 
-    TypedValue, 
-    infer_type, 
+    FieldType,
+    TypedValue,
+    convert_value,
     infer_item_type,
-    convert_value, 
-    typed_value_from_json, 
+    infer_type,
+    is_valid_for_type,
     json_from_typed_value,
-    is_valid_for_type
+    typed_value_from_json,
 )

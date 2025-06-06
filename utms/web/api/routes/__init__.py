@@ -4,10 +4,10 @@ from . import (
     anchors_routes,
     clock_routes,
     config_routes,
+    entities_routes,
     resolve_routes,
     units_routes,
     variables_routes,
-    entities_routes,
 )
 
 routers = [

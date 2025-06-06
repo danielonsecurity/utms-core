@@ -1,4 +1,4 @@
-from .protocols import ConfigProtocol, ConfigManagerProtocol
+from .protocols import ConfigManagerProtocol, ConfigProtocol
 from .types import (
     ConfigData,
     ConfigPath,

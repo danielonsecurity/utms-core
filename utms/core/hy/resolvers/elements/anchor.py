@@ -1,27 +1,32 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
 
 from utms.core.formats.config import TimeUncertainty
 from utms.core.hy import evaluate_hy_expression, evaluate_hy_file
 from utms.core.hy.resolvers.base import HyResolver
 from utms.core.mixins import ResolverMixin
 from utms.utils import get_ntp_date, hy_to_python
-from utms.utms_types import (
-    Context,
-    HyDict,
-    HyExpression,
-    HyList,
-    HySymbol,
-    LocalsDict,
-    ResolvedValue,
-    DynamicExpressionInfo,
-    is_dict,
-)
+if TYPE_CHECKING:
+    from utms.utms_types import (
+        Context,
+        DynamicExpressionInfo,
+        ExpressionResolver,
+        HyDict,
+        HyExpression,
+        HyKeyword,
+        HyList,
+        HySymbol,
+        HyValue,
+        LocalsDict,
+        LocalsProvider,
+        ResolvedValue,
+    )
+
 
 
 class AnchorResolver(HyResolver):
-    def get_locals_dict(self, context: Context, local_names: LocalsDict = None) -> LocalsDict:
+    def get_locals_dict(self, context: "Context", local_names: "LocalsDict" = None) -> "LocalsDict":
         locals_dict = {
             "datetime": datetime,
             "get_ntp_date": get_ntp_date,
@@ -66,6 +71,7 @@ class AnchorResolver(HyResolver):
         return resolved
 
     def _create_uncertainty(self, resolved_value: dict) -> TimeUncertainty:
+        from utms.utms_types import is_dict
         absolute = Decimal("1")  # default
         relative = Decimal("0")  # default
         confidence_95 = None

@@ -99,11 +99,9 @@ class AI:
         """
         self.config = config
         config_component = config.config
-        breakpoint()
         if "gemini-api-key" in config_component:
             api_key = config_component.get("gemini-api-key").value.value
         else:
-            breakpoint()
             api_key = input("Gemini API key: ")
             config_component["gemini-api-key"] = api_key
 

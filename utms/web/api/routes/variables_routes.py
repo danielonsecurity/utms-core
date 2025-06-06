@@ -1,27 +1,104 @@
 from typing import Any, Dict, Union
 
+import hy
 from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from hy.models import Expression, Symbol
 
 from utms.core.config import UTMSConfig as Config
 from utms.core.hy import evaluate_hy_expression
 from utms.core.services.dynamic import dynamic_resolution_service
+from utms.utils import hy_to_python
+from utms.utms_types.field.types import FieldType, TypedValue, infer_type
+from utms.web.api.models.variables import (
+    SerializedTypedValue,
+    VariableResponse,
+    VariableUpdatePayload,
+)
 from utms.web.dependencies import get_config
 
 router = APIRouter()
 
 
-@router.get("/api/variables", response_class=JSONResponse)
+@router.get(
+    "/api/variables", response_model=Dict[str, VariableResponse], response_class=JSONResponse
+)
 async def get_variables(config: Config = Depends(get_config)):
+    """
+    Retrieves all variables, with their values serialized as TypedValue objects.
+    For dynamic variables, their *resolved* value will be returned in the 'value' field.
+    """
     variables_data = {}
-    for var_name, var_prop in config.variables.items():
-        # Create a base variable object with all fields
-        variable_data = {
-            "key": var_name,
-            "value": var_prop.value,
-            "dynamic_fields": var_prop.dynamic_fields
-        }
-        variables_data[var_name] = variable_data
+    all_variable_models_view = config.variables.items()
+
+    evaluation_context_for_api_display = {}
+    for var_name_ctx, var_model_ctx in all_variable_models_view:
+        if var_model_ctx.value.is_dynamic and isinstance(
+            var_model_ctx.value.value, (Expression, Symbol)
+        ):
+            evaluation_context_for_api_display[var_name_ctx] = var_model_ctx.value.value
+        else:
+            evaluation_context_for_api_display[var_name_ctx] = var_model_ctx.value.value
+
+        if "-" in var_name_ctx:
+            underscore_key = var_name_ctx.replace("-", "_")
+            if underscore_key not in evaluation_context_for_api_display:
+                evaluation_context_for_api_display[underscore_key] = (
+                    evaluation_context_for_api_display[var_name_ctx]
+                )
+
+    for var_name, variable_model in all_variable_models_view:
+        typed_value_instance: TypedValue = variable_model.value
+
+        display_value_for_api: Any
+        if typed_value_instance.is_dynamic and isinstance(
+            typed_value_instance.value, (Expression, Symbol)
+        ):
+            try:
+                expr_to_eval_for_api = typed_value_instance.value
+
+                config.logger.debug(
+                    f"API Display: Re-evaluating dynamic var '{var_name}' using expr: {expr_to_eval_for_api}"
+                )
+
+                resolved_value_for_api, dynamic_info = dynamic_resolution_service.evaluate(
+                    component_type="variable_api_display",
+                    component_label=var_name,
+                    attribute="value_display",
+                    expression=expr_to_eval_for_api,
+                    context=evaluation_context_for_api_display,
+                )
+                display_value_for_api = hy_to_python(resolved_value_for_api)
+            except Exception as e:
+                display_value_for_api = f"ERROR: Could not resolve for API: {str(e)}"
+                config.logger.error(
+                    f"Error resolving dynamic variable '{var_name}' for API display: {e}",
+                    exc_info=True,
+                )
+        else:
+            display_value_for_api = typed_value_instance.value
+            config.logger.debug(
+                f"API Display: Using stored value for var '{var_name}': {display_value_for_api}"
+            )
+
+        original_from_model = typed_value_instance.original
+
+        temp_serialized_typed_value = TypedValue(
+            value=display_value_for_api,
+            field_type=infer_type(display_value_for_api),
+            is_dynamic=typed_value_instance.is_dynamic,
+            original=original_from_model,
+            item_type=typed_value_instance.item_type,
+            enum_choices=typed_value_instance.enum_choices,
+            item_schema_type=typed_value_instance.item_schema_type,
+            referenced_entity_type=typed_value_instance.referenced_entity_type,
+            referenced_entity_category=typed_value_instance.referenced_entity_category,
+        )
+
+        variables_data[var_name] = VariableResponse(
+            key=variable_model.key,
+            value=SerializedTypedValue(**temp_serialized_typed_value.serialize()),
+        )
     return variables_data
 
 
@@ -32,182 +109,184 @@ async def rename_variable_key(
     config: Config = Depends(get_config),
 ):
     try:
-        if old_key not in config.variables:
+        if old_key not in config.variables.get_variable(old_key):
             raise ValueError(f"Variable key {old_key} not found")
 
         config.variables.rename_variable_key(old_key, new_key)
-        return {"old_key": old_key, "new_key": new_key, "status": "success"}
+        return {
+            "old_key": old_key,
+            "new_key": new_key,
+            "status": "success",
+            "message": f"Variable '{old_key}' renamed to '{new_key}'.",
+        }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.put("/api/variables/{key}/fields/{field_name}", response_class=JSONResponse)
-async def update_variable_field(
-    key: str, 
-    field_name: str,
-    value: Union[str, int, float, list, dict] = Body(...), 
-    config: Config = Depends(get_config)
-):
-    try:
-        variable = config.variables.get_variable(key)
-        if not variable:
-            raise ValueError(f"Variable key {key} not found")
-            
-        # Check if the value is a dynamic Hy expression
-        if isinstance(value, str) and value.startswith("("):
-            try:
-                # Register and evaluate the dynamic expression
-                resolved_value, dynamic_info = dynamic_resolution_service.evaluate(
-                    component_type="variable",
-                    component_label=key,
-                    attribute=field_name,
-                    expression=value,
-                )
-
-                # Update variable with the evaluated value and expression
-                config.variables.set_dynamic_field(
-                    key=key,
-                    field_name=field_name,
-                    value=dynamic_info.latest_value,
-                    original=value
-                )
-
-                return {
-                    "key": key,
-                    "field": field_name,
-                    "value": dynamic_info.latest_value,
-                    "is_dynamic": True,
-                    "original": value,
-                }
-            except Exception as eval_error:
-                raise HTTPException(
-                    status_code=400, detail=f"Error evaluating expression: {str(eval_error)}"
-                )
-        else:
-            # For non-dynamic values, update the field directly
-            if field_name == "value":
-                config.variables.update_variable(key, value)
-            else:
-                # For other fields, we need to set the attribute and save
-                setattr(variable, field_name, value)
-                
-                # Remove any dynamic field info if it exists
-                if field_name in variable.dynamic_fields:
-                    dynamic_fields = variable.dynamic_fields.copy()
-                    dynamic_fields.pop(field_name, None)
-                    
-                    # Create a new variable with updated dynamic fields
-                    config.variables._variable_manager.create(
-                        key=key,
-                        value=variable.value,
-                        dynamic_fields=dynamic_fields
-                    )
-                
-                config.variables.save()
-            
-            # Return the updated variable data
-            variable = config.variables.get_variable(key)
-            return {
-                "key": key,
-                "field": field_name,
-                "value": getattr(variable, field_name),
-                "is_dynamic": variable.is_field_dynamic(field_name),
-                "original": variable.get_original_expression(field_name)
-            }
-
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.post("/api/variables/{key}/fields/{field_name}/evaluate", response_class=JSONResponse)
-async def evaluate_variable_field_expression(
+@router.put("/api/variables/{key}", response_model=VariableResponse, response_class=JSONResponse)
+async def update_variable(
     key: str,
-    field_name: str,
-    expression: str = Body(...),
+    payload: VariableUpdatePayload,  # Use the new payload model
+    config: Config = Depends(get_config),
 ):
+    """
+    Updates the value of an existing variable.
+    The new value can be static or a dynamic Hy expression.
+    """
     try:
-        if not isinstance(expression, str) or not expression.startswith("("):
-            return {
-                "key": key,
-                "field": field_name,
-                "value": expression, 
-                "is_dynamic": False, 
-                "original": None
-            }
+        # Extract values from payload
+        value = payload.value
+        is_dynamic = payload.is_dynamic
+        original_expression = payload.original_expression
+        field_type = payload.field_type
 
-        # Only evaluate without saving
-        resolved_value, dynamic_info = dynamic_resolution_service.evaluate(
-            component_type="variable", 
-            component_label=key, 
-            attribute=field_name, 
-            expression=expression
+        # Call the component's update_variable method.
+        # This method in VariableComponent will handle the TypedValue construction and internal logic.
+        config.variables.update_variable(
+            key=key,
+            new_value=value,  # Pass raw value, component will handle Hy.read if dynamic
+            is_dynamic=is_dynamic,
+            original_expression=original_expression,
+            field_type=field_type,
         )
 
-        return {
-            "key": key,
-            "field": field_name,
-            "value": resolved_value,
-            "is_dynamic": True,
-            "evaluated_value": str(resolved_value),
-            "original": expression,
-        }
+        # Return the updated variable data
+        variable_model = config.variables.get_variable(key)
+        if not variable_model:
+            raise HTTPException(
+                status_code=500, detail="Variable not found after update (internal error)."
+            )
+
+        return VariableResponse(
+            key=variable_model.key, value=SerializedTypedValue(**variable_model.value.serialize())
+        )
+
+    except ValueError as e:  # Catch ValueErrors for variable not found, etc.
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error updating variable: {str(e)}")
+
+
+@router.post(
+    "/api/variables/{key}/evaluate",
+    response_model=SerializedTypedValue,
+    response_class=JSONResponse,
+)
+async def evaluate_variable_expression(
+    key: str,
+    expression: str = Body(..., embed=True),  # Expression to evaluate
+    config: Config = Depends(get_config),  # Add config to get variables context
+):
+    """
+    Evaluates a given Hy expression using the current variable context without saving.
+    Returns the resolved value as a serialized TypedValue.
+    """
+    try:
+        # Get the context from the variable component (its items)
+        # This context will be passed to the dynamic resolver.
+        evaluation_context = {}
+        variables_component_items = (
+            config.variables.items()
+        )  # This returns a dict of Variable models
+        if variables_component_items:
+            for var_name, var_model in variables_component_items.items():
+                # For dynamic variables (HyExpressions), pass the HyExpression itself.
+                # For static, pass the resolved Python value.
+                if var_model.value.is_dynamic and isinstance(
+                    var_model.value._raw_value, (Expression, Symbol)
+                ):
+                    evaluation_context[var_name] = var_model.value._raw_value
+                else:
+                    evaluation_context[var_name] = var_model.value.value
+
+                # Also add underscore versions for Hy compatibility
+                if "-" in var_name and var_name.replace("-", "_") not in evaluation_context:
+                    evaluation_context[var_name.replace("-", "_")] = evaluation_context[var_name]
+
+        # Convert string expression to HyExpression for evaluation
+        hy_expression_to_evaluate = expression
+        if (
+            isinstance(expression, str)
+            and expression.strip().startswith("(")
+            and expression.strip().endswith(")")
+        ):
+            try:
+                hy_expression_to_evaluate = hy.read(expression)
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Invalid Hy expression: {str(e)}")
+
+        resolved_value, dynamic_info = dynamic_resolution_service.evaluate(
+            component_type="variable_adhoc_eval",
+            component_label=key,
+            attribute="value",  # Placeholder, as this is ad-hoc evaluation
+            expression=hy_expression_to_evaluate,
+            context=evaluation_context,  # Pass the constructed context
+        )
+
+        # Create a temporary TypedValue to easily serialize the result for API consistency
+        result_typed_value = TypedValue(
+            value=resolved_value,
+            field_type=infer_type(resolved_value),  # Infer actual type
+            is_dynamic=dynamic_info.is_dynamic,
+            original=dynamic_info.original,
+        )
+
+        return SerializedTypedValue(
+            **result_typed_value.serialize()
+        )  # Return the serialized TypedValue
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.delete("/api/variables/{key}", response_class=JSONResponse)
 async def delete_variable(key: str, config: Config = Depends(get_config)):
+    """
+    Deletes a variable by its key.
+    """
     try:
-        if key not in config.variables:
-            raise ValueError(f"Variable key {key} not found")
+        if not config.variables.get_variable(key):  # Use get_variable for explicit check
+            raise ValueError(f"Variable key '{key}' not found.")
 
         config.variables.remove_variable(key)
-        return {"status": "success", "message": f"Variable {key} deleted successfully"}
+        return {"status": "success", "message": f"Variable '{key}' deleted successfully."}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=f"Error deleting variable: {str(e)}")
 
 
-@router.post("/api/variables", response_class=JSONResponse)
+@router.post("/api/variables/{key}", response_model=VariableResponse, response_class=JSONResponse)
 async def create_variable(
-    key: str = Body(..., embed=True),
-    value: Any = Body(..., embed=True),
-    is_dynamic: bool = Body(False, embed=True),
+    key: str,  # Path parameter, no Body() here.
+    payload: VariableUpdatePayload,  # Body parameter
     config: Config = Depends(get_config),
 ):
+    """
+    Creates a new variable with the given key (from path) and payload.
+    """
     try:
-        if key in config.variables:
-            raise ValueError(f"Variable {key} already exists")
+        if config.variables.get_variable(key):
+            raise ValueError(f"Variable '{key}' already exists.")
 
-        dynamic_fields = {}
-        
-        if is_dynamic and isinstance(value, str) and value.startswith("("):
-            # Evaluate the dynamic expression
-            resolved_value, dynamic_info = dynamic_resolution_service.evaluate(
-                component_type="variable",
-                component_label=key,
-                attribute="value",
-                expression=value,
-            )
+        value = payload.value
+        is_dynamic = payload.is_dynamic
+        original_expression = payload.original_expression
+        field_type = payload.field_type
 
-            # Set up dynamic field for value
-            dynamic_fields["value"] = {
-                "original": value,
-                "value": dynamic_info.latest_value
-            }
-            
-            # Use the evaluated value
-            actual_value = dynamic_info.latest_value
-        else:
-            # Use the provided value directly
-            actual_value = value
-            
-        # Create the variable with the appropriate fields
-        config.variables.create_variable(
+        variable_model = config.variables.create_variable(
             key=key,
-            value=actual_value,
-            dynamic_fields=dynamic_fields
+            value=value,
+            is_dynamic=is_dynamic,
+            original_expression=original_expression,
+            field_type=field_type,
         )
 
-        return {"status": "success", "message": f"Variable {key} created successfully"}
+        return VariableResponse(
+            key=variable_model.key, value=SerializedTypedValue(**variable_model.value.serialize())
+        )
+
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=f"Error creating variable: {str(e)}")

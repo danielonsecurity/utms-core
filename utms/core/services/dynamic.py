@@ -1,12 +1,15 @@
-import hy
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, Optional, Tuple
 
-from utms.core.hy.resolvers.base import HyResolver
-from utms.core.mixins.service import ServiceMixin
-from utms.utms_types import DynamicExpressionInfo
+import hy
+from hy.models import Expression, Symbol
+
 from utms.core.hy import evaluate_hy_expression
+from utms.core.hy.resolvers.base import HyResolver
+from utms.core.hy.resolvers.elements.variable import VariableResolver
+from utms.core.mixins.service import ServiceMixin
+from utms.utms_types import DynamicExpressionInfo, HyExpression
 
 
 @dataclass
@@ -118,55 +121,77 @@ class DynamicResolutionService(ServiceMixin):
             Tuple of (resolved_value, dynamic_expression_info)
         """
         self.logger.debug(
-            "Evaluating expression for %s.%s.%s: %s",
+            "DynamicResolutionService: Evaluating for %s.%s.%s: EXPR=%s, CONTEXT_KEYS=%s",
             component_type,
             component_label,
             attribute,
             expression,
+            list(context.keys()) if context else "None",
         )
-
-        locals_dict = self.resolver.get_locals_dict(context)
-        if context:
-            locals_dict.update(context)
+        hy_expr_to_resolve: Any  # Can be Hy object or already Python native
+        if isinstance(expression, str):
+            try:
+                hy_expr_to_resolve = hy.read(expression)
+            except Exception as e:
+                self.logger.error(
+                    f"Failed to hy.read string expression '{expression}' for {component_label}.{attribute}: {e}"
+                )
+                # Create and register error info
+                error_info = DynamicExpressionInfo(original=expression, is_dynamic=True)
+                error_info.add_evaluation(
+                    None,
+                    metadata={
+                        "error_type": type(e).__name__,
+                        "error_message": str(e),
+                        "component_type": component_type,
+                        "component_label": component_label,
+                        "attribute": attribute,
+                        "context_keys": list(context.keys()) if context else None,
+                    },
+                )
+                self.registry.add(component_type, component_label, attribute, error_info)
+                raise
+        else:
+            hy_expr_to_resolve = expression
 
         try:
-            # Handle both string and Expression inputs
-            if isinstance(expression, str):
-                hy_expr = hy.read(expression)
-            else:
-                hy_expr = expression  # Already a Hy Expression
-            # Evaluate the expression
-            resolved_value = evaluate_hy_expression(hy_expr, locals_dict)
+            resolved_value, dynamic_info_from_resolver = self.resolver.resolve(
+                expr=hy_expr_to_resolve, local_names=context, context=None
+            )
+            self.logger.debug(
+                f"DynamicResolutionService: Resolved value for {component_label}.{attribute}: {resolved_value}"
+            )
+            self.registry.add(
+                component_type, component_label, attribute, dynamic_info_from_resolver
+            )
+            return resolved_value, dynamic_info_from_resolver
 
-            # Create or get existing dynamic info
+        except Exception as e:
+            self.logger.error(
+                f"Error during resolver.resolve for {component_label}.{attribute} (expr: {expression}): {e}",
+                exc_info=True,
+            )
             dynamic_info = self.registry.get(component_type, component_label, attribute)
             if not dynamic_info:
+                is_dynamic_flag = isinstance(hy_expr_to_resolve, (Expression, Symbol))
                 dynamic_info = DynamicExpressionInfo(
-                    original=expression,
-                    is_dynamic=True
+                    original=hy_expr_to_resolve, is_dynamic=is_dynamic_flag
                 )
 
-            # Add the evaluation to history
             dynamic_info.add_evaluation(
-                value=resolved_value,
+                None,
+                original_expr=hy_expr_to_resolve,  # Record the expression that caused error
                 metadata={
+                    "error_type": type(e).__name__,
+                    "error_message": str(e),
                     "component_type": component_type,
                     "component_label": component_label,
                     "attribute": attribute,
-                    "context": context
-                }
+                    "context_keys": list(context.keys()) if context else None,
+                },
             )
-
-            self.logger.debug(f"Resolved to: {resolved_value}")
-
             self.registry.add(component_type, component_label, attribute, dynamic_info)
-            return resolved_value, dynamic_info
-        except Exception as e:
-            self.logger.error(f"Error evaluating expression: {e}")
             raise
-
-
-
 
     def get_dynamic_info(
         self, component_type: str, component_label: str, attribute: str
@@ -212,33 +237,40 @@ class DynamicResolutionService(ServiceMixin):
         """
         results = {}
 
-        # Determine which entities to process
-        if component_type:
-            types_to_process = [component_type]
-        else:
-            types_to_process = list(self._registry.keys())
+        for reg_comp_type, reg_comp_label, reg_attr, dynamic_info in self.registry:
+            if component_type and reg_comp_type != component_type:
+                continue
+            if component_label and reg_comp_label != component_label:
+                continue
 
-        for type_name in types_to_process:
-            results[type_name] = {}
+            try:
+                value, updated_dynamic_info = self.evaluate(
+                    component_type=reg_comp_type,
+                    component_label=reg_comp_label,
+                    attribute=reg_attr,
+                    expression=dynamic_info.original,
+                    context=context,
+                )
+                # Store result
+                if reg_comp_type not in results:
+                    results[reg_comp_type] = {}
+                if reg_comp_label not in results[reg_comp_type]:
+                    results[reg_comp_type][reg_comp_label] = {}
+                results[reg_comp_type][reg_comp_label][reg_attr] = value
 
-            if component_label:
-                labels_to_process = [component_label]
-            else:
-                labels_to_process = list(self._registry[type_name].keys())
-
-            for ent_label in labels_to_process:
-                results[type_name][ent_label] = {}
-
-                for attr, dynamic_info in self._registry[type_name][ent_label].items():
-                    try:
-                        value, _ = self.resolver.resolve(dynamic_info.original, context)
-                        results[type_name][ent_label][attr] = value
-                    except Exception as e:
-                        self.logger.error(
-                            "Error evaluating %s.%s.%s: %s", type_name, ent_label, attr, str(e)
-                        )
-                        results[type_name][ent_label][attr] = f"Error: {str(e)}"
-
+            except Exception as e:
+                self.logger.error(
+                    "Error re-evaluating %s.%s.%s: %s",
+                    reg_comp_type,
+                    reg_comp_label,
+                    reg_attr,
+                    str(e),
+                )
+                if reg_comp_type not in results:
+                    results[reg_comp_type] = {}
+                if reg_comp_label not in results[reg_comp_type]:
+                    results[reg_comp_type][reg_comp_label] = {}
+                results[reg_comp_type][reg_comp_label][reg_attr] = f"Error: {str(e)}"
         return results
 
     def clear_history(
@@ -252,9 +284,14 @@ class DynamicResolutionService(ServiceMixin):
         Clear evaluation history, optionally filtered by component type, id, and/or attribute
         If before is provided, only clears history before that timestamp
         """
-        if component_type and component_label and attribute:
-            # Clear specific attribute
-            dynamic_info = self.get_dynamic_info(component_type, component_label, attribute)
+        for reg_comp_type, reg_comp_label, reg_attr, dynamic_info in self.registry:
+            if component_type and reg_comp_type != component_type:
+                continue
+            if component_label and reg_comp_label != component_label:
+                continue
+            if attribute and reg_attr != attribute:
+                continue
+
             if dynamic_info and dynamic_info.history:
                 if before:
                     dynamic_info.history = [
@@ -262,28 +299,7 @@ class DynamicResolutionService(ServiceMixin):
                     ]
                 else:
                     dynamic_info.history.clear()
-        elif component_type and component_label:
-            # Clear all attributes for an component
-            for dynamic_info in self.get_component_dynamic_info(
-                component_type, component_label
-            ).values():
-                if before:
-                    dynamic_info.history = [
-                        record for record in dynamic_info.history if record.timestamp >= before
-                    ]
-                else:
-                    dynamic_info.history.clear()
-        elif component_type:
-            # Clear all entities of a type
-            for component_dict in self.get_type_dynamic_info(component_type).values():
-                for dynamic_info in component_dict.values():
-                    if before:
-                        dynamic_info.history = [
-                            record for record in dynamic_info.history if record.timestamp >= before
-                        ]
-                    else:
-                        dynamic_info.history.clear()
 
 
 # Global service instance
-dynamic_resolution_service = DynamicResolutionService()
+dynamic_resolution_service = DynamicResolutionService(resolver=VariableResolver())

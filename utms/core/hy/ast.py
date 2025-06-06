@@ -1,11 +1,13 @@
 from io import StringIO
-from typing import List
+from typing import List, TYPE_CHECKING
 
 import hy
 
 from utms.core.mixins import LoggerMixin
 from utms.core.plugins.registry import plugin_registry
-from utms.utms_types import HyNode
+
+if TYPE_CHECKING:
+    from utms.utms_types import HyNode
 
 from .utils import format_expression
 
@@ -13,7 +15,7 @@ from .utils import format_expression
 class HyAST(LoggerMixin):
     """Base AST manager for Hy code."""
 
-    def parse_file(self, filename: str) -> List[HyNode]:
+    def parse_file(self, filename: str) -> List["HyNode"]:
         """Parse a Hy file into our AST."""
         with open(filename) as f:
             content = f.read()
@@ -52,7 +54,7 @@ class HyAST(LoggerMixin):
 
         return self._parse_expressions(expressions, line_comments)
 
-    def _parse_expressions(self, expressions: List, comments: dict) -> List[HyNode]:
+    def _parse_expressions(self, expressions: List, comments: dict) -> List["HyNode"]:
         """Convert Hy expressions into our AST nodes."""
         nodes = []
         self.logger.debug("Parsing %s expressions", len(expressions))
@@ -74,6 +76,7 @@ class HyAST(LoggerMixin):
                     except Exception as e:
                         self.logger.error(f"Error parsing {expr_type} with plugin: {e}")
                         import traceback
+
                         self.logger.error(traceback.format_exc())
                 else:
                     self.logger.warning(f"No plugin found for expression type: {expr_type}")
@@ -81,7 +84,7 @@ class HyAST(LoggerMixin):
 
         return nodes
 
-    def to_hy(self, nodes: List[HyNode]) -> str:
+    def to_hy(self, nodes: List["HyNode"]) -> str:
         """Convert AST nodes back to Hy code."""
         lines = []
 

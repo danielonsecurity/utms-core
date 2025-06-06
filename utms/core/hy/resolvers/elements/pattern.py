@@ -1,7 +1,8 @@
-from typing import Any, Dict
+from typing import Any, Dict, TYPE_CHECKING
 
-from utms.utms_types import DynamicExpressionInfo
 from utms.core.hy.resolvers.base import HyResolver
+if TYPE_CHECKING:
+    from utms.utms_types import DynamicExpressionInfo
 
 
 class PatternResolver(HyResolver):

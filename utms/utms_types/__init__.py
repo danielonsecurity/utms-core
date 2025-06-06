@@ -40,7 +40,7 @@ from .calendar.types import (
     is_timestamp,
     to_unit_type,
 )
-from .config.protocols import ConfigProtocol, ConfigManagerProtocol
+from .config.protocols import ConfigManagerProtocol, ConfigProtocol
 from .config.types import (
     ConfigData,
     ConfigPath,
@@ -54,12 +54,14 @@ from .config.types import (
     is_json_primitive,
     is_json_value,
 )
+from .entity.protocols import EntityManagerProtocol, EntityProtocol
+from .field import FieldType, TypedValue, infer_type
 from .hy.protocols import ExpressionResolver, LocalsProvider
 from .hy.types import (
     Context,
+    DynamicExpressionInfo,
     EvaluatedResult,
     ExpressionList,
-    DynamicExpressionInfo,
     HyDict,
     HyExpression,
     HyInteger,
@@ -85,5 +87,3 @@ from .hy.types import (
 from .unit.protocols import UnitManagerProtocol, UnitProtocol
 from .unit.types import UnitConfig
 from .variable.protocols import VariableManagerProtocol
-from .entity.protocols import TimeEntityProtocol, TimeEntityManagerProtocol
-from .field import TypedValue, FieldType, infer_type

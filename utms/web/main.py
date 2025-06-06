@@ -10,10 +10,10 @@ from utms.web.api.routes import (
     anchors_routes,
     clock_routes,
     config_routes,
+    entities_routes,
     resolve_routes,
     units_routes,
     variables_routes,
-    entities_routes,
 )
 from utms.web.dependencies import get_config
 

@@ -2,6 +2,7 @@ from decimal import Decimal
 from typing import Any
 
 import hy
+from hy.models import Expression, Symbol, Integer, Float
 
 
 def hy_to_python(data: Any) -> Any:
@@ -41,27 +42,64 @@ def hy_to_python(data: Any) -> Any:
 def python_to_hy(value: Any) -> str:
     """Format a Python value as a Hy expression."""
     if value is None:
-        return "None"
-    elif isinstance(value, bool):
-        return "true" if value else "false"
-    elif isinstance(value, (int, Decimal)):
-        return str(value)
-    elif isinstance(value, str):
-        return f'"{value}"'
-    elif isinstance(value, list):
-        items = " ".join(python_to_hy(item) for item in value)
-        return f"[{items}]"
-    elif isinstance(value, dict):
-        if not value:
-            return "{}"
-        items = []
+        return "None" # hy.repr(None) is 'None'
+    if isinstance(value, bool):
+        return hy.repr(hy.models.Boolean(value)) # '#t' or '#f'
+    if isinstance(value, int):
+        return hy.repr(hy.models.Integer(value))
+    if isinstance(value, float):
+        return hy.repr(hy.models.Float(value))
+    if isinstance(value, str):
+        return hy.repr(hy.models.String(value)) # Adds quotes: "abc"
+    if isinstance(value, list):
+        items_as_hy_models = []
+        for item in value:
+            if isinstance(item, str): items_as_hy_models.append(hy.models.String(item))
+            elif isinstance(item, int): items_as_hy_models.append(hy.models.Integer(item))
+            elif isinstance(item, bool): items_as_hy_models.append(hy.models.Boolean(item))
+            elif item is None: items_as_hy_models.append(None) # Hy List can contain Python None, hy.repr handles
+            else: items_as_hy_models.append(hy.models.String(str(item))) # Fallback: repr as string
+        return hy.repr(hy.models.List(items_as_hy_models))
+    if isinstance(value, dict):
+        hy_dict_pairs = []
         for k, v in value.items():
-            # Format key as a keyword
-            key = f":{k}" if not k.startswith(":") else k
-            items.append(f"  {key} {python_to_hy(v)}")
-        return "{\n" + "\n".join(items) + "\n}"
+            hy_dict_pairs.append(hy.models.Keyword(str(k))) # Assume keys become keywords
+            if isinstance(v, str): hy_dict_pairs.append(hy.models.String(v))
+            elif isinstance(v, int): hy_dict_pairs.append(hy.models.Integer(v))
+            else: hy_dict_pairs.append(hy.models.String(str(v)))
+        return hy.repr(hy.models.Dict(hy_dict_pairs))
+    
+    if isinstance(value, hy.models.Object):
+        return hy.repr(value)
     return str(value)
 
 
 def list_to_dict(flat_list):
     return dict(zip(flat_list[::2], flat_list[1::2]))
+
+def py_list_to_hy_expression(py_list: list) -> Expression:
+    """
+    Recursively converts a Python list that represents an S-expression back into a
+    fully-formed hy.models.Expression object.
+
+    This is the counterpart to hy_to_python for executable code, turning names
+    into Symbols, not Strings.
+    e.g., ['current-time'] -> Expression([Symbol('current-time')])
+    """
+    elements = []
+    for item in py_list:
+        if isinstance(item, list):
+            elements.append(py_list_to_hy_expression(item))
+        elif isinstance(item, str):
+            # Treat strings as names to be looked up (Symbols)
+            elements.append(Symbol(item))
+        elif isinstance(item, int):
+            elements.append(Integer(item))
+        elif isinstance(item, float):
+            elements.append(Float(item))
+        elif isinstance(item, bool):
+            elements.append(bool(item))
+        else:
+            # For other types like None, let them pass through.
+            elements.append(item)
+    return Expression(elements)

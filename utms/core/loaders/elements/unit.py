@@ -39,8 +39,6 @@ class UnitLoader(ComponentLoader[Unit, UnitManager]):
         resolved_groups = properties["kwargs"].get("groups", [])
 
         # Create Unit
-        unit = Unit(
-            label=label, name=resolved_name, value=resolved_value, groups=resolved_groups
-        )
+        unit = Unit(label=label, name=resolved_name, value=resolved_value, groups=resolved_groups)
 
         return unit

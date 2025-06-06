@@ -22,7 +22,6 @@ class ResourceService(ServiceMixin):
         "config.hy",
         "system_prompt.txt",
         "variables.hy",
-
     ]
 
     def __init__(self, config_dir: str):
@@ -46,11 +45,11 @@ class ResourceService(ServiceMixin):
         Returns:
             bool: True if resource was deployed, False if already exists
         """
-        destination = self._config_dir / resource_name.rstrip('/')
+        destination = self._config_dir / resource_name.rstrip("/")
 
         # Check if it's a directory (ends with /)
-        is_directory = resource_name.endswith('/')
-        
+        is_directory = resource_name.endswith("/")
+
         # If destination exists and we're not forcing, skip deployment
         if destination.exists() and not force:
             self.logger.debug("Resource %s already exists", resource_name)
@@ -59,13 +58,13 @@ class ResourceService(ServiceMixin):
 
         try:
             source_base = importlib.resources.files("utms.resources")
-            source = source_base / resource_name.rstrip('/')
-            
+            source = source_base / resource_name.rstrip("/")
+
             if is_directory:
                 # Handle directory deployment
                 if not destination.exists():
                     destination.mkdir(parents=True, exist_ok=True)
-                
+
                 # Copy all files from the source directory to the destination
                 if source.exists() and source.is_dir():
                     for item in source.iterdir():
@@ -74,16 +73,16 @@ class ResourceService(ServiceMixin):
                             if not dest_file.exists() or force:
                                 shutil.copy(str(item), str(dest_file))
                                 self.logger.debug("Deployed %s to %s", item.name, dest_file)
-                
+
                 self.logger.info("Deployed directory %s to %s", resource_name, destination)
             else:
                 # Handle file deployment
                 shutil.copy(str(source), str(destination))
                 self.logger.info("Deployed file %s to %s", resource_name, destination)
-            
+
             self._resource_status[resource_name] = True
             return True
-            
+
         except Exception as e:
             self.logger.error("Failed to deploy resource %s: %s", resource_name, e)
             self._resource_status[resource_name] = False
@@ -98,7 +97,7 @@ class ResourceService(ServiceMixin):
         Returns:
             Optional[Path]: Full path to resource or None if not found
         """
-        path = self._config_dir / resource_name.rstrip('/')
+        path = self._config_dir / resource_name.rstrip("/")
         return path if path.exists() else None
 
     def check_resource(self, resource_name: str) -> bool:
@@ -110,7 +109,7 @@ class ResourceService(ServiceMixin):
         Returns:
             bool: True if resource exists
         """
-        return (self._config_dir / resource_name.rstrip('/')).exists()
+        return (self._config_dir / resource_name.rstrip("/")).exists()
 
     def get_status(self) -> Dict[str, bool]:
         """Get deployment status of all resources.

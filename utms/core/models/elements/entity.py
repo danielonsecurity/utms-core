@@ -1,5 +1,3 @@
-# utms.core.models.elements.time_entity.py
-
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Union
 
@@ -11,10 +9,10 @@ logger = get_logger()
 
 
 @dataclass
-class TimeEntity(ModelMixin):
+class Entity(ModelMixin):
     """
-    Base class for all time entities.
-    Each attribute of a time entity is stored as a TypedValue.
+    Base class for all entities.
+    Each attribute of a entity is stored as a TypedValue.
     Entities now also belong to a category.
     """
 
@@ -41,14 +39,14 @@ class TimeEntity(ModelMixin):
         for key, val in self.attributes.items():
             if not isinstance(val, TypedValue):
                 logger.critical(  # Use critical as this indicates a programming error upstream
-                    f"TimeEntity '{self.name}' attribute '{key}' was not initialized with a TypedValue. "
+                    f"Entity '{self.name}' attribute '{key}' was not initialized with a TypedValue. "
                     f"Received type: {type(val)}. This must be fixed in the loader/manager."
                 )
                 # Not attempting to fix it here, as it indicates a larger issue.
                 # An error should ideally be raised by the caller if this happens.
                 # For robustness in case it slips through, it might be converted, but it's a bad sign.
                 # For now, we assume the loader/manager correctly provides TypedValues.
-                # If this TimeEntity is being directly instantiated elsewhere, that code needs to be updated.
+                # If this Entity is being directly instantiated elsewhere, that code needs to be updated.
                 pass
 
     def get_attribute_typed(self, attr_name: str) -> Optional[TypedValue]:
@@ -107,7 +105,7 @@ class TimeEntity(ModelMixin):
         attrs_repr_parts = [f"{k}={repr(v)}" for k, v in self.attributes.items()]
         attrs_str = ", ".join(attrs_repr_parts)
         return (
-            f"TimeEntity(name='{self.name}', entity_type='{self.entity_type}', "
+            f"Entity(name='{self.name}', entity_type='{self.entity_type}', "
             f"category='{self.category}', attributes={{{attrs_str}}})"
         )
 
@@ -118,7 +116,7 @@ class TimeEntity(ModelMixin):
         return hash((self.entity_type, self.name))  # Current uniqueness
 
     def __eq__(self, other):
-        if not isinstance(other, TimeEntity):
+        if not isinstance(other, Entity):
             return False
         # Same consideration for self.category in equality
         return self.entity_type == other.entity_type and self.name == other.name

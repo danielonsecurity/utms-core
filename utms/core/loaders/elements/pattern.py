@@ -1,12 +1,11 @@
 from typing import Any, Dict, List
 
 from utms.core.hy.resolvers import PatternResolver
+from utms.core.loaders.base import ComponentLoader, LoaderContext
+from utms.core.managers.elements.pattern import PatternManager
 from utms.utils import hy_to_python
 from utms.utms_types import HyNode
 from utms.utms_types.recurrence.pattern import RecurrencePattern
-
-from utms.core.loaders.base import ComponentLoader, LoaderContext
-from utms.core.managers.elements.pattern import PatternManager
 
 
 class PatternLoader(ComponentLoader[RecurrencePattern, PatternManager]):

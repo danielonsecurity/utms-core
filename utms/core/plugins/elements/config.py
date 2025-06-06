@@ -6,7 +6,7 @@ from utms.core.hy.utils import format_value, is_dynamic_content
 from utms.core.plugins import NodePlugin
 from utms.utils import hy_to_python
 from utms.utms_types import HyNode
-from utms.utms_types.field.types import TypedValue, FieldType, infer_type
+from utms.utms_types.field.types import FieldType, TypedValue, infer_type
 
 
 class ConfigNodePlugin(NodePlugin):
@@ -37,7 +37,7 @@ class ConfigNodePlugin(NodePlugin):
                 key = str(setting[0])
                 value = setting[1]
                 is_dynamic = is_dynamic_content(value)
-                
+
                 # Check if there's type information (third element in the setting)
                 field_type = None
                 if len(setting) > 2:
@@ -51,7 +51,7 @@ class ConfigNodePlugin(NodePlugin):
                     value=value,
                     field_type=field_type,
                     is_dynamic=is_dynamic,
-                    original=hy.repr(value).strip("'") if is_dynamic else None
+                    original=hy.repr(value).strip("'") if is_dynamic else None,
                 )
 
                 child_node = HyNode(
@@ -63,7 +63,7 @@ class ConfigNodePlugin(NodePlugin):
                             value=typed_value,  # Store the TypedValue here
                             original=hy.repr(value).strip("'") if is_dynamic else None,
                             is_dynamic=is_dynamic,
-                            field_name="value"  # Add field name to track which field this is
+                            field_name="value",  # Add field name to track which field this is
                         )
                     ],
                 )
@@ -76,7 +76,9 @@ class ConfigNodePlugin(NodePlugin):
         lines = ["(custom-set-config"]
 
         for setting in node.children:
-            value_node = next((child for child in setting.children if child.field_name == "value"), None)
+            value_node = next(
+                (child for child in setting.children if child.field_name == "value"), None
+            )
             if not value_node:
                 continue
             key = setting.value
@@ -88,7 +90,7 @@ class ConfigNodePlugin(NodePlugin):
                     try:
                         inferred_type = infer_type(typed_value.value)
                     except Exception:
-                         inferred_type = FieldType.STRING
+                        inferred_type = FieldType.STRING
                     if typed_value.field_type != inferred_type:
                         add_type_hint = True
                 if add_type_hint:
@@ -101,5 +103,3 @@ class ConfigNodePlugin(NodePlugin):
 
         lines.append(")")
         return lines
-
-

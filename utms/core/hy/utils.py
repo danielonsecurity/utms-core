@@ -4,8 +4,6 @@ from typing import Any, List
 
 import hy
 
-from utms.core.formats import TimeUncertainty
-from utms.utms_types import HyNode
 
 
 def is_dynamic_content(value: Any) -> bool:
@@ -26,6 +24,9 @@ def is_dynamic_content(value: Any) -> bool:
 
 def format_value(value: Any) -> str:
     """Format a value as Hy code."""
+    from utms.utms_types import HyNode
+    from utms.core.formats import TimeUncertainty
+
     if isinstance(value, HyNode):
         if value.is_dynamic and value.original:
             return value.original

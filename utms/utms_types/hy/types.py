@@ -11,7 +11,6 @@ from typing import Optional, TypeAlias, TypeGuard, Union
 
 from hy.models import Dict, Expression, Integer, Keyword, Lazy, List, String, Symbol
 
-
 HyExpression: TypeAlias = Expression
 HySymbol: TypeAlias = Symbol
 HyKeyword: TypeAlias = Keyword
@@ -69,6 +68,7 @@ class HyNode:
 
     def __post_init__(self):
         self.children = self.children or []
+
 
 ExpressionList: TypeAlias = PyList[HyExpression]
 

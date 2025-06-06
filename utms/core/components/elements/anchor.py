@@ -2,15 +2,14 @@ import os
 from decimal import Decimal
 from typing import Any, Dict, List, Optional, Union
 
-from utms.core.hy.ast import HyAST
-from utms.utils import hy_to_python
-
+from utms.core.components.base import SystemComponent
 from utms.core.formats import TimeUncertainty
-from utms.core.loaders.elements.anchor import AnchorLoader
+from utms.core.hy.ast import HyAST
 from utms.core.loaders.base import LoaderContext
+from utms.core.loaders.elements.anchor import AnchorLoader
 from utms.core.managers.elements.anchor import AnchorManager
 from utms.core.models import Anchor, FormatSpec
-from utms.core.components.base import SystemComponent
+from utms.utils import hy_to_python
 
 
 class AnchorComponent(SystemComponent):
@@ -22,7 +21,6 @@ class AnchorComponent(SystemComponent):
         self._anchor_manager = AnchorManager()
         self._loader = AnchorLoader(self._anchor_manager)
         self._anchors_dir = os.path.join(self._config_dir, "anchors")
-
 
     def load(self) -> None:
         """Load anchors from all Hy files in the anchors directory"""
@@ -55,7 +53,7 @@ class AnchorComponent(SystemComponent):
             all_items = {}
 
             # Check if there are any files in the directory
-            anchor_files = [f for f in os.listdir(self._anchors_dir) if f.endswith('.hy')]
+            anchor_files = [f for f in os.listdir(self._anchors_dir) if f.endswith(".hy")]
 
             if not anchor_files:
                 self._loaded = True
@@ -127,7 +125,6 @@ class AnchorComponent(SystemComponent):
                 f.write("\n".join(lines))
 
             self.logger.debug(f"Saved {len(anchors)} anchors to {file_path}")
-
 
     def create_anchor(
         self,

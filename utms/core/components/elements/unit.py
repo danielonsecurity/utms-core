@@ -36,8 +36,8 @@ class UnitComponent(SystemComponent):
             os.makedirs(self._units_dir)
 
         # Check if there are any files in the directory
-        unit_files = [f for f in os.listdir(self._units_dir) if f.endswith('.hy')]
-        
+        unit_files = [f for f in os.listdir(self._units_dir) if f.endswith(".hy")]
+
         # If no files in the units directory, check for the old units.hy file
         old_units_file = Path(self._config_dir) / "units.hy"
         if not unit_files and old_units_file.exists():
@@ -53,15 +53,16 @@ class UnitComponent(SystemComponent):
         try:
             # Create context
             context = LoaderContext(
-                config_dir=self._config_dir, 
-                variables=self._items  # Pass existing items if any
+                config_dir=self._config_dir, variables=self._items  # Pass existing items if any
             )
 
             # Process all unit files
             all_items = {}
 
             for filename in unit_files:
-                file_path = os.path.join(self._units_dir, filename) if not is_old_format else filename
+                file_path = (
+                    os.path.join(self._units_dir, filename) if not is_old_format else filename
+                )
                 self.logger.debug(f"Loading units from {file_path}")
 
                 try:
@@ -79,7 +80,7 @@ class UnitComponent(SystemComponent):
                     # Continue with other files even if one fails
 
             self._items = all_items
-            
+
             # Update manager's items
             self._unit_manager._items = self._items
 

@@ -1,4 +1,3 @@
-# utms.core.components.elements.time_entity.py
 import os
 import shutil
 from typing import Any, Dict, List, Optional, Union
@@ -9,109 +8,206 @@ import hy.models
 from utms.core.components.base import SystemComponent
 from utms.core.hy.ast import HyAST
 from utms.core.loaders.base import LoaderContext
-from utms.core.loaders.elements.time_entity import TimeEntityLoader
-from utms.core.managers.elements.time_entity import TimeEntityManager
-from utms.core.models.elements.time_entity import TimeEntity
+from utms.core.loaders.elements.entity import EntityLoader
+from utms.core.managers.elements.entity import EntityManager
+from utms.core.models.elements.entity import Entity
 from utms.core.plugins import plugin_registry
-from utms.core.plugins.elements.dynamic_time_entity import plugin_generator
+from utms.core.plugins.elements.dynamic_entity import plugin_generator
 from utms.utils import hy_to_python, list_to_dict, sanitize_filename
 from utms.utms_types import HyNode
 from utms.utms_types.field.types import FieldType, TypedValue, infer_type
 
 
-class TimeEntityComponent(SystemComponent):
-    """Component managing UTMS time entities with TypedValue attributes and categories."""
-
-    DEFAULT_CATEGORY_FILENAME = "default.hy"
-    ENTITY_TYPES_FILENAME = "entity_types.hy"
+class EntityComponent(SystemComponent):
+    """Component managing UTMS entities with TypedValue attributes and categories."""
 
     def __init__(self, config_dir: str, component_manager=None):
         super().__init__(config_dir, component_manager)
         self._ast_manager = HyAST()
-        self._time_entity_manager = TimeEntityManager()
-        self._loader = TimeEntityLoader(self._time_entity_manager)
-        self._schema_def_dir = os.path.join(self._config_dir, "entities")
+        # Use the renamed EntityManager and EntityLoader
+        self._entity_manager = EntityManager()
+        self._loader = EntityLoader(self._entity_manager)
+
+        self._entity_schema_def_dir = os.path.join(self._config_dir, "entities")
+        self._complex_type_def_dir = os.path.join(self._config_dir, "types")
+
         self._entity_type_instances_base_dir = self._config_dir
+
         self.entity_types: Dict[str, Dict[str, Any]] = {}
-        # self._items directly references the manager's items for a single source of truth
-        self._items: Dict[str, TimeEntity] = self._time_entity_manager._items
+        self.complex_types: Dict[str, Dict[str, Any]] = {}
+
+        self._items: Dict[str, Entity] = self._entity_manager._items
 
     def _ensure_dirs(self):
-        # ... (same as response #15)
-        if not os.path.exists(self._schema_def_dir):
-            os.makedirs(self._schema_def_dir)
-        if not os.path.exists(self._entity_type_instances_base_dir):
-            os.makedirs(self._entity_type_instances_base_dir)
-        for type_key in self.entity_types.keys():
-            type_dir = os.path.join(self._entity_type_instances_base_dir, f"{type_key}s")
-            if not os.path.exists(type_dir):
-                os.makedirs(type_dir)
+        if not os.path.exists(self._config_dir):
+            os.makedirs(self._config_dir)
+
+        if not os.path.exists(self._entity_schema_def_dir):
+            os.makedirs(self._entity_schema_def_dir)
+            self.logger.info(
+                f"Created entity schema definition directory: {self._entity_schema_def_dir}"
+            )
+
+        if not os.path.exists(self._complex_type_def_dir):
+            os.makedirs(self._complex_type_def_dir)
+            self.logger.info(
+                f"Created complex type definition directory: {self._complex_type_def_dir}"
+            )
+        if self.entity_types:
+            for type_key in self.entity_types.keys():
+                type_dir = os.path.join(self._entity_type_instances_base_dir, f"{type_key}s")
+                if not os.path.exists(type_dir):
+                    os.makedirs(type_dir)
 
     def load(self) -> None:
-        # ... (same as response #15, with corrected var_model.value access)
         if self._loaded:
-            self.logger.debug("TimeEntityComponent already loaded.")
+            self.logger.debug("EntityComponent already loaded.")
             return
-        self.logger.info("Loading Time Entities...")
-        self._time_entity_manager.clear()
+        self.logger.info("Loading Entities...")
+        self._entity_manager.clear()
+
         self.entity_types = {}
         self._ensure_dirs()
         try:
+            self.logger.info(
+                f"Scanning for entity type definitions in: {self._entity_schema_def_dir}"
+            )
+            if os.path.isdir(self._entity_schema_def_dir):  # Check if it's a directory
+                for filename in os.listdir(self._entity_schema_def_dir):
+                    if filename.endswith(".hy"):
+                        filepath = os.path.join(self._entity_schema_def_dir, filename)
+                        self.logger.debug(f"Parsing entity type definitions from: {filepath}")
+                        try:
+                            type_def_nodes = self._ast_manager.parse_file(filepath)
+                            # Pass source_file for better error messages and tracking
+                            self._extract_entity_types_from_nodes(
+                                type_def_nodes, source_file=filename
+                            )
+                        except Exception as e_schema_file:
+                            self.logger.error(
+                                f"Error parsing entity schema file '{filepath}': {e_schema_file}",
+                                exc_info=True,
+                            )
+            else:
+                self.logger.warning(
+                    f"Entity type definition directory not found or is not a directory: {self._entity_schema_def_dir}"
+                )
+            self.logger.info(
+                f"Scanning for complex type definitions in: {self._complex_type_def_dir}"
+            )
+            if os.path.isdir(self._complex_type_def_dir):  # Check if it's a directory
+                for filename in os.listdir(self._complex_type_def_dir):
+                    if filename.endswith(".hy"):
+                        filepath = os.path.join(self._complex_type_def_dir, filename)
+                        self.logger.debug(f"Parsing complex type definitions from: {filepath}")
+                        try:
+                            complex_type_nodes = self._ast_manager.parse_file(filepath)
+                            self._extract_complex_types_from_nodes(
+                                complex_type_nodes, source_file=filename
+                            )
+                        except Exception as e_ctype_file:
+                            self.logger.error(
+                                f"Error parsing complex type file '{filepath}': {e_ctype_file}",
+                                exc_info=True,
+                            )
+            else:
+                self.logger.warning(
+                    f"Complex type definition directory not found or is not a directory: {self._complex_type_def_dir}"
+                )
             variables_component = self.get_component("variables")
             variables = {}
+
             if variables_component:
                 for name, var_model in variables_component.items():
                     try:
-                        var_typed_value = getattr(
-                            var_model, "value", var_model
-                        )  # Get attribute 'value' if exists
-                        py_val = (
-                            var_typed_value.value
-                            if isinstance(var_typed_value, TypedValue)
-                            else hy_to_python(var_typed_value)
+                        var_typed_value: TypedValue = getattr(var_model, "value", var_model)
+
+                        if not isinstance(var_typed_value, TypedValue):
+                            self.logger.warning(
+                                f"Variable '{name}' did not resolve to a TypedValue. "
+                                "Skipping its inclusion in entity resolution context."
+                            )
+                            continue
+
+                        value_for_context: Any
+                        if var_typed_value.is_dynamic:
+                            value_for_context = var_typed_value._raw_value
+                            self.logger.debug(
+                                f"Variable '{name}' is dynamic. Passing original expression for re-evaluation: {value_for_context}"
+                            )
+                        else:
+                            value_for_context = var_typed_value.value
+                            self.logger.debug(
+                                f"Variable '{name}' is static. Passing resolved value: {value_for_context}"
+                            )
+
+                        variables[name] = value_for_context
+                        if "-" in name and name.replace("-", "_") not in variables:
+                            variables[name.replace("-", "_")] = value_for_context
+                    except Exception as e_var:
+                        self.logger.error(
+                            f"Error processing variable '{name}' for entity context: {e_var}",
+                            exc_info=True,
                         )
-                        variables[name] = py_val
-                        variables[name.replace("-", "_")] = py_val
-                    except Exception as e:
-                        self.logger.error(f"Error processing variable '{name}': {e}", exc_info=True)
-            self.logger.debug(f"Context variables for entity loading: {list(variables.keys())}")
-            context = LoaderContext(
+
+            self.logger.debug(
+                f"EntityComponent.load() - 'variables' dict populated. Keys: {list(variables.keys())}"
+            )
+
+            context_for_entity_loading = LoaderContext(
                 config_dir=self._entity_type_instances_base_dir, variables=variables
             )
-            entity_types_filepath = os.path.join(self._schema_def_dir, self.ENTITY_TYPES_FILENAME)
-            if os.path.exists(entity_types_filepath):
-                type_def_nodes = self._ast_manager.parse_file(entity_types_filepath)
-                self._extract_entity_types_from_nodes(type_def_nodes)
-            else:
-                self.logger.warning(
-                    f"Entity types definition file not found: {entity_types_filepath}"
-                )
+
+            self.logger.debug(
+                f"EntityComponent.load() - LoaderContext created. Its variables keys: {list(context_for_entity_loading.variables.keys())}"
+            )
+
+            self.logger.debug(
+                f"Context variables for entity instance loading: {list(variables.keys())}"
+            )
+
             if self.entity_types:
                 self._register_entity_type_plugins()
                 self._ensure_dirs()
-                self._load_entities_from_all_category_files(context)
+                self._load_entities_from_all_category_files(context_for_entity_loading)
             else:
                 self.logger.info("No entity types defined. Skipping instance loading.")
+
             self._loaded = True
             self.logger.info(
-                f"Time Entities loading complete. Loaded {len(self._items)} instances."
+                f"EntityComponent loading complete. Loaded {len(self.entity_types)} entity types, "
+                f"{len(self.complex_types)} complex types, and {len(self._items)} entity instances."
             )
         except Exception as e:
-            self.logger.error(f"Fatal error during TimeEntityComponent load: {e}", exc_info=True)
+            self.logger.error(f"Fatal error during EntityComponent load: {e}", exc_info=True)
             self._loaded = False
             raise
 
-    def _extract_entity_types_from_nodes(self, type_def_nodes: List[HyNode]) -> None:
-        # ... (same as response #15)
-        self.entity_types = {}
+    def _extract_entity_types_from_nodes(
+        self, type_def_nodes: List[HyNode], source_file: str
+    ) -> None:
         for node in type_def_nodes:
-            if node.type != "def-time-entity":
+            if node.type != "def-entity":
                 continue
+
             display_name = str(node.value)
-            definition_kind = getattr(node, "definition_kind", None)
+            definition_kind = getattr(node, "definition_kind", "entity-type")
             if definition_kind != "entity-type":
+                self.logger.debug(
+                    f"Skipping node '{display_name}' in '{source_file}', kind is '{definition_kind}', expected 'entity-type'."
+                )
                 continue
+
             entity_type_key = display_name.lower()
+
+            if entity_type_key in self.entity_types:
+                self.logger.error(
+                    f"Duplicate entity type definition for '{entity_type_key}' (from display name '{display_name}'). "
+                    f"Found in '{source_file}', but already defined from '{self.entity_types[entity_type_key].get('source_file', 'unknown file')}'. "
+                    f"Entity type names must be globally unique. Skipping this definition."
+                )
+                continue
+
             raw_hy_attr_schemas: Dict[str, hy.models.HyObject] = getattr(
                 node, "attribute_schemas_raw_hy", {}
             )
@@ -127,17 +223,64 @@ class TimeEntityComponent(SystemComponent):
                     }
                 except Exception as e_conv:
                     self.logger.error(
-                        f"Error converting schema for '{attr_name_str}' of '{display_name}': {e_conv}",
+                        f"Error converting schema for '{attr_name_str}' of entity type '{display_name}' from '{source_file}': {e_conv}",
                         exc_info=True,
                     )
+
             self.entity_types[entity_type_key] = {
                 "name": display_name,
                 "attributes_schema": processed_py_attr_schemas,
+                "source_file": source_file,
             }
-            self.logger.info(f"Extracted schema for entity type '{entity_type_key}'")
+            self.logger.info(
+                f"Extracted schema for entity type '{entity_type_key}' (Display: '{display_name}') from '{source_file}'."
+            )
+
+    def _extract_complex_types_from_nodes(
+        self, complex_type_nodes: List[HyNode], source_file: str
+    ) -> None:
+        for node in complex_type_nodes:
+            if node.type != "def-complex-type":
+                continue
+
+            complex_type_name = str(node.value)
+            if complex_type_name in self.complex_types:
+                self.logger.error(
+                    f"Duplicate complex type definition for '{complex_type_name}'. "
+                    f"Found in '{source_file}', but already defined from '{self.complex_types[complex_type_name].get('source_file', 'unknown file')}'. "
+                    f"Complex type names must be globally unique. Skipping this definition."
+                )
+                continue
+
+            raw_hy_attr_schemas: Dict[str, hy.models.HyObject] = getattr(
+                node, "attribute_schemas_raw_hy", {}
+            )
+            processed_py_attr_schemas: Dict[str, Dict[str, Any]] = {}
+            for attr_name_str, attr_schema_hy_dict in raw_hy_attr_schemas.items():
+                if not isinstance(attr_schema_hy_dict, hy.models.Dict):
+                    continue
+                try:
+                    py_schema_list_of_pairs = hy_to_python(attr_schema_hy_dict)
+                    py_schema_dict = list_to_dict(py_schema_list_of_pairs)
+                    processed_py_attr_schemas[attr_name_str] = {
+                        str(k): v for k, v in py_schema_dict.items()
+                    }
+                except Exception as e_conv:
+                    self.logger.error(
+                        f"Error converting schema for attribute '{attr_name_str}' of complex type '{complex_type_name}' from '{source_file}': {e_conv}",
+                        exc_info=True,
+                    )
+
+            self.complex_types[complex_type_name] = {
+                "name": complex_type_name,
+                "attributes_schema": processed_py_attr_schemas,
+                "source_file": source_file,
+            }
+            self.logger.info(
+                f"Extracted schema for complex type '{complex_type_name}' from '{source_file}'."
+            )
 
     def _register_entity_type_plugins(self) -> None:
-        # ... (same as response #15)
         if not self.entity_types:
             return
         for entity_type_key, schema_definition in self.entity_types.items():
@@ -155,7 +298,9 @@ class TimeEntityComponent(SystemComponent):
                 )
 
     def _load_entities_from_all_category_files(self, context: LoaderContext) -> None:
-        # ... (same as response #15)
+        self.logger.debug(
+            f"_load_entities_from_all_category_files called. Context variables keys: {list(context.variables.keys())}"
+        )
         total_instances_loaded_all_types = 0
         for entity_type_key in self.entity_types.keys():
             type_specific_instance_dir = os.path.join(
@@ -175,12 +320,23 @@ class TimeEntityComponent(SystemComponent):
                     instance_nodes = self._ast_manager.parse_file(filepath)
                     if not instance_nodes:
                         continue
+                    entity_schema_for_loader = self.entity_types.get(
+                        entity_type_key.lower(), {}
+                    ).get("attributes_schema", {})
+                    complex_types_for_loader = self.complex_types
+
                     category_context = LoaderContext(
                         config_dir=context.config_dir,
                         variables=context.variables,
                         current_category=category_name,
                         current_entity_type=entity_type_key,
+                        current_entity_schema=entity_schema_for_loader,
+                        known_complex_type_schemas=complex_types_for_loader,
                     )
+                    self.logger.debug(
+                        f"category_context created. Its variables keys: {list(category_context.variables.keys())}"
+                    )
+
                     loaded_instances = self._loader.process(instance_nodes, category_context)
                     total_instances_loaded_all_types += len(loaded_instances)
                 except Exception as e_file:
@@ -189,12 +345,21 @@ class TimeEntityComponent(SystemComponent):
             f"Total instances from category files: {total_instances_loaded_all_types}"
         )
 
+    def get_complex_type_schema(self, complex_type_name: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves the processed schema for a given complex type name.
+        """
+        complex_type_def = self.complex_types.get(complex_type_name)
+        if complex_type_def:
+            return complex_type_def.get("attributes_schema")
+        self.logger.warning(f"Schema for complex type '{complex_type_name}' not found.")
+        return None
+
     def save(self) -> None:
-        # ... (same as response #15, including debug logs for save)
-        self.logger.info("Saving Time Entities...")
+        self.logger.info("Saving Entities...")
         self._ensure_dirs()
         entity_types_filepath = os.path.join(self._schema_def_dir, self.ENTITY_TYPES_FILENAME)
-        schema_plugin = plugin_registry.get_node_plugin("def-time-entity")
+        schema_plugin = plugin_registry.get_node_plugin("def-entity")
         if schema_plugin:
             type_def_hy_lines = []
             for entity_type_key in sorted(self.entity_types.keys()):
@@ -219,7 +384,7 @@ class TimeEntityComponent(SystemComponent):
                         else:
                             hy_dict_elements.append(hy.models.String(str(v_item)))
                     attr_schemas_for_hy_node[attr_name] = hy.models.Dict(hy_dict_elements)
-                node_for_formatting = HyNode(type="def-time-entity", value=display_name)
+                node_for_formatting = HyNode(type="def-entity", value=display_name)
                 setattr(node_for_formatting, "definition_kind", "entity-type")
                 setattr(node_for_formatting, "attribute_schemas_raw_hy", attr_schemas_for_hy_node)
                 type_def_hy_lines.extend(schema_plugin.format(node_for_formatting))
@@ -233,9 +398,9 @@ class TimeEntityComponent(SystemComponent):
             except Exception as e_save_schema:
                 self.logger.error(f"Error saving entity type defs: {e_save_schema}", exc_info=True)
         else:
-            self.logger.error("Schema plugin 'def-time-entity' not found. Cannot save schemas.")
+            self.logger.error("Schema plugin 'def-entity' not found. Cannot save schemas.")
 
-        instances_by_type_and_category: Dict[str, Dict[str, List[TimeEntity]]] = {}
+        instances_by_type_and_category: Dict[str, Dict[str, List[Entity]]] = {}
         for entity_instance in self._items.values():
             instances_by_type_and_category.setdefault(entity_instance.entity_type, {}).setdefault(
                 entity_instance.category, []
@@ -272,7 +437,6 @@ class TimeEntityComponent(SystemComponent):
                         "attributes_typed",
                         entity_instance.get_all_attributes_typed(),
                     )
-                    # --- PASTE DEBUG LOGS FROM RESPONSE #15 HERE ---
                     if (
                         entity_instance.name == "Complete UTMS migration"
                         or "test" in entity_instance.name
@@ -311,7 +475,6 @@ class TimeEntityComponent(SystemComponent):
                                 self.logger.error(
                                     f"PERSISTENCE LOOKS LIKE SERIALIZED DICT for static '{attr_name_debug}': {persistence_string}"
                                 )
-                    # --- END DEBUG AREA ---
                     instance_hy_lines.extend(instance_plugin.format(node_for_formatting))
                     instance_hy_lines.append("")
                 try:
@@ -334,29 +497,36 @@ class TimeEntityComponent(SystemComponent):
                     self.logger.info(f"Removed empty category file: {empty_filepath}")
                 except OSError as e_remove:
                     self.logger.error(f"Error removing {empty_filepath}: {e_remove}")
-        self.logger.info("Time Entities saving complete.")
+        self.logger.info("Entities saving complete.")
 
     def _get_entity_schema(self, entity_type_str: str) -> Optional[Dict[str, Any]]:
-        # ... (same as response #15) ...
         type_def = self.entity_types.get(entity_type_str.lower())
         return type_def.get("attributes_schema") if type_def else None
 
-    # --- ADDED/RESTORED GETTER METHODS ---
-    def get_entity(self, entity_type: str, name: str) -> Optional[TimeEntity]:
+    def get_entity(self, entity_type: str, category: str, name: str) -> Optional[Entity]:
         """
-        Get a specific entity by type and name.
-        Assumes entity names are unique across all categories for a given type.
-        If names are unique only within a category, this method needs a 'category' param.
+        Get a specific entity by its unique type, category, and name.
         """
-        # The manager's get_by_name_and_type already uses the key "entity_type:name"
-        return self._time_entity_manager.get_by_name_and_type(name, entity_type.lower())
+        if not category:  # Ensure category is provided
+            self.logger.warning(
+                "get_entity called without a category. Category is required for unique lookup."
+            )
+            # Or raise ValueError("Category is required for get_entity")
+            return None
 
-    def get_by_type(self, entity_type: str, category: Optional[str] = None) -> List[TimeEntity]:
+        # Use the new category-aware method from EntityManager
+        return self._entity_manager.get_by_name_type_category(
+            name=name,
+            entity_type=entity_type.lower(),
+            category=category.lower(),  # Ensure category is normalized
+        )
+
+    def get_by_type(self, entity_type: str, category: Optional[str] = None) -> List[Entity]:
         """
         Get all entities of a specific type, optionally filtered by category.
         """
         # The manager's get_by_type now handles category filtering.
-        return self._time_entity_manager.get_by_type(entity_type.lower(), category)
+        return self._entity_manager.get_by_type(entity_type.lower(), category)
 
     def get_entity_types(self) -> List[str]:
         """
@@ -370,7 +540,6 @@ class TimeEntityComponent(SystemComponent):
         return list(self.entity_types.keys())  # Keys of self.entity_types are lowercase
 
     def get_all_entity_type_details(self) -> List[Dict[str, Any]]:
-        # ... (same as response #15) ...
         if not self._loaded:
             self.load()
         details = []
@@ -384,22 +553,27 @@ class TimeEntityComponent(SystemComponent):
             )
         return details
 
-    # --- CRUD methods using manager and TypedValues ---
     def create_entity(
         self,
         name: str,
         entity_type: str,
         attributes_raw: Optional[Dict[str, Any]] = None,
         category: str = "default",  # Added category parameter
-    ) -> TimeEntity:
-        # ... (This is the corrected version from response #15, including resolution)
+    ) -> Entity:
         self.logger.debug(
             f"Component.create_entity: name='{name}', type='{entity_type}', category='{category}', raw_attrs='{attributes_raw}'"
         )
-        entity_type_key = entity_type.lower()
+        entity_type_key = entity_type.lower().strip()
         category_key = sanitize_filename(
             category.strip().lower() if category and category.strip() else "default"
         )
+        name_key = name.strip()
+
+        if not name_key:
+            raise ValueError("Entity name cannot be empty.")
+        if not entity_type_key:
+            raise ValueError("Entity type cannot be empty.")
+
         schema = self._get_entity_schema(entity_type_key) or {}
         final_typed_attributes: Dict[str, TypedValue] = {}
         raw_attributes_to_process = attributes_raw or {}
@@ -424,42 +598,56 @@ class TimeEntityComponent(SystemComponent):
             item_type_str = attr_schema_details.get("item_type")
             item_type_enum = FieldType.from_string(item_type_str) if item_type_str else None
             enum_choices = attr_schema_details.get("enum_choices", [])
-            is_dynamic = False
-            original_expr = None
-            value_for_typed_value_constructor = raw_value_from_api
+
+            item_schema_type_from_schema = attr_schema_details.get("item_schema_type")
+            ref_entity_type_from_schema = attr_schema_details.get("referenced_entity_type")
+            ref_entity_cat_from_schema = attr_schema_details.get("referenced_entity_category")
+
+            is_dynamic_attr_flag = False
+            original_expr_str = None
+            value_for_tv_constructor = raw_value_from_api
+
             if (
                 isinstance(raw_value_from_api, str)
                 and raw_value_from_api.strip().startswith("(")
                 and raw_value_from_api.strip().endswith(")")
             ):
-                is_dynamic = True
-                original_expr = raw_value_from_api
-                if field_type_enum != FieldType.CODE:
+                is_dynamic_attr_flag = True
+                original_expr_str = raw_value_from_api
+                if field_type_enum not in [
+                    FieldType.CODE,
+                    FieldType.DATETIME,
+                    FieldType.ENTITY_REFERENCE,
+                ]:  # Types that store expressions directly
                     try:
                         resolved_val_raw, _ = self._loader._dynamic_service.evaluate(
-                            expression=original_expr,
+                            expression=original_expr_str,
                             context=variables_for_eval_context,
-                            component_type=f"time_entity.{entity_type_key}",
-                            component_label=name,
+                            component_type=f"entity.{entity_type_key}",
+                            component_label=f"{category_key}:{name_key}",
                             attribute=attr_name,
                         )
-                        value_for_typed_value_constructor = hy_to_python(resolved_val_raw)
-                    except Exception as e_resolve:
+                        value_for_tv_constructor = hy_to_python(resolved_val_raw)
+                    except Exception as e_resolve:  # pragma: no cover
                         self.logger.error(
-                            f"Resolve fail in create for '{attr_name}': {e_resolve}. Storing original as value for CODE or None.",
-                            exc_info=True,
+                            f"Resolve fail in create for '{attr_name}': {e_resolve}. Storing original or None."
                         )
-                        value_for_typed_value_constructor = (
-                            original_expr if field_type_enum == FieldType.CODE else None
+                        value_for_tv_constructor = (
+                            original_expr_str if field_type_enum == FieldType.CODE else None
                         )
+
             final_typed_attributes[attr_name] = TypedValue(
-                value=value_for_typed_value_constructor,
+                value=value_for_tv_constructor,
                 field_type=field_type_enum,
-                is_dynamic=is_dynamic,
-                original=original_expr,
+                is_dynamic=is_dynamic_attr_flag,
+                original=original_expr_str,
                 enum_choices=enum_choices,
                 item_type=item_type_enum,
+                item_schema_type=item_schema_type_from_schema,
+                referenced_entity_type=ref_entity_type_from_schema,
+                referenced_entity_category=ref_entity_cat_from_schema,
             )
+
             for attr_name_check, tv_check in final_typed_attributes.items():
                 attr_schema_detail = schema.get(attr_name_check, {})
                 if attr_schema_detail.get("required"):  # Check if schema declared it as required
@@ -478,7 +666,7 @@ class TimeEntityComponent(SystemComponent):
                         self.logger.warning(error_msg)
                         raise ValueError(error_msg)
 
-        entity_instance = self._time_entity_manager.create(
+        entity_instance = self._entity_manager.create(
             name=name,
             entity_type=entity_type_key,
             attributes=final_typed_attributes,
@@ -490,16 +678,16 @@ class TimeEntityComponent(SystemComponent):
     def update_entity_attribute(
         self,
         entity_type: str,
+        category: str,
         name: str,
         attr_name: str,
         new_raw_value_from_api: Any,
         is_new_value_dynamic: bool = False,
         new_original_expression: Optional[str] = None,
     ):
-        # ... (This is the corrected version from response #15, including resolution)
-        entity = self.get_entity(entity_type, name)
+        entity = self.get_entity(entity_type, category, name)
         if not entity:
-            raise ValueError(f"Entity {entity_type}:{name} not found for update.")
+            raise ValueError(f"Entity {entity_type}:{category}:{name} not found for update.")
         existing_typed_value = entity.get_attribute_typed(attr_name)
         schema = self._get_entity_schema(entity_type.lower()) or {}
         attr_schema_details = schema.get(attr_name, {})
@@ -537,7 +725,7 @@ class TimeEntityComponent(SystemComponent):
                 resolved_val_raw, _ = self._loader._dynamic_service.evaluate(
                     expression=new_original_expression,
                     context=variables_for_eval_context,
-                    component_type=f"time_entity.{entity_type.lower()}",
+                    component_type=f"entity.{entity_type.lower()}",
                     component_label=name,
                     attribute=attr_name,
                 )
@@ -574,41 +762,75 @@ class TimeEntityComponent(SystemComponent):
         entity.set_attribute_typed(attr_name, updated_typed_value)
         self.save()
         self.logger.info(
-            f"Updated attribute '{attr_name}' for entity '{entity_type}:{name}'. New TV: {repr(updated_typed_value)}"
+            f"Updated attribute '{attr_name}' for entity '{entity_type}:{category}:{name}'. New TV: {repr(updated_typed_value)}"
         )
 
-    def remove_entity(self, entity_type: str, name: str) -> None:
-        # ... (same as response #15)
-        key = f"{entity_type.lower()}:{name}"
-        if key in self._items:
-            self._time_entity_manager.remove(key)
-            self.save()
-        else:
+    def remove_entity(self, entity_type: str, category: str, name: str) -> None:
+        """Remove an entity by its unique type, category, and name."""
+        entity_type_key = entity_type.lower().strip()
+        category_key = category.strip().lower() if category and category.strip() else "default"
+        name_key = name.strip()
+
+        if not self._entity_manager.remove_entity(name_key, entity_type_key, category_key):
             self.logger.warning(
-                f"Entity not found for removal: type='{entity_type}', name='{name}'"
+                f"Entity not found in manager for removal: type='{entity_type_key}', category='{category_key}', name='{name_key}'"
             )
+        else:
+            self.save()
+            self.logger.info(f"Removed entity: {entity_type_key}:{category_key}:{name_key}")
 
-    def rename_entity(self, entity_type: str, old_name: str, new_name: str) -> None:
-        # ... (same as response #15)
-        entity_type_key = entity_type.lower()
-        old_internal_key = f"{entity_type_key}:{old_name}"
-        new_internal_key = f"{entity_type_key}:{new_name}"
-        if old_internal_key not in self._items:
-            raise ValueError(f"Entity to rename not found: {old_internal_key}")
-        if new_internal_key in self._items:
-            raise ValueError(f"New entity name already exists: {new_internal_key}")
-        entity_to_rename = self._items.pop(old_internal_key)
-        original_category = entity_to_rename.category
-        entity_to_rename.name = new_name
-        self._items[new_internal_key] = entity_to_rename
-        self.save()
-        self.logger.info(
-            f"Renamed entity from '{old_internal_key}' to '{new_internal_key}' (category: '{original_category}')."
+    def rename_entity(
+        self,
+        entity_type: str,
+        old_category: str,
+        old_name: str,
+        new_name: str,
+        new_category: Optional[str] = None,
+    ) -> None:
+        entity_type_key = entity_type.lower().strip()
+        old_category_key = (
+            old_category.strip().lower() if old_category and old_category.strip() else "default"
+        )
+        old_name_key = old_name.strip()
+        new_name_key = new_name.strip()
+        new_category_key = (
+            new_category.strip().lower()
+            if new_category and new_category.strip()
+            else old_category_key
+        )
+        if not new_name_key:
+            raise ValueError("New entity name cannot be empty.")
+        entity_to_rename = self._entity_manager.get_by_name_type_category(
+            old_name_key, entity_type_key, old_category_key
+        )
+        if not entity_to_rename:
+            raise ValueError(
+                f"Entity to rename not found: {entity_type_key}:{old_category_key}:{old_name_key}"
+            )
+        if old_name_key != new_name_key or old_category_key != new_category_key:
+            if self._entity_manager.get_by_name_type_category(
+                new_name_key, entity_type_key, new_category_key
+            ):
+                raise ValueError(
+                    f"New entity identifier already exists: {entity_type_key}:{new_category_key}:{new_name_key}"
+                )
+        self._entity_manager.remove_entity(old_name_key, entity_type_key, old_category_key)
+        entity_to_rename.name = new_name_key
+        entity_to_rename.category = new_category_key
+        self._entity_manager.create(
+            name=entity_to_rename.name,
+            entity_type=entity_to_rename.entity_type,
+            category=entity_to_rename.category,
+            attributes=entity_to_rename.attributes,
         )
 
-    # --- Category Management Methods ---
+        self.save()  # Persist changes
+        self.logger.info(
+            f"Renamed entity from '{entity_type_key}:{old_category_key}:{old_name_key}' "
+            f"to '{entity_type_key}:{new_category_key}:{new_name_key}'."
+        )
+
     def get_categories(self, entity_type_str: str) -> List[str]:
-        # ... (same as response #15)
         entity_type_key = entity_type_str.lower()
         type_specific_dir = os.path.join(
             self._entity_type_instances_base_dir, f"{entity_type_key}s"
@@ -617,13 +839,13 @@ class TimeEntityComponent(SystemComponent):
         if os.path.isdir(type_specific_dir):
             for filename in os.listdir(type_specific_dir):
                 if filename.endswith(".hy"):
-                    categories.append(sanitize_filename(os.path.splitext(filename)[0]))
-        return sorted(
-            list(set(c for c in categories if c))
-        )  # Filter out empty strings from sanitize
+                    sanitized_name = sanitize_filename(os.path.splitext(filename)[0])
+                    if sanitized_name:
+                        categories.append(sanitized_name)
+        unique_categories = sorted(list(set(c for c in categories if c)))
+        return unique_categories
 
     def create_category(self, entity_type_str: str, category_name: str) -> bool:
-        # ... (same as response #15)
         entity_type_key = entity_type_str.lower()
         category_filename_part = sanitize_filename(category_name.lower())
         if not category_filename_part:
@@ -649,7 +871,6 @@ class TimeEntityComponent(SystemComponent):
     def rename_category(
         self, entity_type_str: str, old_category_name: str, new_category_name: str
     ) -> bool:
-        # ... (same as response #15)
         entity_type_key = entity_type_str.lower()
         old_cat_fn_part = sanitize_filename(old_category_name.lower())
         new_cat_fn_part = sanitize_filename(new_category_name.lower())
@@ -687,7 +908,6 @@ class TimeEntityComponent(SystemComponent):
     def delete_category(
         self, entity_type_str: str, category_name: str, move_entities_to_default: bool = True
     ) -> bool:
-        # ... (same as response #15)
         entity_type_key = entity_type_str.lower()
         category_to_delete_fn_part = sanitize_filename(category_name.lower())
         if not category_to_delete_fn_part or category_to_delete_fn_part == "default":
@@ -730,7 +950,6 @@ class TimeEntityComponent(SystemComponent):
     def move_entity_to_category(
         self, entity_type: str, entity_name: str, new_category_name: str
     ) -> bool:
-        # ... (same as response #15)
         entity = self.get_entity(entity_type, entity_name)
         if not entity:
             self.logger.error(f"Entity '{entity_type}:{entity_name}' not found to move.")
@@ -747,7 +966,5 @@ class TimeEntityComponent(SystemComponent):
         self.save()
         return True
 
-    def get_tasks(self, category: Optional[str] = None) -> List[TimeEntity]:
+    def get_tasks(self, category: Optional[str] = None) -> List[Entity]:
         return self.get_by_type("task", category)
-
-    # ... other convenience getters for specific types

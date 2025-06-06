@@ -11,8 +11,7 @@ from utms.core.managers.elements.config import ConfigManager
 from utms.core.models import Config
 from utms.core.plugins import plugin_registry
 from utms.utils import hy_to_python
-from utms.utms_types import HyNode, TypedValue, FieldType, infer_type
-
+from utms.utms_types import FieldType, HyNode, TypedValue, infer_type
 
 
 class ConfigComponent(SystemComponent):
@@ -89,9 +88,7 @@ class ConfigComponent(SystemComponent):
         config_node = plugin.parse(["custom-set-config"] + config_entries)
         return config_node
 
-    def create_config(
-        self, key: str, value: Any
-    ) -> Config:
+    def create_config(self, key: str, value: Any) -> Config:
         """Create a new config entry."""
         # Let the manager handle TypedValue conversion
         config = self._config_manager.create(key=key, value=value)
@@ -100,7 +97,6 @@ class ConfigComponent(SystemComponent):
         self.save()
 
         return config
-
 
     def get_config(self, key: str) -> Optional[Config]:
         """Get a config by key."""
@@ -129,10 +125,7 @@ class ConfigComponent(SystemComponent):
             original = config.value.original
 
             typed_value = TypedValue(
-                value=value,
-                field_type=field_type,
-                is_dynamic=is_dynamic,
-                original=original
+                value=value, field_type=field_type, is_dynamic=is_dynamic, original=original
             )
         else:
             typed_value = value
@@ -142,7 +135,6 @@ class ConfigComponent(SystemComponent):
 
         # Save the updated configuration
         self.save()
-
 
     def set_dynamic_field(self, key: str, field_name: str, value: Any, original: str):
         """Set a field as dynamic with its original expression"""
@@ -158,10 +150,7 @@ class ConfigComponent(SystemComponent):
 
         # Create a TypedValue with dynamic properties
         typed_value = TypedValue(
-            value=value,
-            field_type=field_type,
-            is_dynamic=True,
-            original=original
+            value=value, field_type=field_type, is_dynamic=True, original=original
         )
 
         # Create a new config with the dynamic value
@@ -178,9 +167,7 @@ class ConfigComponent(SystemComponent):
 
         # Create new config with same properties
         self._config_manager.create(
-            key=new_key,
-            value=config.value,
-            dynamic_fields=config.dynamic_fields
+            key=new_key, value=config.value, dynamic_fields=config.dynamic_fields
         )
 
         # Remove old config

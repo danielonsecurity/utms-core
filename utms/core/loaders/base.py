@@ -25,10 +25,10 @@ class LoaderContext:
     # Use field(default_factory=dict) for mutable defaults
     variables: Dict[str, Any] = field(default_factory=dict)
     dependencies: Optional[Dict[str, Any]] = None  # Or specific type
-
-    # --- New fields for entity loading context ---
     current_entity_type: Optional[str] = None  # e.g., "task" (lowercase string)
     current_category: Optional[str] = None  # e.g., "work", "default" (lowercase string)
+    current_entity_schema: Optional[Dict[str, Any]] = None  # Stores the attributes_schema dict
+    known_complex_type_schemas: Optional[Dict[str, Any]] = None  # Stores all complex type schemas
 
 
 class ComponentLoader(

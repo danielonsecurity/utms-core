@@ -1,15 +1,16 @@
-# utms.web.api.models.entities.py
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field  # Field might not be needed for these simple payloads
 
 
 class AttributeSchemaDetail(BaseModel):
     type: str
-    label: str
-    default_value: Any  # This can remain Any as it's schema definition
-    is_dynamic_allowed: Optional[bool] = None
-    enum_choices: Optional[List[Any]] = None
+    label: Optional[str] = None
+    default_value: Optional[Any] = None
+    required: Optional[Union[bool, str]] = None
+    item_type: Optional[str] = None
+    item_schema_type: Optional[str] = None
+    referenced_entity_type: Optional[str] = None
 
 
 class EntityTypeDetailSchema(BaseModel):

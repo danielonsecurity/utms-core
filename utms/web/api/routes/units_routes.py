@@ -27,7 +27,6 @@ async def get_units(config: Config = Depends(get_config)):
 @router.put("/api/units/{label}", response_class=JSONResponse)
 async def update_unit(label: str, updates: dict = Body(...), config: Config = Depends(get_config)):
     try:
-        breakpoint()
         unit = config.units.get_unit(label)
         if not unit:
             raise HTTPException(status_code=404, detail="Unit not found")

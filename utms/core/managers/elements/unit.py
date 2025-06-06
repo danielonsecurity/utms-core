@@ -2,12 +2,11 @@ from argparse import Namespace
 from decimal import Decimal
 from typing import Dict, List, Optional, Union
 
+from utms.core.managers.base import BaseManager
+from utms.core.models import Unit
 from utms.core.time.plt import seconds_to_hplt, seconds_to_pplt
 from utms.utils import format_value
 from utms.utms_types import UnitManagerProtocol
-
-from utms.core.models import Unit
-from utms.core.managers.base import BaseManager
 
 
 class UnitManager(BaseManager[Unit], UnitManagerProtocol):

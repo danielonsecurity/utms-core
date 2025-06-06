@@ -1,7 +1,8 @@
 from typing import Dict, List, Optional, Type
 
-from .base import NodePlugin, UTMSPlugin
 from utms.core.mixins.base import LoggerMixin
+
+from .base import NodePlugin, UTMSPlugin
 
 
 class PluginRegistry(LoggerMixin):
@@ -48,6 +49,7 @@ class PluginRegistry(LoggerMixin):
         except Exception as e:
             self.logger.error("Error registering plugin %s", e)
             import traceback
+
             print(traceback.format_exc())
 
     def register_generic_plugin(self, plugin_class: Type[UTMSPlugin], overwrite: bool = False):
@@ -91,6 +93,7 @@ class PluginRegistry(LoggerMixin):
                 except Exception as e:
                     self.logger.error("Error creating plugin instance %s", e)
                     import traceback
+
                     self.logger.error(traceback.format_exc())
                     return None
             return self._active_node_plugins[node_type]

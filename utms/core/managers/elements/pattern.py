@@ -1,8 +1,7 @@
 from typing import Dict, List, Optional
 
-from utms.utms_types.recurrence.pattern import RecurrencePattern
-
 from utms.core.managers.base import BaseManager
+from utms.utms_types.recurrence.pattern import RecurrencePattern
 
 
 class PatternManager(BaseManager[RecurrencePattern]):

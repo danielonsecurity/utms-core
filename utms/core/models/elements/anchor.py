@@ -3,10 +3,9 @@ from decimal import Decimal
 from typing import List, Optional
 
 from utms.core.formats import TimeUncertainty
-from utms.utils import ColorFormatter
-
 from utms.core.formats import registry as format_registry
 from utms.core.mixins.model import ModelMixin
+from utms.utils import ColorFormatter
 
 
 @dataclass

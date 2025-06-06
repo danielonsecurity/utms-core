@@ -1,12 +1,11 @@
 import os
 from typing import Dict, List, Optional
 
+from utms.core.components.base import SystemComponent
 from utms.core.hy.ast import HyAST
 from utms.core.loaders.elements.pattern import PatternLoader
 from utms.core.managers.elements.pattern import PatternManager
 from utms.utms_types.recurrence.pattern import RecurrencePattern
-
-from utms.core.components.base import SystemComponent
 
 
 class PatternComponent(SystemComponent):
