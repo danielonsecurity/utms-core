@@ -1,9 +1,11 @@
 import os
 import shutil
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
 import hy
 import hy.models
+import sh
 
 from utms.core.components.base import SystemComponent
 from utms.core.hy.ast import HyAST
@@ -356,49 +358,64 @@ class EntityComponent(SystemComponent):
         return None
 
     def save(self) -> None:
-        self.logger.info("Saving Entities...")
+        self.logger.info("Saving entity type schemas...")
         self._ensure_dirs()
-        entity_types_filepath = os.path.join(self._schema_def_dir, self.ENTITY_TYPES_FILENAME)
         schema_plugin = plugin_registry.get_node_plugin("def-entity")
-        if schema_plugin:
-            type_def_hy_lines = []
-            for entity_type_key in sorted(self.entity_types.keys()):
-                schema_def = self.entity_types[entity_type_key]
-                display_name = schema_def["name"]
-                python_attr_schemas = schema_def["attributes_schema"]
-                attr_schemas_for_hy_node: Dict[str, hy.models.HyObject] = {}
-                for attr_name, py_schema_dict in python_attr_schemas.items():
-                    hy_dict_elements = []
-                    for k, v_item in py_schema_dict.items():
-                        hy_dict_elements.append(hy.models.Keyword(k))
-                        if isinstance(v_item, str):
-                            hy_dict_elements.append(hy.models.String(v_item))
-                        elif isinstance(v_item, int):
-                            hy_dict_elements.append(hy.models.Integer(v_item))
-                        elif isinstance(v_item, bool):
-                            hy_dict_elements.append(hy.models.Boolean(v_item))
-                        elif isinstance(v_item, list):
-                            hy_dict_elements.append(
-                                hy.models.List([hy.models.String(str(i)) for i in v_item])
-                            )
-                        else:
-                            hy_dict_elements.append(hy.models.String(str(v_item)))
-                    attr_schemas_for_hy_node[attr_name] = hy.models.Dict(hy_dict_elements)
-                node_for_formatting = HyNode(type="def-entity", value=display_name)
-                setattr(node_for_formatting, "definition_kind", "entity-type")
-                setattr(node_for_formatting, "attribute_schemas_raw_hy", attr_schemas_for_hy_node)
-                type_def_hy_lines.extend(schema_plugin.format(node_for_formatting))
-                type_def_hy_lines.append("")
-            try:
-                with open(entity_types_filepath, "w", encoding="utf-8") as f:
-                    f.write("\n".join(type_def_hy_lines))
-                self.logger.info(
-                    f"Saved {len(self.entity_types)} entity type defs to {entity_types_filepath}"
-                )
-            except Exception as e_save_schema:
-                self.logger.error(f"Error saving entity type defs: {e_save_schema}", exc_info=True)
+        if not schema_plugin:
+            self.logger.error("Schema plugin 'def-entity' not found. Cannot save schemas")
         else:
-            self.logger.error("Schema plugin 'def-entity' not found. Cannot save schemas.")
+            schemas_by_file: Dict[str, List[Dict[str, Any]]] = {}
+            for entity_type_key, schema_def in self.entity_types.items():
+                source_filename = schema_def.get("source_file", "default.hy")
+                if source_filename not in schemas_by_file:
+                    schemas_by_file[source_filename] = []
+                schemas_by_file[source_filename].append(schema_def)
+
+            for source_filename, schemas_in_file in schemas_by_file.items():
+                output_filepath = os.path.join(self._entity_schema_def_dir, source_filename)
+                type_def_hy_lines = []
+
+                sorted_schemas = sorted(schemas_in_file, key=lambda s: s.get("name", ""))
+
+                for schema_def in sorted_schemas:
+                    display_name = schema_def["name"]
+                    python_attr_schemas = schema_def["attributes_schema"]
+
+                    attr_schemas_for_hy_node: Dict[str, hy.models.HyObject] = {}
+                    for attr_name, py_schema_dict in python_attr_schemas.items():
+                        hy_dict_elements = []
+                        for k, v_item in py_schema_dict.items():
+                            hy_dict_elements.append(hy.models.Keyword(k))
+                            if isinstance(v_item, str):
+                                hy_dict_elements.append(hy.models.String(v_item))
+                            elif isinstance(v_item, int):
+                                hy_dict_elements.append(hy.models.Integer(v_item))
+                            elif isinstance(v_item, bool):
+                                hy_dict_elements.append(hy.models.Boolean(v_item))
+                            elif isinstance(v_item, list):
+                                hy_dict_elements.append(
+                                    hy.models.List([hy.models.String(str(i)) for i in v_item])
+                                )
+                            else:
+                                hy_dict_elements.append(hy.models.String(str(v_item)))
+                        attr_schemas_for_hy_node[attr_name] = hy.models.Dict(hy_dict_elements)
+                    node_for_formatting = HyNode(type="def-entity", value=display_name)
+                    setattr(node_for_formatting, "definition_kind", "entity-type")
+                    setattr(
+                        node_for_formatting, "attribute_schemas_raw_hy", attr_schemas_for_hy_node
+                    )
+                    type_def_hy_lines.extend(schema_plugin.format(node_for_formatting))
+                    type_def_hy_lines.append("")
+                try:
+                    with open(output_filepath, "w", encoding="utf-8") as f:
+                        f.write("\n".join(type_def_hy_lines))
+                    self.logger.info(
+                        f"Saved {len(self.entity_types)} entity type defs to {output_filepath}"
+                    )
+                except Exception as e_save_schema:
+                    self.logger.error(
+                        f"Error saving entity type defs: {e_save_schema}", exc_info=True
+                    )
 
         instances_by_type_and_category: Dict[str, Dict[str, List[Entity]]] = {}
         for entity_instance in self._items.values():
@@ -432,10 +449,25 @@ class EntityComponent(SystemComponent):
                     node_for_formatting = HyNode(
                         type=f"def-{entity_type_key}", value=entity_instance.name
                     )
+                    fresh_attributes_typed = {}
+                    for attr_name, tv in entity_instance.get_all_attributes_typed().items():
+                        # Re-create the TypedValue from its own properties.
+                        fresh_attributes_typed[attr_name] = TypedValue(
+                            value=tv.value,
+                            field_type=tv.field_type,
+                            is_dynamic=tv.is_dynamic,
+                            original=tv.original,
+                            item_type=tv.item_type,
+                            enum_choices=tv.enum_choices,
+                            item_schema_type=tv.item_schema_type,
+                            referenced_entity_type=tv.referenced_entity_type,
+                            referenced_entity_category=tv.referenced_entity_category,
+                        )
+
                     setattr(
                         node_for_formatting,
                         "attributes_typed",
-                        entity_instance.get_all_attributes_typed(),
+                        fresh_attributes_typed,  # Use the fresh dictionary
                     )
                     if (
                         entity_instance.name == "Complete UTMS migration"
@@ -491,7 +523,7 @@ class EntityComponent(SystemComponent):
                         exc_info=True,
                     )
         for empty_filepath in existing_files_to_check_for_emptiness.keys():
-            if os.path.basename(empty_filepath).lower() != self.DEFAULT_CATEGORY_FILENAME.lower():
+            if os.path.basename(empty_filepath).lower() != "default.hy":
                 try:
                     os.remove(empty_filepath)
                     self.logger.info(f"Removed empty category file: {empty_filepath}")
@@ -948,23 +980,221 @@ class EntityComponent(SystemComponent):
             return False
 
     def move_entity_to_category(
-        self, entity_type: str, entity_name: str, new_category_name: str
+        self, entity_type: str, old_category: str, entity_name: str, new_category_name: str
     ) -> bool:
-        entity = self.get_entity(entity_type, entity_name)
+        entity = self.get_entity(entity_type, old_category, entity_name)  # Correct call
         if not entity:
-            self.logger.error(f"Entity '{entity_type}:{entity_name}' not found to move.")
+            self.logger.error(
+                f"Entity '{entity_type}:{old_category}:{entity_name}' not found to move."
+            )
             return False
         new_cat_key = sanitize_filename(
             new_category_name.lower()
             if new_category_name and new_category_name.strip()
             else "default"
         )
-        entity.category = new_cat_key
-        self.logger.info(
-            f"Entity '{entity_type}:{entity_name}' category set to '{new_cat_key}' in memory."
+
+        self.rename_entity(
+            entity_type=entity_type,
+            old_category=old_category,
+            old_name=entity_name,
+            new_name=entity_name,  # name doesn't change
+            new_category=new_cat_key,  # only category changes
         )
-        self.save()
         return True
 
     def get_tasks(self, category: Optional[str] = None) -> List[Entity]:
         return self.get_by_type("task", category)
+
+    def start_occurrence(
+        self, entity_type: str, category: str, name: str, list_attribute_name: str = "occurrences"
+    ) -> Entity:
+        """
+        Starts a new occurrence for an entity by setting its 'active_occurrence_start_time'
+        and handles context switching if defined.
+        """
+        self.logger.debug(f"Attempting to start occurrence for {entity_type}:{category}:{name}")
+        entity = self.get_entity(entity_type, category, name)
+        if not entity:
+            raise ValueError(f"Entity not found: {entity_type}:{category}:{name}")
+
+        active_start_time_attr = "active_occurrence_start_time"
+        if not entity.has_attribute(active_start_time_attr):
+            raise TypeError(
+                f"Entity '{name}' is not configured to track active occurrences (missing '{active_start_time_attr}' attribute)."
+            )
+
+        if entity.get_attribute_value(active_start_time_attr) is not None:
+            raise ValueError("An occurrence is already in progress for this entity.")
+        now_utc = datetime.now(timezone.utc)
+        start_time_tv = TypedValue(value=now_utc, field_type=FieldType.DATETIME)
+
+        entity.set_attribute_typed(active_start_time_attr, start_time_tv)
+        self.logger.info(
+            f"Set '{active_start_time_attr}' for '{name}' to {start_time_tv.value} in memory."
+        )
+
+        context_tv = entity.get_attribute_typed("context")
+        if context_tv and context_tv.value:
+            context_to_switch = str(context_tv.value)
+            self.logger.info(
+                f"Entity '{name}' has associated context: '{context_to_switch}'. Triggering switch."
+            )
+
+            try:
+                daily_log_component = self.get_component("daily_logs")
+                if daily_log_component is not None:
+                    if not daily_log_component.is_loaded():
+                        daily_log_component.load()
+                    daily_log_component.switch_context(context_to_switch)
+                    self.logger.info(
+                        f"Successfully switched daily log context to '{context_to_switch}'."
+                    )
+                else:
+                    self.logger.warning(
+                        "DailyLogComponent not found. Cannot perform automatic context switch."
+                    )
+            except Exception as e:
+                self.logger.error(
+                    f"Failed to switch context for entity '{name}': {e}", exc_info=True
+                )
+
+        self._run_hook_code(entity, "on-start-hook", "start")
+        self.save()  # This single save persists both the entity change and the daily_log change.
+        return entity
+
+    def end_occurrence(
+        self,
+        entity_type: str,
+        category: str,
+        name: str,
+        notes: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        list_attribute_name: str = "occurrences",
+    ) -> Entity:
+        """
+        Ends an in-progress occurrence, logs it to the occurrences list,
+        and clears the active start time.
+        """
+        self.logger.debug(f"Attempting to end occurrence for {entity_type}:{category}:{name}")
+        entity = self.get_entity(entity_type, category, name)
+        if not entity:
+            raise ValueError(f"Entity not found: {entity_type}:{category}:{name}")
+
+        # Verify the entity has the required attributes
+        active_start_time_attr = "active_occurrence_start_time"
+        if not entity.has_attribute(active_start_time_attr) or not entity.has_attribute(
+            list_attribute_name
+        ):
+            raise TypeError(f"Entity '{name}' is not configured to track occurrences.")
+
+        start_time = entity.get_attribute_value(active_start_time_attr)
+        if start_time is None:
+            raise ValueError("No active occurrence was found to end for this entity.")
+
+        from utms.utils import get_ntp_date  # Or wherever it is defined
+
+        end_time = get_ntp_date()
+
+        # Construct the new occurrence object
+        new_occurrence_data = {
+            "start_time": start_time,
+            "end_time": end_time,
+            "notes": notes or "",
+            "metadata": metadata or {},
+        }
+
+        old_occurrences_tv = entity.get_attribute_typed(list_attribute_name)
+
+        # Make a copy of the old list, or start a new one
+        new_occurrences_list = (
+            old_occurrences_tv.value.copy()
+            if old_occurrences_tv and isinstance(old_occurrences_tv.value, list)
+            else []
+        )
+
+        # Append the new data to our new list
+        new_occurrences_list.append(new_occurrence_data)
+
+        occurrences_tv = entity.get_attribute_typed(list_attribute_name)
+
+        if not occurrences_tv:
+            # If for some reason it doesn't exist, create it.
+            occurrences_tv = TypedValue(
+                value=[], field_type=FieldType.LIST, item_schema_type="OCCURRENCE"
+            )
+            entity.set_attribute_typed(list_attribute_name, occurrences_tv)
+
+        # Get the current list. Ensure it's actually a list.
+        current_list = occurrences_tv.value if isinstance(occurrences_tv.value, list) else []
+
+        # Create the new, updated list
+        new_list = current_list + [new_occurrence_data]
+
+        # Set the 'value' property on the existing TypedValue.
+        # This will trigger the setter, which re-runs _convert_value.
+        occurrences_tv.value = new_list
+
+        # Clear the active start time by setting it back to None
+        cleared_start_time_tv = TypedValue(
+            value=None, field_type=FieldType.DATETIME, original="None"
+        )
+        entity.set_attribute_typed(active_start_time_attr, cleared_start_time_tv)
+
+        entity_in_method = entity  # The object we just modified
+        entity_in_manager = self._entity_manager.get(f"{entity_type}:{category}:{name}")
+        self.logger.info(f"Ended and logged occurrence for '{name}' in memory.")
+
+        self._run_hook_code(entity, "on-end-hook", "end")
+        self.save()
+        return entity
+
+    def _run_hook_code(self, entity: Entity, hook_attribute_name: str, event_name: str):
+        """
+        Finds and executes the Hy code defined in a hook attribute on an entity.
+
+        Args:
+            entity: The entity instance.
+            hook_attribute_name: The name of the attribute holding the hook code (e.g., "on-start-hook").
+            event_name: A string for logging (e.g., "start").
+        """
+        self.logger.debug(
+            f"Checking for '{hook_attribute_name}' on '{entity.name}' for '{event_name}' event."
+        )
+
+        hook_tv = entity.get_attribute_typed(hook_attribute_name)
+
+        if not hook_tv or not hook_tv.original:
+            self.logger.debug(f"No hook defined for this event.")
+            return
+
+        if hook_tv.field_type != FieldType.CODE:
+            self.logger.warning(
+                f"Attribute '{hook_attribute_name}' on '{entity.name}' is not of type 'code'. Cannot execute. "
+                f"Found type: {hook_tv.field_type}"
+            )
+            return
+
+        code_to_run = hook_tv.original
+        self.logger.info(f"Executing '{event_name}' hook for '{entity.name}': {code_to_run}")
+
+        try:
+            hook_context = {
+                "sh": sh,
+            }
+            self._loader._dynamic_service.evaluate(
+                expression=code_to_run,
+                context=hook_context,
+                component_type="entity_hook",
+                component_label=f"{entity.entity_type}:{entity.category}:{entity.name}",
+                attribute=hook_attribute_name,
+            )
+            self.logger.info(f"Successfully executed '{event_name}' hook for '{entity.name}'.")
+
+        except Exception as e:
+            # IMPORTANT: We log the error but do not re-raise it.
+            # The failure of a hook should not prevent the core action (starting/ending the occurrence).
+            self.logger.error(
+                f"Error executing '{hook_attribute_name}' for entity '{entity.name}': {e}",
+                exc_info=True,
+            )

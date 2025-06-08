@@ -199,3 +199,30 @@ class VariableComponent(SystemComponent):
         self._variable_manager.remove(old_key)
 
         self.save()
+
+    def get_all_values(self) -> Dict[str, Any]:
+        """
+        Returns a dictionary of all variable names mapped to their resolved
+        Python values, suitable for use as an evaluation context.
+        """
+        if not self._loaded:
+            self.load()
+
+        context_dict = {}
+        for key, var_model in self.items():  # self.items() gives the dict of Variable models
+            if (
+                var_model
+                and hasattr(var_model, "value")
+                and isinstance(var_model.value, TypedValue)
+            ):
+                # We need the raw Python value for the context
+                context_dict[key] = var_model.value.value
+                # Also add the pythonic version for convenience
+                if "-" in key:
+                    context_dict[key.replace("-", "_")] = var_model.value.value
+            else:
+                self.logger.warning(
+                    f"Variable '{key}' has malformed data and will be skipped in context."
+                )
+
+        return context_dict

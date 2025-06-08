@@ -5,6 +5,7 @@ import appdirs
 from utms.core.components.base import ComponentManager, SystemComponent
 from utms.core.components.elements.anchor import AnchorComponent
 from utms.core.components.elements.config import ConfigComponent
+from utms.core.components.elements.daily_log import DailyLogComponent
 from utms.core.components.elements.entity import EntityComponent
 from utms.core.components.elements.pattern import PatternComponent
 from utms.core.components.elements.unit import UnitComponent
@@ -63,6 +64,7 @@ class UTMSConfig(ConfigProtocol, LoggerMixin):
         self._component_manager.register("units", UnitComponent)
         self._component_manager.register("anchors", AnchorComponent)
         self._component_manager.register("entities", EntityComponent)
+        self._component_manager.register("daily_logs", DailyLogComponent)
 
         self.logger.debug("Components registered")
 

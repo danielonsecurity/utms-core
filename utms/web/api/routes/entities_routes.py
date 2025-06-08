@@ -1,8 +1,6 @@
 from typing import Any, Dict, List, Optional, Union
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query  # Added Query
-# Request might not be needed if Pydantic model handles body well
-# from fastapi import Request
 from fastapi.responses import JSONResponse
 
 from utms.core.components.elements.entity import EntityComponent
@@ -11,6 +9,7 @@ from utms.core.logger import get_logger
 from utms.utils import sanitize_filename
 from utms.web.api.models.entities import (  # Add new Pydantic models for category payloads if desired, or use Body fields
     AttributeUpdatePayload,
+    EndOccurrencePayload,
     EntityTypeDetailSchema,
 )
 from utms.web.dependencies import get_config
@@ -199,8 +198,9 @@ async def create_new_entity_api(
         f"API create_new_entity: name='{name}', type='{entity_type}', category='{category}', attrs='{attributes_raw}'"
     )
     try:
+        category_key = category.lower() if category else "default"
         # get_entity checks across all categories if name is assumed unique per type
-        if entities_component.get_entity(entity_type.lower(), name):
+        if entities_component.get_entity(entity_type.lower(), category_key, name):
             raise HTTPException(
                 status_code=409,
                 detail=f"Entity '{entity_type}:{name}' already exists (name must be unique for this type).",
@@ -558,3 +558,82 @@ async def delete_entity_category_api(
     except Exception as e:
         logger.error(f"Error deleting category: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post(
+    "/api/entities/{entity_type}/{category}/{name}/occurrences/start",
+    response_class=JSONResponse,
+    summary="Start a new occurrence for an entity",
+    status_code=200,
+)
+async def start_entity_occurrence_api(
+    entity_type: str,
+    category: str,
+    name: str,
+    entities_component: EntityComponent = Depends(get_entities_component),
+):
+    """
+    Starts a new timed occurrence for a given entity.
+    This sets the 'active_occurrence_start_time' attribute to the current time.
+    """
+    try:
+        updated_entity = entities_component.start_occurrence(
+            entity_type=entity_type,
+            category=category,
+            name=name,
+        )
+        return updated_entity.serialize()
+    except (ValueError, TypeError) as e:
+        # 404 if entity not found, 409 if already started, 400 for other value errors
+        detail_str = str(e).lower()
+        if "not found" in detail_str:
+            status_code = 404
+        elif "already in progress" in detail_str:
+            status_code = 409  # Conflict
+        else:
+            status_code = 400  # Bad Request
+        raise HTTPException(status_code=status_code, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error starting occurrence for {entity_type}:{name}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
+
+
+@router.post(
+    "/api/entities/{entity_type}/{category}/{name}/occurrences/end",
+    response_class=JSONResponse,
+    summary="End an in-progress occurrence for an entity",
+    status_code=200,
+)
+async def end_entity_occurrence_api(
+    entity_type: str,
+    category: str,
+    name: str,
+    payload: EndOccurrencePayload,
+    entities_component: EntityComponent = Depends(get_entities_component),
+):
+    """
+    Ends an in-progress timed occurrence. This creates a new entry in the
+    'occurrences' list and clears the 'active_occurrence_start_time'.
+    """
+    try:
+        updated_entity = entities_component.end_occurrence(
+            entity_type=entity_type,
+            category=category,
+            name=name,
+            notes=payload.notes,
+            metadata=payload.metadata,
+        )
+        return updated_entity.serialize()
+    except (ValueError, TypeError) as e:
+        # 404 if entity not found, 409 if not started, 400 for other value errors
+        detail_str = str(e).lower()
+        if "not found" in detail_str:
+            status_code = 404
+        elif "no active occurrence" in detail_str:
+            status_code = 409  # Conflict
+        else:
+            status_code = 400  # Bad Request
+        raise HTTPException(status_code=status_code, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error ending occurrence for {entity_type}:{name}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")

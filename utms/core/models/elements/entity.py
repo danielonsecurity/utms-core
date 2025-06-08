@@ -101,6 +101,22 @@ class Entity(ModelMixin):
     def get_all_attributes_typed(self) -> Dict[str, TypedValue]:
         return self.attributes
 
+    def serialize(self) -> Dict[str, Any]:
+        """
+        Converts the Entity object into a JSON-serializable dictionary.
+        This is suitable for API responses.
+        """
+        serialized_attributes = {
+            attr_key: typed_value_obj.serialize()
+            for attr_key, typed_value_obj in self.attributes.items()
+        }
+        return {
+            "name": self.name,
+            "entity_type": self.entity_type,
+            "category": self.category,
+            "attributes": serialized_attributes,
+        }
+
     def __repr__(self) -> str:
         attrs_repr_parts = [f"{k}={repr(v)}" for k, v in self.attributes.items()]
         attrs_str = ", ".join(attrs_repr_parts)

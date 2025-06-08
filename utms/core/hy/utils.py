@@ -5,9 +5,10 @@ from typing import Any, List
 import hy
 
 
-
 def is_dynamic_content(value: Any) -> bool:
     """Determine if content is dynamic based on its structure."""
+    if isinstance(value, hy.models.Symbol) and str(value) == "None":
+        return False
     if isinstance(value, hy.models.Expression):
         return True  # Any Hy expression is considered dynamic
     if isinstance(value, hy.models.Symbol):
@@ -24,8 +25,8 @@ def is_dynamic_content(value: Any) -> bool:
 
 def format_value(value: Any) -> str:
     """Format a value as Hy code."""
-    from utms.utms_types import HyNode
     from utms.core.formats import TimeUncertainty
+    from utms.utms_types import HyNode
 
     if isinstance(value, HyNode):
         if value.is_dynamic and value.original:

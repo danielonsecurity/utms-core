@@ -55,3 +55,10 @@ class CreateEntityPayload(BaseModel):
     name: str
     entity_type: str
     attributes_raw: Dict[str, Any] = Field(default_factory=dict)
+
+
+class EndOccurrencePayload(BaseModel):
+    notes: Optional[str] = Field(None, description="Optional notes for the occurrence.")
+    metadata: Optional[Dict[str, Any]] = Field(
+        default_factory=dict, description="Optional key-value metadata."
+    )

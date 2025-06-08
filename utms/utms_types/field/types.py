@@ -100,7 +100,9 @@ class TypedValue:
 
     def _convert_value(self, value: Any) -> Any:
         """Convert a value to the correct type."""
-        if value is None:
+        if isinstance(value, hy.models.Symbol) and str(value) == "None":
+            return None
+        if value is None or value == "None":
             return None
         if self.field_type == FieldType.LIST and self.item_schema_type:
             if isinstance(value, (hy.models.List, list)):
@@ -566,6 +568,9 @@ def infer_type(value: Any) -> FieldType:
             return FieldType.DATETIME
         if first_symbol_str == "entity-ref":
             return FieldType.ENTITY_REFERENCE
+
+    if isinstance(value, datetime.datetime):
+        return FieldType.DATETIME
 
     if isinstance(value, DecimalTimeStamp):
         return FieldType.TIMESTAMP

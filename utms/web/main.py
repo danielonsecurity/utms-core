@@ -10,6 +10,7 @@ from utms.web.api.routes import (
     anchors_routes,
     clock_routes,
     config_routes,
+    daily_log_routes,
     entities_routes,
     resolve_routes,
     units_routes,
@@ -49,6 +50,7 @@ app.include_router(anchors_routes.router)
 app.include_router(units_routes.router)
 app.include_router(clock_routes.router)
 app.include_router(resolve_routes.router)
+app.include_router(daily_log_routes.router)
 
 
 if __name__ == "__main__":
