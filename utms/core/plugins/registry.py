@@ -22,6 +22,10 @@ class PluginRegistry(LoggerMixin):
         self._active_node_plugins: Dict[str, NodePlugin] = {}
         self._active_generic_plugins: Dict[str, UTMSPlugin] = {}
 
+    def has_plugin(self, node_type: str) -> bool:
+        """Checks if a plugin for the given node_type is already registered."""
+        return node_type in self._node_plugins
+
     def register_node_plugin(self, plugin_class: Type[NodePlugin], overwrite: bool = False):
         """
         Register a node plugin.

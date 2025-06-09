@@ -2,7 +2,7 @@ from typing import Any, Dict, List
 
 import hy
 
-from utms.core.hy.utils import format_value, is_dynamic_content
+from utms.core.hy.utils import hy_obj_to_string, is_dynamic_content
 from utms.core.plugins import NodePlugin
 from utms.utils import hy_to_python
 from utms.utms_types import HyNode

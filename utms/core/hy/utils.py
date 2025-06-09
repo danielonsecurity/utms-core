@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, List
+from typing import Any, List, Optional
 
 import hy
 
@@ -22,58 +22,107 @@ def is_dynamic_content(value: Any) -> bool:
         return any(is_dynamic_content(x) for x in value)
     return False
 
-
-def format_value(value: Any) -> str:
-    """Format a value as Hy code."""
-    from utms.core.formats import TimeUncertainty
-    from utms.utms_types import HyNode
-
-    if isinstance(value, HyNode):
-        if value.is_dynamic and value.original:
-            return value.original
-    elif isinstance(value, hy.models.Expression):
-        return hy.repr(value).strip("'")
-    elif isinstance(value, bool):
-        return str(value).lower()
-    elif isinstance(value, (hy.models.Integer, int)):
-        return str(int(value))
-    elif isinstance(value, (hy.models.Float, float)):
-        return str(float(value))
-    elif isinstance(value, Decimal):
-        return str(value)
-    elif isinstance(value, hy.models.List):
-        items = [format_value(item) for item in value]
-        return f"[{' '.join(items)}]"
-    elif isinstance(value, hy.models.Dict):
+def python_to_hy_string(value: Any) -> str:
+    """Converts a PURE PYTHON value to a Hy string representation."""
+    if isinstance(value, datetime):
+        return f"(datetime {value.year} {value.month} {value.day} {value.hour} {value.minute} {value.second} {value.microsecond})"
+    if isinstance(value, list):
+        items = " ".join([python_to_hy_string(item) for item in value])
+        return f"[{items}]"
+    if isinstance(value, dict):
         pairs = []
-        it = iter(value)
-        try:
-            while True:
-                k = next(it)
-                v = next(it)
-                if isinstance(k, hy.models.Keyword):
-                    pairs.append(f"{k} {format_value(v)}")
-                else:
-                    pairs.append(f"{format_value(k)} {format_value(v)}")
-        except StopIteration:
-            pass
+        for k, v in value.items():
+            key_str = hy.repr(hy.models.Keyword(str(k)))
+            val_str = python_to_hy_string(v)
+            pairs.append(f"{key_str} {val_str}")
         return f"{{{' '.join(pairs)}}}"
-    elif isinstance(value, hy.models.Keyword):
-        return str(value)
-    elif isinstance(value, datetime):
-        return str(value)
-    elif isinstance(value, list):
-        items = [format_value(item) for item in value]
-        return f"[{' '.join(items)}]"
-    elif isinstance(value, dict):
-        pairs = [f":{k} {format_value(v)}" for k, v in value.items()]
-        return f"{{{' '.join(pairs)}}}"
-    elif isinstance(value, TimeUncertainty):
-        return f"{{:absolute {value.absolute:.0e} :relative {value.relative:.0e}}}"
-    elif isinstance(value, (hy.models.String, str)):
-        return f'"{value}"'
-    return str(value)
+    return hy.repr(value)
 
+def hy_obj_to_string(obj: hy.models.Object) -> str:
+    """Correctly serializes a Hy AST object into a Hy source string."""
+    if isinstance(obj, hy.models.String):
+        return hy.repr(obj)  # hy.repr IS correct for hy.models.String
+    if isinstance(obj, (hy.models.Symbol, hy.models.Integer, hy.models.Float, hy.models.Keyword)):
+        return str(obj)
+
+    if isinstance(obj, hy.models.List):
+        items = " ".join([hy_obj_to_string(item) for item in obj])
+        return f"[{items}]"
+
+    if isinstance(obj, hy.models.Dict):
+        pairs = []
+        for i in range(0, len(obj), 2):
+            key_str = hy_obj_to_string(obj[i])
+            val_str = hy_obj_to_string(obj[i+1])
+            pairs.append(f"{key_str} {val_str}")
+        return f"{{{' '.join(pairs)}}}"
+
+    if isinstance(obj, hy.models.Expression):
+        items = " ".join([hy_obj_to_string(item) for item in obj])
+        return f"({items})"
+    
+    return str(obj)
+
+
+
+def get_from_hy_dict(hy_dict: hy.models.Dict, key_to_find: str, default: Any = None) -> Optional[Any]:
+    """
+    Safely gets a value from a hy.models.Dict by its keyword key.
+    Returns the HyObject value, or the provided default if not found.
+    """
+    if not isinstance(hy_dict, hy.models.Dict):
+        return default
+        
+    for i in range(0, len(hy_dict), 2):
+        key = hy_dict[i]
+        if isinstance(key, hy.models.Keyword) and str(key)[1:] == key_to_find:
+            return hy_dict[i+1]
+            
+    return default
+
+
+# def format_value(value: Any) -> str:
+#     """
+#     Formats a PURE PYTHON value into an idempotent Hy representation.
+#     """
+#     if isinstance(value, hy.models.Object):
+#         if isinstance(value, hy.models.Symbol):
+#             return str(value)  # Correctly handles True, False, None, and other symbols
+#         if isinstance(value, hy.models.String):
+#             return hy.repr(value) # Correctly adds quotes around the string content
+#         if isinstance(value, (hy.models.Integer, hy.models.Float, hy.models.Keyword)):
+#             return str(value)
+
+#         if isinstance(value, hy.models.List):
+#             items = " ".join([format_value(item) for item in value])
+#             return f"[{items}]"
+
+#         if isinstance(value, hy.models.Dict):
+#             pairs = []
+#             for i in range(0, len(value), 2):
+#                 key_str = format_value(value[i])
+#                 val_str = format_value(value[i+1])
+#                 pairs.append(f"{key_str} {val_str}")
+#             return f"{{{' '.join(pairs)}}}"
+
+#         if isinstance(value, hy.models.Expression):
+#             items = " ".join([format_value(item) for item in value])
+#             return f"({items})"
+#         return str(value)
+#     if isinstance(value, datetime):
+#         return f"(datetime {value.year} {value.month} {value.day} {value.hour} {value.minute} {value.second} {value.microsecond})"
+#     if isinstance(value, list):
+#         items = " ".join([format_value(item) for item in value])
+#         return f"[{items}]"
+
+#     if isinstance(value, dict):
+#         pairs = []
+#         for k, v in value.items():
+#             key_str = format_value(hy.models.Keyword(k))
+#             val_str = format_value(v)
+#             pairs.append(f"{key_str} {val_str}")
+#         return f"{{{' '.join(pairs)}}}"
+#     return hy.repr(value)
 
 def _format_map(content: str, base_indent: int) -> str:
     """Format map content with proper indentation."""

@@ -2,7 +2,7 @@ from typing import Any, Dict, List
 
 import hy
 
-from utms.core.hy.utils import format_value, is_dynamic_content
+from utms.core.hy.utils import hy_obj_to_string, is_dynamic_content
 from utms.core.logger import get_logger
 from utms.core.plugins import NodePlugin
 from utms.utms_types import HyNode
@@ -94,17 +94,17 @@ class PatternNodePlugin(NodePlugin):
                 ]:
                     value_str = value_node.original
                 else:
-                    value_str = format_value(value_node.value)
+                    value_str = hy_obj_to_string(value_node.value)
 
                 # Special handling for certain properties
                 if prop.value == "at":
                     # Don't wrap single values in list
                     if isinstance(value_node.value, (list, tuple)) and len(value_node.value) == 1:
-                        value_str = format_value(value_node.value[0])
+                        value_str = hy_obj_to_string(value_node.value[0])
                 elif prop.value in ["between", "except-between"]:
                     # Format as two separate values
                     if isinstance(value_node.value, (list, tuple)) and len(value_node.value) == 2:
-                        value_str = f"{format_value(value_node.value[0])} {format_value(value_node.value[1])}"
+                        value_str = f"{hy_obj_to_string(value_node.value[0])} {format_value(value_node.value[1])}"
 
                 lines.append(f"  ({prop.value} {value_str})")
 

@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 
 import hy
 
-from utms.core.hy.utils import format_value
+from utms.core.hy.utils import hy_obj_to_string
 from utms.core.mixins.base import LoggerMixin
 from utms.core.plugins.base import NodePlugin
 from utms.utms_types import HyNode
@@ -87,7 +87,7 @@ class ComplexTypeNodePlugin(NodePlugin, LoggerMixin):
 
     def format(self, node: HyNode) -> List[str]:
         """Format a complex type schema definition HyNode back to Hy code."""
-        complex_type_name_str = format_value(node.value)  # Ensures quotes if needed
+        complex_type_name_str = hy_obj_to_string(node.value)  # Ensures quotes if needed
         lines = [f"({self.node_type} {complex_type_name_str}"]
 
         attribute_schemas_raw_hy: Optional[Dict[str, hy.models.HyObject]] = getattr(

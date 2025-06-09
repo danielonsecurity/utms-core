@@ -5,7 +5,7 @@ import hy
 from hy.models import Expression, Symbol
 
 from utms.core.hy.resolvers.elements.entity import EntityResolver
-from utms.core.hy.utils import is_dynamic_content
+from utms.core.hy.utils import is_dynamic_content, get_from_hy_dict
 from utms.core.loaders.base import ComponentLoader, LoaderContext
 from utms.core.managers.elements.entity import EntityManager
 from utms.core.models.elements.entity import Entity
@@ -24,7 +24,7 @@ def python_value_to_hy_repr_string_for_original(value: Any) -> str:
     if value is None:
         return "None"
     if isinstance(value, bool):
-        return "#t" if value else "#f"
+        return "True" if value else "False"
     if isinstance(value, str):
         return hy.repr(hy.models.String(value))
     if isinstance(value, (int, float)):
@@ -114,28 +114,18 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
 
         # Pass 1: Attributes explicitly defined in the instance .hy file
         for attr_name, initial_typed_value in initial_attributes_typed.items():
-            attr_schema_details = entity_schema.get(attr_name, {})
-            declared_type_str = attr_schema_details.get("type")
+            attr_schema_details = entity_schema.get(attr_name, hy.models.Dict())
+            declared_type_hy_obj = get_from_hy_dict(attr_schema_details, "type")
+            declared_type_str = hy_to_python(declared_type_hy_obj)
             if declared_type_str == "code":
-                raw_hy_node = initial_typed_value._raw_value
-                original_expression_str = hy.repr(raw_hy_node)
-                final_attributes_for_model[attr_name] = TypedValue(
-                    value=original_expression_str,
-                    field_type=FieldType.CODE,
-                    is_dynamic=True,  # Hooks are always considered dynamic
-                    original=original_expression_str,
-                )
+                final_attributes_for_model[attr_name] = initial_typed_value
                 self.logger.debug(
-                    f"  Preserved raw code for hook '{attr_name}': {original_expression_str}"
+                    f"  Preserving hook '{attr_name}' as-is: {initial_typed_value.original}"
                 )
+                current_entity_py_attributes_for_self[attr_name] = initial_typed_value.value
+                setattr(self_object_for_eval, attr_name, initial_typed_value.value)
 
-                # Add to `self` context for potential later evaluation, but as a raw string
-                current_entity_py_attributes_for_self[attr_name] = original_expression_str
-                setattr(self_object_for_eval, attr_name, original_expression_str)
-
-                # Skip the rest of the loop to avoid the standard resolution logic
                 continue
-
             attributes_processed_from_instance.add(attr_name)
             resolved_python_value: Any
             final_original_str = initial_typed_value.original  # String from plugin
@@ -160,7 +150,7 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
                 resolved_python_value = hy_to_python(resolved_val_raw)
                 # Use schema-defined type if available, else infer from resolved value
                 attr_schema_details_for_type = entity_schema.get(attr_name, {})
-                type_from_schema = attr_schema_details_for_type.get("type")
+                type_from_schema = hy_to_python(get_from_hy_dict(attr_schema_details_for_type,"type"))
                 current_field_type = (
                     FieldType.from_string(type_from_schema)
                     if type_from_schema
@@ -190,25 +180,19 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
             if schema_attr_name in attributes_processed_from_instance:
                 continue
 
-            default_value_from_schema = attr_schema_details.get(
-                "default_value"
-            )  # This is the Python native value
+            default_value_from_schema_hy_obj = get_from_hy_dict(attr_schema_details, "default_value")
+            default_value_from_schema = hy_to_python(default_value_from_schema_hy_obj)
 
-            if "default_value" not in attr_schema_details:
-                if str(attr_schema_details.get("required", "False")).lower() == "true":
+            if get_from_hy_dict(attr_schema_details, "default_value") is None:
+                required_hy_obj = get_from_hy_dict(attr_schema_details, "required")
+                if hy_to_python(required_hy_obj) == True: # Check the python value
                     self.logger.error(
                         f"Missing required attribute '{schema_attr_name}' for '{definition_processing_key}' and no default provided."
                     )
                 continue
-
-            original_for_default_tv = python_value_to_hy_repr_string_for_original(
-                default_value_from_schema
-            )
-            self.logger.debug(
-                f"  Applying default for schema attribute '{schema_attr_name}'. Default from schema: {repr(default_value_from_schema)}, Original str for TV: '{original_for_default_tv}'"
-            )
-
-            declared_field_type = FieldType.from_string(attr_schema_details.get("type", "string"))
+                
+            declared_field_type_str = hy_to_python(get_from_hy_dict(attr_schema_details, "type", "string"))
+            declared_field_type = FieldType.from_string(declared_field_type_str)
 
             parsed_default_for_tv: Any
             is_default_expr_dynamic = False
@@ -284,13 +268,13 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
                 original=original_for_default_tv,
                 item_type=(
                     FieldType.from_string(attr_schema_details["item_type"])
-                    if attr_schema_details.get("item_type")
+                    if hy_to_python(get_from_hy_dict(attr_schema_details, "item_type"))
                     else None
                 ),
-                enum_choices=attr_schema_details.get("enum_choices"),
-                item_schema_type=attr_schema_details.get("item_schema_type"),
-                referenced_entity_type=attr_schema_details.get("referenced_entity_type"),
-                referenced_entity_category=attr_schema_details.get("referenced_entity_category"),
+                enum_choices=hy_to_python(get_from_hy_dict(attr_schema_details, "enum_choices")),
+                item_schema_type=hy_to_python(get_from_hy_dict(attr_schema_details, "item_schema_type")),
+                referenced_entity_type=hy_to_python(get_from_hy_dict(attr_schema_details, "referenced_entity_type")),
+                referenced_entity_category=hy_to_python(get_from_hy_dict(attr_schema_details, "referenced_entity_category")),
             )
             current_entity_py_attributes_for_self[schema_attr_name] = resolved_default_python_value
             setattr(self_object_for_eval, schema_attr_name, resolved_default_python_value)

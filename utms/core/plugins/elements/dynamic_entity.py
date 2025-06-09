@@ -2,15 +2,13 @@ from typing import Any, Dict, List, Optional, Type
 
 import hy
 
-from utms.core.hy.utils import format_value, is_dynamic_content
+from utms.core.hy.utils import hy_obj_to_string, is_dynamic_content, get_from_hy_dict
 from utms.core.mixins.base import LoggerMixin
 from utms.core.plugins import NodePlugin
 from utms.utms_types import HyNode
 # Import TypedValue and FieldType related items
 from utms.utms_types.field.types import FieldType, TypedValue, infer_type
-
-# No direct import of hy_to_python needed here if TypedValue handles the conversion internally
-
+from utms.utils import hy_to_python
 
 
 class DynamicEntityPlugin(NodePlugin, LoggerMixin):
@@ -29,8 +27,7 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
         :param attribute_schemas: The schema for attributes of this entity type,
                                   e.g., {'description': {'type': 'string', 'label': 'Desc', ...}, ...}
         """
-        # LoggerMixin.__init__(self) # Call if LoggerMixin has its own __init__
-        self._entity_type_str = entity_type_str  # e.g., "task"
+        self._entity_type_str = entity_type_str
         self._attribute_schemas = (attribute_schemas or {}).copy()
 
         self.logger.debug(
@@ -41,7 +38,6 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
 
     @property
     def name(self) -> str:
-        # Provides a descriptive name for instances of generated plugins
         return f"{self._entity_type_str.capitalize()} Instance Parser Plugin"
 
     @property
@@ -50,7 +46,6 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
 
     @property
     def node_type(self) -> str:
-        # This defines what Hy form this plugin handles, e.g., "def-task", "def-event"
         return f"def-{self._entity_type_str.lower()}"
 
     def initialize(self, system_context: Dict[str, Any]):
@@ -60,7 +55,6 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
         """
         Parse an entity instance definition (e.g., a (def-task "My Task" (priority 10)) form).
         """
-        # expr[0] is 'def-task', expr[1] is entity_name, expr[2:] are attributes
         if not (
             isinstance(expr, hy.models.Expression)
             and len(expr) >= 2
@@ -99,9 +93,9 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
                     f"in entity type '{self._entity_type_str}' (instance: '{entity_instance_name}'). "
                     f"Will attempt to infer type, but this is not ideal."
                 )
-                attr_schema_details = {}
+                attr_schema_details = hy.models.Dict()
 
-            declared_type_str = attr_schema_details.get("type")
+            declared_type_str = hy_to_python(get_from_hy_dict(attr_schema_details, "type"))
 
             field_type_enum: FieldType
             if declared_type_str:
@@ -114,18 +108,18 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
                 )
                 field_type_enum = infer_type(raw_hy_value_object)
 
-            item_type_str = attr_schema_details.get("item_type")  # For lists/dicts
+            item_type_str = hy_to_python(get_from_hy_dict(attr_schema_details, "item_type"))
             item_type_enum = FieldType.from_string(item_type_str) if item_type_str else None
-            enum_choices_from_schema = attr_schema_details.get("enum_choices", [])
+            enum_choices_from_schema = hy_to_python(get_from_hy_dict(attr_schema_details, "enum_choices", default=[]))
 
-            item_schema_type_str = attr_schema_details.get("item_schema_type")
-            referenced_entity_type_str = attr_schema_details.get("referenced_entity_type")
-            referenced_entity_category_str = attr_schema_details.get("referenced_entity_category")
+            item_schema_type_str = hy_to_python(get_from_hy_dict(attr_schema_details, "item_schema_type"))
+            referenced_entity_type_str = hy_to_python(get_from_hy_dict(attr_schema_details, "referenced_entity_type"))
+            referenced_entity_category_str = hy_to_python(get_from_hy_dict(attr_schema_details, "referenced_entity_category"))
 
             is_dynamic_attr = is_dynamic_content(raw_hy_value_object)
             original_expr_str_for_typed_value = None
             if is_dynamic_attr:
-                original_expr_str_for_typed_value = hy.repr(raw_hy_value_object).strip("'")
+                original_expr_str_for_typed_value = str(raw_hy_value_object)
 
             try:
                 typed_value_for_attr = TypedValue(
@@ -146,7 +140,6 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
                     f"of entity '{entity_instance_name}' ({self._entity_type_str}): {e_typed_value}",
                     exc_info=True,
                 )
-                # Decide: skip this attribute or fail parsing? For now, skip.
                 continue
 
         node = HyNode(
@@ -163,7 +156,7 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
 
     def format(self, node: HyNode) -> List[str]:
         """Format entity instance definition (HyNode with 'attributes_typed') back to Hy code."""
-        entity_instance_name_str = format_value(node.value)
+        entity_instance_name_str = hy_obj_to_string(node.value)
 
         lines = [f"({node.type} {entity_instance_name_str}"]
 
@@ -172,6 +165,7 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
         )
 
         if attributes_typed_dict:
+
             for attr_name, typed_value_instance in sorted(attributes_typed_dict.items()):
                 value_str_for_hy_file = typed_value_instance.serialize_for_persistence()
                 lines.append(f"  ({attr_name} {value_str_for_hy_file})")
@@ -187,15 +181,14 @@ class DynamicEntityPluginGenerator(LoggerMixin):
     """
 
     def __init__(self):
-        # LoggerMixin.__init__(self) # If LoggerMixin has __init__
         self.registered_plugins: Dict[str, Type[DynamicEntityPlugin]] = (
             {}
-        )  # Stores entity_type_str -> GeneratedPluginClass
+        ) 
 
     def generate_plugin(
         self,
-        entity_type_name_str: str,  # e.g., "task" (lowercase string identifier)
-        attributes_schema_for_type: Dict[str, Any],  # Schema for "task" attributes
+        entity_type_name_str: str,
+        attributes_schema_for_type: Dict[str, Any],  
     ) -> Type[DynamicEntityPlugin]:
         """
         Generates and returns a new plugin class tailored for parsing instances of 'entity_type_name_str'.
@@ -206,33 +199,19 @@ class DynamicEntityPluginGenerator(LoggerMixin):
         self.logger.debug(
             f"Attribute schema to be used by new plugin: {attributes_schema_for_type}"
         )
-
-        # Define the name for the new plugin class, e.g., "TaskInstanceParserPlugin"
         generated_class_name = f"{entity_type_name_str.capitalize()}InstanceParserPlugin"
-
-        # Define the constructor for the new plugin class.
-        # This constructor will call the DynamicEntityPlugin's __init__
-        # with the specific entity_type_name_str and its attributes_schema.
         def generated_plugin_constructor(self_of_generated_plugin):
-            # 'self_of_generated_plugin' is the instance of the dynamically created class (e.g., TaskInstanceParserPlugin)
-            # Call the parent (DynamicEntityPlugin) constructor
             DynamicEntityPlugin.__init__(
                 self_of_generated_plugin,
                 entity_type_str=entity_type_name_str,  # Pass the specific entity type string
                 attribute_schemas=attributes_schema_for_type,  # Pass its specific schema
             )
-            # If LoggerMixin or other bases have __init__, call them too if not handled by super() in DynamicEntityPlugin
-            # LoggerMixin.__init__(self_of_generated_plugin)
 
-        # Create the new plugin class dynamically using type()
         GeneratedPluginClass = type(
-            generated_class_name,  # Name of the new class
-            (DynamicEntityPlugin,),  # Tuple of base classes
-            {  # Dictionary of attributes and methods for the new class
+            generated_class_name, 
+            (DynamicEntityPlugin,), 
+            {
                 "__init__": generated_plugin_constructor,
-                # The 'node_type' property from DynamicEntityPlugin will automatically
-                # generate the correct value like "def-task" because self._entity_type_str
-                # will be set correctly by the constructor.
             },
         )
 

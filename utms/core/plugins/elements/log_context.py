@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 
 import hy
 
-from utms.core.hy.utils import format_value
+from utms.core.hy.utils import hy_obj_to_string
 from utms.core.mixins.base import LoggerMixin
 from utms.core.plugins.base import NodePlugin
 from utms.utms_types import HyNode
@@ -73,7 +73,7 @@ class LogContextNodePlugin(NodePlugin, LoggerMixin):
 
     def format(self, node: HyNode) -> List[str]:
         """Formats a log-context HyNode back into a Hy s-expression."""
-        context_name_str = format_value(node.value)
+        context_name_str = hy_obj_to_string(node.value)
 
         parts = [f"({self.node_type} {context_name_str}"]
 

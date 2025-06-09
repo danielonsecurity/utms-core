@@ -2,7 +2,7 @@ from typing import Any, Dict, List
 
 import hy
 
-from utms.core.hy.utils import format_value, is_dynamic_content
+from utms.core.hy.utils import hy_obj_to_string, is_dynamic_content
 from utms.core.logger import get_logger
 from utms.core.plugins import NodePlugin
 from utms.utms_types import HyNode
@@ -83,7 +83,7 @@ class UnitNodePlugin(NodePlugin):
                     if value_node.is_dynamic and value_node.original:
                         value = value_node.original
                     else:
-                        value = format_value(value_node.value)
+                        value = hy_obj_to_string(value_node.value)
                     lines.append(f"{indent}({prop.value} {value})")
 
         # Add closing parenthesis to the last line

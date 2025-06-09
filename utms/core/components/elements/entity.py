@@ -67,8 +67,9 @@ class EntityComponent(SystemComponent):
             return
         self.logger.info("Loading Entities...")
         self._entity_manager.clear()
-
         self.entity_types = {}
+        self.complex_types = {}
+
         self._ensure_dirs()
         try:
             self.logger.info(
@@ -213,25 +214,10 @@ class EntityComponent(SystemComponent):
             raw_hy_attr_schemas: Dict[str, hy.models.HyObject] = getattr(
                 node, "attribute_schemas_raw_hy", {}
             )
-            processed_py_attr_schemas: Dict[str, Dict[str, Any]] = {}
-            for attr_name_str, attr_schema_hy_dict in raw_hy_attr_schemas.items():
-                if not isinstance(attr_schema_hy_dict, hy.models.Dict):
-                    continue
-                try:
-                    py_schema_list_of_pairs = hy_to_python(attr_schema_hy_dict)
-                    py_schema_dict = list_to_dict(py_schema_list_of_pairs)
-                    processed_py_attr_schemas[attr_name_str] = {
-                        str(k): v for k, v in py_schema_dict.items()
-                    }
-                except Exception as e_conv:
-                    self.logger.error(
-                        f"Error converting schema for '{attr_name_str}' of entity type '{display_name}' from '{source_file}': {e_conv}",
-                        exc_info=True,
-                    )
 
             self.entity_types[entity_type_key] = {
                 "name": display_name,
-                "attributes_schema": processed_py_attr_schemas,
+                "attributes_schema": raw_hy_attr_schemas,
                 "source_file": source_file,
             }
             self.logger.info(
@@ -286,6 +272,10 @@ class EntityComponent(SystemComponent):
         if not self.entity_types:
             return
         for entity_type_key, schema_definition in self.entity_types.items():
+            plugin_node_type = f"def-{entity_type_key}"
+            if plugin_registry.has_plugin(plugin_node_type):
+                self.logger.debug(f"Plugin for '{plugin_node_type}' already exists. Skipping registration.")
+                continue
             try:
                 plugin_class = plugin_generator.generate_plugin(
                     entity_type_key, schema_definition.get("attributes_schema", {})
@@ -396,6 +386,8 @@ class EntityComponent(SystemComponent):
                                 hy_dict_elements.append(
                                     hy.models.List([hy.models.String(str(i)) for i in v_item])
                                 )
+                            elif v_item is None:
+                                hy_dict_elements.append(hy.models.Symbol("None"))
                             else:
                                 hy_dict_elements.append(hy.models.String(str(v_item)))
                         attr_schemas_for_hy_node[attr_name] = hy.models.Dict(hy_dict_elements)
@@ -1175,7 +1167,7 @@ class EntityComponent(SystemComponent):
             )
             return
 
-        code_to_run = hook_tv.original
+        code_to_run = hook_tv.value
         self.logger.info(f"Executing '{event_name}' hook for '{entity.name}': {code_to_run}")
 
         try:

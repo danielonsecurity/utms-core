@@ -2,8 +2,8 @@ from typing import Any, Dict, List, Optional
 
 import hy
 
-from utms.core.hy.utils import (  # is_dynamic_content might not be relevant here
-    format_value,
+from utms.core.hy.utils import (
+    hy_obj_to_string,
     is_dynamic_content,
 )
 from utms.core.plugins import NodePlugin
@@ -109,7 +109,7 @@ class EntityNodePlugin(NodePlugin):
     def format(self, node: HyNode) -> List[str]:
         """Format a entity schema definition HyNode back to Hy code."""
         # This node is one produced by parse()
-        entity_type_display_name = format_value(node.value)  # e.g., "TASK" -> "\"TASK\"" if needed
+        entity_type_display_name = hy_obj_to_string(node.value)  # e.g., "TASK" -> "\"TASK\"" if needed
         definition_kind = getattr(node, "definition_kind", "entity-type")  # Default back
 
         lines = [f"({self.node_type} {entity_type_display_name} {definition_kind}"]
@@ -120,9 +120,7 @@ class EntityNodePlugin(NodePlugin):
 
         if attribute_schemas_raw_hy:
             for attr_name, attr_schema_hy_obj in attribute_schemas_raw_hy.items():
-                # attr_schema_hy_obj is a hy.models.Dict. format_value should handle it.
-                # hy.repr() is also an option if format_value isn't perfect for Hy dicts.
-                schema_details_str = format_value(attr_schema_hy_obj)
+                schema_details_str = hy_obj_to_string(attr_schema_hy_obj)
                 lines.append(f"  ({attr_name} {schema_details_str})")
 
         lines.append(")")

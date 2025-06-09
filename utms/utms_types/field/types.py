@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 import hy
 from hy.models import Expression, Symbol
 
-from utms.core.hy.utils import format_value
+from utms.core.hy.utils import python_to_hy_string
 from utms.core.logger import get_logger
 from utms.core.time.decimal import DecimalTimeLength, DecimalTimeRange, DecimalTimeStamp
 from utms.utils import hy_to_python
@@ -133,7 +133,7 @@ class TypedValue:
             if isinstance(value, str):
                 return None if value == "None" else value
             if isinstance(value, (hy.models.String, hy.models.Symbol)):
-                return str(value)
+                return hy_to_python(value)
             if isinstance(value, dict):
                 return value
             logger.warning(
@@ -300,32 +300,40 @@ class TypedValue:
         return result
 
     def serialize_for_persistence(self) -> str:
+        """
+        Serializes the internal value into an idempotent and syntactically correct Hy string.
+        """
         if self.is_dynamic and self.original:
             return self.original
-
-        # For LIST of complex objects where self._value is List[HyExpression]
-        if (
-            self.field_type == FieldType.LIST
-            and self.item_schema_type
-            and isinstance(self._value, list)
-        ):
-            # Assuming self._value contains HyExpression objects or other Hy models
-            # format_value should handle a list of Hy objects correctly.
-            return format_value(self._value)  # format_value will call hy.repr on HyExpressions
-
-        # For ENTITY_REFERENCE (static) where self._value is the key string
-        if self.field_type == FieldType.ENTITY_REFERENCE and not self.is_dynamic:
-            return format_value(self._value)  # Should quote the string key
-
+        value = self.value
+        if value is None:
+            return "None"
         if self.field_type == FieldType.CODE:
-            if isinstance(self.value, (Expression, Symbol)):
-                return hy.repr(self.value)
-            if isinstance(self.value, str):
-                stripped_val = self.value.strip()
-                if stripped_val.startswith("(") and stripped_val.endswith(")"):
-                    return self.value
+            return str(self.value)
+        if self.field_type == FieldType.ENTITY_REFERENCE:
+            if isinstance(value, str) and value.count(":") == 2:
+                parts = value.split(":")
+                entity_type_str = hy.repr(parts[0])
+                category_str = hy.repr(parts[1])
+                name_str = hy.repr(parts[2])
+                return f"(entity-ref {entity_type_str} {category_str} {name_str})"
+            return hy.repr(str(value))
+        if self.field_type == FieldType.DATETIME and isinstance(value, datetime.datetime):
+            return f"(datetime {value.year} {value.month} {value.day} {value.hour} {value.minute} {value.second} {value.microsecond})"
+        if self.field_type == FieldType.LIST and isinstance(value, list):
+            item_type = self.item_type or (infer_item_type(value) if value else FieldType.STRING)
+            items = " ".join([TypedValue(item, item_type).serialize_for_persistence() for item in value])
+            return f"[{items}]"
+        if self.field_type == FieldType.DICT and isinstance(value, dict):
+            pairs = []
+            for k, v in value.items():
+                key_str = hy.repr(hy.models.Keyword(str(k)))
+                # The value's type is unknown, so we infer it for serialization
+                val_str = TypedValue(v, infer_type(v)).serialize_for_persistence()
+                pairs.append(f"{key_str} {val_str}")
+            return f"{{{' '.join(pairs)}}}"
+        return python_to_hy_string(self.value)
 
-        return format_value(self.value)
 
     def _serialize_value(self) -> Any:
         """Convert the value to a serializable format."""
