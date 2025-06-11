@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 
 import hy
 
-from utms.core.hy.utils import hy_obj_to_string
+from utms.core.hy.utils import hy_obj_to_string, is_dynamic_content, python_to_hy_string
 from utms.core.mixins.base import LoggerMixin
 from utms.core.plugins.base import NodePlugin
 from utms.utms_types import HyNode
@@ -54,26 +54,30 @@ class LogContextNodePlugin(NodePlugin, LoggerMixin):
             while True:
                 key_keyword = next(it)
                 val_object = next(it)
-
                 attr_name = str(key_keyword).lstrip(":")
+                original_str = hy_obj_to_string(val_object)
 
                 # Create a TypedValue for each piece of data
                 attributes_typed[attr_name] = TypedValue(
                     value=val_object,
-                    field_type=infer_type(val_object),  # Infer type from the Hy object
-                    is_dynamic=True,  # Assume values can be expressions
-                    original=hy.repr(val_object),
+                    field_type=infer_type(val_object),
+                    is_dynamic=is_dynamic_content(val_object),
+                    original=original_str,
                 )
         except StopIteration:
             pass
 
-        node = HyNode(type=self.node_type, value=context_name, original=hy.repr(expr))
+        node = HyNode(type=self.node_type, value=context_name, original=hy_obj_to_string(expr))
         setattr(node, "attributes_typed", attributes_typed)
         return node
 
     def format(self, node: HyNode) -> List[str]:
         """Formats a log-context HyNode back into a Hy s-expression."""
-        context_name_str = hy_obj_to_string(node.value)
+        value = node.value
+        if isinstance(value, hy.models.Object):
+            context_name_str = hy_obj_to_string(value)
+        else:
+            context_name_str = python_to_hy_string(value)
 
         parts = [f"({self.node_type} {context_name_str}"]
 

@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Union
 import hy
 from hy.models import Expression, Symbol
 
-from utms.core.hy.utils import python_to_hy_string
+from utms.core.hy.utils import python_to_hy_string, hy_obj_to_string
 from utms.core.logger import get_logger
 from utms.core.time.decimal import DecimalTimeLength, DecimalTimeRange, DecimalTimeStamp
 from utms.utils import hy_to_python
@@ -305,35 +305,15 @@ class TypedValue:
         """
         if self.is_dynamic and self.original:
             return self.original
+
         value = self.value
         if value is None:
             return "None"
-        if self.field_type == FieldType.CODE:
-            return str(self.value)
-        if self.field_type == FieldType.ENTITY_REFERENCE:
-            if isinstance(value, str) and value.count(":") == 2:
-                parts = value.split(":")
-                entity_type_str = hy.repr(parts[0])
-                category_str = hy.repr(parts[1])
-                name_str = hy.repr(parts[2])
-                return f"(entity-ref {entity_type_str} {category_str} {name_str})"
-            return hy.repr(str(value))
-        if self.field_type == FieldType.DATETIME and isinstance(value, datetime.datetime):
-            return f"(datetime {value.year} {value.month} {value.day} {value.hour} {value.minute} {value.second} {value.microsecond})"
-        if self.field_type == FieldType.LIST and isinstance(value, list):
-            item_type = self.item_type or (infer_item_type(value) if value else FieldType.STRING)
-            items = " ".join([TypedValue(item, item_type).serialize_for_persistence() for item in value])
-            return f"[{items}]"
-        if self.field_type == FieldType.DICT and isinstance(value, dict):
-            pairs = []
-            for k, v in value.items():
-                key_str = hy.repr(hy.models.Keyword(str(k)))
-                # The value's type is unknown, so we infer it for serialization
-                val_str = TypedValue(v, infer_type(v)).serialize_for_persistence()
-                pairs.append(f"{key_str} {val_str}")
-            return f"{{{' '.join(pairs)}}}"
-        return python_to_hy_string(self.value)
 
+        if isinstance(value, hy.models.Object):
+            return hy_obj_to_string(value)
+
+        return python_to_hy_string(value)
 
     def _serialize_value(self) -> Any:
         """Convert the value to a serializable format."""

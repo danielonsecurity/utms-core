@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional, Type
 
 import hy
 
-from utms.core.hy.utils import hy_obj_to_string, is_dynamic_content, get_from_hy_dict
+from utms.core.hy.utils import hy_obj_to_string, is_dynamic_content, get_from_hy_dict, python_to_hy_string
 from utms.core.mixins.base import LoggerMixin
 from utms.core.plugins import NodePlugin
 from utms.utms_types import HyNode
@@ -119,7 +119,7 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
             is_dynamic_attr = is_dynamic_content(raw_hy_value_object)
             original_expr_str_for_typed_value = None
             if is_dynamic_attr:
-                original_expr_str_for_typed_value = str(raw_hy_value_object)
+                original_expr_str_for_typed_value = hy_obj_to_string(raw_hy_value_object)
 
             try:
                 typed_value_for_attr = TypedValue(
@@ -143,7 +143,7 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
                 continue
 
         node = HyNode(
-            type=self.node_type, value=entity_instance_name, original=hy.repr(expr), children=[]
+            type=self.node_type, value=entity_instance_name, original=hy_obj_to_string(expr), children=[]
         )
         setattr(node, "attributes_typed", parsed_attributes_typed)
         setattr(node, "entity_type_name_str", self._entity_type_str)  # e.g., "task"
@@ -156,7 +156,11 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
 
     def format(self, node: HyNode) -> List[str]:
         """Format entity instance definition (HyNode with 'attributes_typed') back to Hy code."""
-        entity_instance_name_str = hy_obj_to_string(node.value)
+        value = node.value
+        if isinstance(value, hy.models.Object):
+            entity_instance_name_str = hy_obj_to_string(value)
+        else:
+            entity_instance_name_str = python_to_hy_string(value)
 
         lines = [f"({node.type} {entity_instance_name_str}"]
 

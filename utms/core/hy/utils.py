@@ -41,9 +41,15 @@ def python_to_hy_string(value: Any) -> str:
 def hy_obj_to_string(obj: hy.models.Object) -> str:
     """Correctly serializes a Hy AST object into a Hy source string."""
     if isinstance(obj, hy.models.String):
-        return hy.repr(obj)  # hy.repr IS correct for hy.models.String
-    if isinstance(obj, (hy.models.Symbol, hy.models.Integer, hy.models.Float, hy.models.Keyword)):
+        return f'"{str(obj)}"'
+    if isinstance(obj, hy.models.Symbol):
         return str(obj)
+    if isinstance(obj, hy.models.Keyword):
+        return str(obj)
+    if isinstance(obj, hy.models.Integer):
+        return str(int(obj))
+    if isinstance(obj, hy.models.Float):
+        return str(float(obj))
 
     if isinstance(obj, hy.models.List):
         items = " ".join([hy_obj_to_string(item) for item in obj])
@@ -60,8 +66,7 @@ def hy_obj_to_string(obj: hy.models.Object) -> str:
     if isinstance(obj, hy.models.Expression):
         items = " ".join([hy_obj_to_string(item) for item in obj])
         return f"({items})"
-    
-    return str(obj)
+    raise TypeError(f"hy_obj_to_string: Unhandled hy.models type: {type(obj)}")
 
 
 

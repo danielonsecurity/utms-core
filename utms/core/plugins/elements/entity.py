@@ -4,6 +4,7 @@ import hy
 
 from utms.core.hy.utils import (
     hy_obj_to_string,
+    python_to_hy_string,
     is_dynamic_content,
 )
 from utms.core.plugins import NodePlugin
@@ -108,8 +109,11 @@ class EntityNodePlugin(NodePlugin):
 
     def format(self, node: HyNode) -> List[str]:
         """Format a entity schema definition HyNode back to Hy code."""
-        # This node is one produced by parse()
-        entity_type_display_name = hy_obj_to_string(node.value)  # e.g., "TASK" -> "\"TASK\"" if needed
+        value = node.value
+        if isinstance(value, hy.models.Object):
+            entity_type_display_name = hy_obj_to_string(value)
+        else:
+            entity_type_display_name = python_to_hy_string(value)
         definition_kind = getattr(node, "definition_kind", "entity-type")  # Default back
 
         lines = [f"({self.node_type} {entity_type_display_name} {definition_kind}"]
