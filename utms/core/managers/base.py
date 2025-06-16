@@ -17,7 +17,7 @@ class BaseManager(Generic[T], ManagerMixin):
     - Type-specific operations
     """
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
         self._items: Dict[str, T] = {}
         self._initialized: bool = False
 

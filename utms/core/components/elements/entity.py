@@ -9,6 +9,7 @@ import sh
 
 from utms.core.components.base import SystemComponent
 from utms.core.hy.ast import HyAST
+from utms.core.hy.utils import python_to_hy_string
 from utms.core.loaders.base import LoaderContext
 from utms.core.loaders.elements.entity import EntityLoader
 from utms.core.managers.elements.entity import EntityManager
@@ -371,30 +372,10 @@ class EntityComponent(SystemComponent):
                     display_name = schema_def["name"]
                     python_attr_schemas = schema_def["attributes_schema"]
 
-                    attr_schemas_for_hy_node: Dict[str, hy.models.HyObject] = {}
-                    for attr_name, py_schema_dict in python_attr_schemas.items():
-                        hy_dict_elements = []
-                        for k, v_item in py_schema_dict.items():
-                            hy_dict_elements.append(hy.models.Keyword(k))
-                            if isinstance(v_item, str):
-                                hy_dict_elements.append(hy.models.String(v_item))
-                            elif isinstance(v_item, int):
-                                hy_dict_elements.append(hy.models.Integer(v_item))
-                            elif isinstance(v_item, bool):
-                                hy_dict_elements.append(hy.models.Boolean(v_item))
-                            elif isinstance(v_item, list):
-                                hy_dict_elements.append(
-                                    hy.models.List([hy.models.String(str(i)) for i in v_item])
-                                )
-                            elif v_item is None:
-                                hy_dict_elements.append(hy.models.Symbol("None"))
-                            else:
-                                hy_dict_elements.append(hy.models.String(str(v_item)))
-                        attr_schemas_for_hy_node[attr_name] = hy.models.Dict(hy_dict_elements)
                     node_for_formatting = HyNode(type="def-entity", value=display_name)
                     setattr(node_for_formatting, "definition_kind", "entity-type")
                     setattr(
-                        node_for_formatting, "attribute_schemas_raw_hy", attr_schemas_for_hy_node
+                        node_for_formatting, "attribute_schemas_raw_hy", python_attr_schemas
                     )
                     type_def_hy_lines.extend(schema_plugin.format(node_for_formatting))
                     type_def_hy_lines.append("")
@@ -568,11 +549,21 @@ class EntityComponent(SystemComponent):
             self.load()
         details = []
         for type_key_lower, type_data_dict in self.entity_types.items():
+            raw_attributes_schema = type_data_dict.get("attributes_schema", {})
+            pythonic_attributes_schema = {}
+            if isinstance(raw_attributes_schema, dict):
+                for attr_name, hy_schema_obj in raw_attributes_schema.items():
+                    list_of_pairs = hy_to_python(hy_schema_obj)
+                    if isinstance(list_of_pairs, list):
+                        pythonic_attributes_schema[attr_name] = list_to_dict(list_of_pairs)
+                    else:
+                        pythonic_attributes_schema[attr_name] = list_of_pairs
+
             details.append(
                 {
                     "name": type_key_lower,
                     "displayName": type_data_dict.get("name", type_key_lower.upper()),
-                    "attributes": type_data_dict.get("attributes_schema", {}),
+                    "attributes": pythonic_attributes_schema,
                 }
             )
         return details
@@ -999,61 +990,86 @@ class EntityComponent(SystemComponent):
         return self.get_by_type("task", category)
 
     def start_occurrence(
-        self, entity_type: str, category: str, name: str, list_attribute_name: str = "occurrences"
+        self, entity_type: str, category: str, name: str, list_attribute_name: str = "occurrences" # Keep signature
     ) -> Entity:
-        """
-        Starts a new occurrence for an entity by setting its 'active_occurrence_start_time'
-        and handles context switching if defined.
-        """
         self.logger.debug(f"Attempting to start occurrence for {entity_type}:{category}:{name}")
-        entity = self.get_entity(entity_type, category, name)
-        if not entity:
+        entity_to_start = self.get_entity(entity_type, category, name) # Uses self._entity_manager internally
+        
+        if not entity_to_start:
             raise ValueError(f"Entity not found: {entity_type}:{category}:{name}")
 
-        active_start_time_attr = "active_occurrence_start_time"
-        if not entity.has_attribute(active_start_time_attr):
+        active_start_time_attr = "active_occurrence_start_time" # Standard attribute name
+        if not entity_to_start.has_attribute(active_start_time_attr):
             raise TypeError(
-                f"Entity '{name}' is not configured to track active occurrences (missing '{active_start_time_attr}' attribute)."
+                f"Entity '{name}' (type: {entity_type}) is not configured to track active occurrences "
+                f"(missing '{active_start_time_attr}' attribute in its schema or instance)."
             )
 
-        if entity.get_attribute_value(active_start_time_attr) is not None:
-            raise ValueError("An occurrence is already in progress for this entity.")
+        if entity_to_start.get_attribute_value(active_start_time_attr) is not None:
+            raise ValueError(f"An occurrence is already in progress for entity '{name}'.")
+
+        newly_claimed_resources = entity_to_start.get_exclusive_resource_claims()
+        entity_to_start_id = entity_to_start.get_identifier()
+
+        if newly_claimed_resources:
+            self.logger.info(f"Entity '{entity_to_start_id}' attempting to claim resources: {newly_claimed_resources}")
+            active_entities = self._entity_manager.get_all_active_entities() # From previous step
+            
+            for resource_to_claim in newly_claimed_resources:
+                current_holder_id = self._entity_manager.get_claiming_entity_id(resource_to_claim)
+                if current_holder_id and current_holder_id != entity_to_start_id:
+                    self.logger.info(
+                        f"Resource '{resource_to_claim}' needed by '{entity_to_start_id}' is currently held by '{current_holder_id}'. "
+                        f"Stopping '{current_holder_id}'."
+                    )
+                    try:
+                        holder_type, holder_cat, holder_name = current_holder_id.split(":", 2)
+                        self.end_occurrence(
+                            entity_type=holder_type,
+                            category=holder_cat,
+                            name=holder_name,
+                            notes=f"Auto-stopped: resource '{resource_to_claim}' needed by '{entity_to_start_id}'.",
+                            _is_system_triggered=True,
+                        )
+                    except ValueError: # If split fails
+                        self.logger.error(f"Could not parse entity identifier '{current_holder_id}' to stop it.")
+                    except Exception as e:
+                        self.logger.error(f"Error auto-stopping conflicting entity '{current_holder_id}': {e}", exc_info=True)
         now_utc = datetime.now(timezone.utc)
         start_time_tv = TypedValue(value=now_utc, field_type=FieldType.DATETIME)
-
-        entity.set_attribute_typed(active_start_time_attr, start_time_tv)
+        entity_to_start.set_attribute_typed(active_start_time_attr, start_time_tv)
+        
+        if newly_claimed_resources: # Only register if it actually claims something
+            self._entity_manager.register_claims(entity_to_start)
         self.logger.info(
-            f"Set '{active_start_time_attr}' for '{name}' to {start_time_tv.value} in memory."
+            f"Set '{active_start_time_attr}' for '{entity_to_start_id}' to {start_time_tv.value}."
         )
 
-        context_tv = entity.get_attribute_typed("context")
+        context_tv = entity_to_start.get_attribute_typed("context")
         if context_tv and context_tv.value:
             context_to_switch = str(context_tv.value)
             self.logger.info(
-                f"Entity '{name}' has associated context: '{context_to_switch}'. Triggering switch."
+                f"Entity '{entity_to_start_id}' has associated context: '{context_to_switch}'. Triggering switch."
             )
-
             try:
                 daily_log_component = self.get_component("daily_logs")
-                if daily_log_component is not None:
-                    if not daily_log_component.is_loaded():
+                if daily_log_component: # Check if component exists
+                    if not daily_log_component.is_loaded(): # Check if loaded
                         daily_log_component.load()
                     daily_log_component.switch_context(context_to_switch)
                     self.logger.info(
                         f"Successfully switched daily log context to '{context_to_switch}'."
                     )
                 else:
-                    self.logger.warning(
-                        "DailyLogComponent not found. Cannot perform automatic context switch."
-                    )
+                    self.logger.warning("DailyLogComponent not found. Cannot perform automatic context switch.")
             except Exception as e:
                 self.logger.error(
-                    f"Failed to switch context for entity '{name}': {e}", exc_info=True
+                    f"Failed to switch context for entity '{entity_to_start_id}': {e}", exc_info=True
                 )
 
-        self._run_hook_code(entity, "on-start-hook", "start")
-        self.save()  # This single save persists both the entity change and the daily_log change.
-        return entity
+        self._run_hook_code(entity_to_start, "on-start-hook", "start")
+        self.save() # Persists entity changes (and potentially daily_log changes)
+        return entity_to_start
 
     def end_occurrence(
         self,
@@ -1063,83 +1079,70 @@ class EntityComponent(SystemComponent):
         notes: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
         list_attribute_name: str = "occurrences",
+        _is_system_triggered: bool = False 
     ) -> Entity:
-        """
-        Ends an in-progress occurrence, logs it to the occurrences list,
-        and clears the active start time.
-        """
-        self.logger.debug(f"Attempting to end occurrence for {entity_type}:{category}:{name}")
-        entity = self.get_entity(entity_type, category, name)
-        if not entity:
-            raise ValueError(f"Entity not found: {entity_type}:{category}:{name}")
+        self.logger.debug(f"Attempting to end occurrence for {entity_type}:{category}:{name}{' (system-triggered)' if _is_system_triggered else ''}")
+        entity_to_stop = self.get_entity(entity_type, category, name) # Existing method
+        
+        if not entity_to_stop:
+            raise ValueError(f"Entity not found to end occurrence: {entity_type}:{category}:{name}")
 
-        # Verify the entity has the required attributes
         active_start_time_attr = "active_occurrence_start_time"
-        if not entity.has_attribute(active_start_time_attr) or not entity.has_attribute(
+        if not entity_to_stop.has_attribute(active_start_time_attr) or not entity_to_stop.has_attribute(
             list_attribute_name
         ):
-            raise TypeError(f"Entity '{name}' is not configured to track occurrences.")
+            raise TypeError(
+                f"Entity '{name}' (type: {entity_type}) is not configured to track occurrences correctly."
+            )
 
-        start_time = entity.get_attribute_value(active_start_time_attr)
+        start_time = entity_to_stop.get_attribute_value(active_start_time_attr)
         if start_time is None:
-            raise ValueError("No active occurrence was found to end for this entity.")
+            if _is_system_triggered:
+                 self.logger.debug(f"Entity '{entity_to_stop.get_identifier()}' was already stopped (system trigger). Ensuring claims are released.")
+                 self._entity_manager.release_claims(entity_to_stop)
+                 self.save() # Save potential claim release
+                 return entity_to_stop # Return the entity as is
+            else:
+                raise ValueError(f"No active occurrence was found to end for entity '{name}'.")
 
-        from utms.utils import get_ntp_date  # Or wherever it is defined
-
+        from utms.utils import get_ntp_date 
         end_time = get_ntp_date()
-
-        # Construct the new occurrence object
         new_occurrence_data = {
             "start_time": start_time,
             "end_time": end_time,
             "notes": notes or "",
             "metadata": metadata or {},
         }
-
-        old_occurrences_tv = entity.get_attribute_typed(list_attribute_name)
-
-        # Make a copy of the old list, or start a new one
-        new_occurrences_list = (
-            old_occurrences_tv.value.copy()
-            if old_occurrences_tv and isinstance(old_occurrences_tv.value, list)
-            else []
-        )
-
-        # Append the new data to our new list
-        new_occurrences_list.append(new_occurrence_data)
-
-        occurrences_tv = entity.get_attribute_typed(list_attribute_name)
-
+        occurrences_tv = entity_to_stop.get_attribute_typed(list_attribute_name)
         if not occurrences_tv:
-            # If for some reason it doesn't exist, create it.
             occurrences_tv = TypedValue(
                 value=[], field_type=FieldType.LIST, item_schema_type="OCCURRENCE"
             )
-            entity.set_attribute_typed(list_attribute_name, occurrences_tv)
-
-        # Get the current list. Ensure it's actually a list.
+            entity_to_stop.set_attribute_typed(list_attribute_name, occurrences_tv)
+        
         current_list = occurrences_tv.value if isinstance(occurrences_tv.value, list) else []
-
-        # Create the new, updated list
         new_list = current_list + [new_occurrence_data]
+        
+        occurrences_tv.value = new_list 
+        occurrences_tv.original = python_to_hy_string(new_list) 
 
-        # Set the 'value' property on the existing TypedValue.
-        # This will trigger the setter, which re-runs _convert_value.
-        occurrences_tv.value = new_list
-
-        # Clear the active start time by setting it back to None
         cleared_start_time_tv = TypedValue(
-            value=None, field_type=FieldType.DATETIME, original="None"
+            value=None, field_type=FieldType.DATETIME, original="None" # Good practice for persistence
         )
-        entity.set_attribute_typed(active_start_time_attr, cleared_start_time_tv)
+        entity_to_stop.set_attribute_typed(active_start_time_attr, cleared_start_time_tv)
+        self._entity_manager.release_claims(entity_to_stop)
 
-        entity_in_method = entity  # The object we just modified
-        entity_in_manager = self._entity_manager.get(f"{entity_type}:{category}:{name}")
-        self.logger.info(f"Ended and logged occurrence for '{name}' in memory.")
+        entity_id = entity_to_stop.get_identifier()
+        self.logger.info(f"Ended and logged occurrence for '{entity_id}' in memory.")
 
-        self._run_hook_code(entity, "on-end-hook", "end")
+        if not _is_system_triggered: # Only run 'on-end-hook' for manual stops
+            self._run_hook_code(entity_to_stop, "on-end-hook", "end")
+        else:
+            self.logger.debug(f"Skipping on-end-hook for '{entity_id}' as it was system-triggered.")
+        
         self.save()
-        return entity
+        return entity_to_stop
+
 
     def _run_hook_code(self, entity: Entity, hook_attribute_name: str, event_name: str):
         """
@@ -1173,6 +1176,7 @@ class EntityComponent(SystemComponent):
         try:
             hook_context = {
                 "sh": sh,
+                "breakpoint": breakpoint,
             }
             self._loader._dynamic_service.evaluate(
                 expression=code_to_run,
@@ -1184,8 +1188,6 @@ class EntityComponent(SystemComponent):
             self.logger.info(f"Successfully executed '{event_name}' hook for '{entity.name}'.")
 
         except Exception as e:
-            # IMPORTANT: We log the error but do not re-raise it.
-            # The failure of a hook should not prevent the core action (starting/ending the occurrence).
             self.logger.error(
                 f"Error executing '{hook_attribute_name}' for entity '{entity.name}': {e}",
                 exc_info=True,

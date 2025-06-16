@@ -45,7 +45,6 @@ def get_entities_component(main_config: UTMSConfig = Depends(get_config)) -> Ent
 async def get_entity_types_with_details_api(
     entities_component: EntityComponent = Depends(get_entities_component),
 ):
-    # ... (remains the same as response #13)
     try:
         details = entities_component.get_all_entity_type_details()
         return details

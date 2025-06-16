@@ -85,6 +85,7 @@
     uvicorn = "^0.34.0"
 pygame = "^2.6.1"
 sh = "^2.2.2"
+pyserial = "^3.5"
 
 
 [tool.poetry.group.dev.dependencies]

@@ -86,49 +86,6 @@ def get_from_hy_dict(hy_dict: hy.models.Dict, key_to_find: str, default: Any = N
     return default
 
 
-# def format_value(value: Any) -> str:
-#     """
-#     Formats a PURE PYTHON value into an idempotent Hy representation.
-#     """
-#     if isinstance(value, hy.models.Object):
-#         if isinstance(value, hy.models.Symbol):
-#             return str(value)  # Correctly handles True, False, None, and other symbols
-#         if isinstance(value, hy.models.String):
-#             return hy.repr(value) # Correctly adds quotes around the string content
-#         if isinstance(value, (hy.models.Integer, hy.models.Float, hy.models.Keyword)):
-#             return str(value)
-
-#         if isinstance(value, hy.models.List):
-#             items = " ".join([format_value(item) for item in value])
-#             return f"[{items}]"
-
-#         if isinstance(value, hy.models.Dict):
-#             pairs = []
-#             for i in range(0, len(value), 2):
-#                 key_str = format_value(value[i])
-#                 val_str = format_value(value[i+1])
-#                 pairs.append(f"{key_str} {val_str}")
-#             return f"{{{' '.join(pairs)}}}"
-
-#         if isinstance(value, hy.models.Expression):
-#             items = " ".join([format_value(item) for item in value])
-#             return f"({items})"
-#         return str(value)
-#     if isinstance(value, datetime):
-#         return f"(datetime {value.year} {value.month} {value.day} {value.hour} {value.minute} {value.second} {value.microsecond})"
-#     if isinstance(value, list):
-#         items = " ".join([format_value(item) for item in value])
-#         return f"[{items}]"
-
-#     if isinstance(value, dict):
-#         pairs = []
-#         for k, v in value.items():
-#             key_str = format_value(hy.models.Keyword(k))
-#             val_str = format_value(v)
-#             pairs.append(f"{key_str} {val_str}")
-#         return f"{{{' '.join(pairs)}}}"
-#     return hy.repr(value)
-
 def _format_map(content: str, base_indent: int) -> str:
     """Format map content with proper indentation."""
     items = content.split()

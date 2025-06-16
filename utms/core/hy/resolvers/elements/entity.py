@@ -1,3 +1,4 @@
+import subprocess
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Union
 
@@ -32,6 +33,7 @@ class EntityResolver(HyResolver):
             {
                 "entity-ref": self._hy_entity_ref,
                 "get-attr": self._hy_get_attr,
+                "shell": self._hy_shell,
             }
         )
 
@@ -222,6 +224,38 @@ class EntityResolver(HyResolver):
             return hy_to_python(resolved_attr_val_raw)
         else:
             return typed_value_attr.value  # Already resolved Python value
+
+    def _hy_shell(self, command_string: str):
+        """
+        Implementation for the (shell "...") Hy function.
+        Executes the given string as a shell command.
+        This method is called by the resolver after the arguments to `shell` have been evaluated.
+        """
+        if not isinstance(command_string, str):
+            raise TypeError(f"The 'shell' function requires a string argument, but got {type(command_string)}")
+
+        self.logger.info(f"Executing shell command: {command_string}")
+        try:
+            result = subprocess.run(
+                command_string,
+                shell=True,
+                check=True,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+            )
+            if result.stdout:
+                self.logger.info(f"Shell command stdout: {result.stdout.strip()}")
+            if result.stderr:
+                self.logger.warning(f"Shell command stderr: {result.stderr.strip()}")
+
+            return result.stdout
+
+        except subprocess.CalledProcessError as e:
+            self.logger.error(f"Shell command failed with exit code {e.returncode}: {command_string}")
+            self.logger.error(f"Stderr: {e.stderr.strip()}")
+            raise e
+
 
     def get_additional_globals(self) -> Dict[str, Any]:
         return {}

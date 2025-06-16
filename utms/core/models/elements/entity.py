@@ -101,6 +101,52 @@ class Entity(ModelMixin):
     def get_all_attributes_typed(self) -> Dict[str, TypedValue]:
         return self.attributes
 
+    def get_identifier(self) -> str:
+        """
+        Returns a unique identifier string for this entity instance.
+        Format: entity_type:category:name
+        """
+        # Ensure components are strings and handle potential None if necessary, though __post_init__ normalizes
+        entity_type_str = str(self.entity_type).lower().strip()
+        category_str = str(self.category).lower().strip() # Already normalized in __post_init__
+        name_str = str(self.name).strip()
+        return f"{entity_type_str}:{category_str}:{name_str}"
+
+    def get_exclusive_resource_claims(self) -> List[str]:
+        """
+        Retrieves the list of exclusive resource claims for this entity.
+        Returns an empty list if the attribute is not set, is None, or is not a list/string.
+        """
+        claims_tv = self.get_attribute_typed("exclusive_resource_claims")
+        
+        if not claims_tv or claims_tv.value is None:
+            return [] # Default to no claims if attribute is missing or its value is None
+
+        value = claims_tv.value
+        
+        if isinstance(value, list):
+            # Ensure all items in the list are strings
+            if all(isinstance(item, str) for item in value):
+                return value
+            else:
+                logger.warning(
+                    f"Entity '{self.get_identifier()}' has 'exclusive_resource_claims' "
+                    f"list with non-string items: {value}. Returning empty list."
+                )
+                return []
+        elif isinstance(value, str):
+            # If it's a single string, return it as a list with one item
+            if value.strip(): # Avoid empty strings as claims
+                return [value]
+            else:
+                return [] # Treat empty string claim as no claim
+        
+        logger.warning(
+            f"Entity '{self.get_identifier()}' has 'exclusive_resource_claims' with unexpected "
+            f"type: {type(value)}. Expected list of strings or a single string. Returning empty list."
+        )
+        return []
+
     def serialize(self) -> Dict[str, Any]:
         """
         Converts the Entity object into a JSON-serializable dictionary.

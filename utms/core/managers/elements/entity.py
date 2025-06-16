@@ -9,20 +9,29 @@ from utms.utms_types.field.types import TypedValue
 class EntityManager(BaseManager[Entity], EntityManagerProtocol):  # Renamed
     """Manages entities, now with category-aware unique keys."""
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs) 
+        self._claimed_resources: Dict[str, str] = {}
+
     def _generate_key(self, entity_type: str, category: str, name: str) -> str:
         """Helper to generate the consistent composite key."""
         return f"{entity_type.lower().strip()}:{category.lower().strip()}:{name.strip()}"
 
+    def clear(self):
+        super().clear() 
+        self._claimed_resources.clear()
+        self.logger.debug("Cleared all entities and resource claims from EntityManager.")
+
     def create(
         self,
         name: str,
-        entity_type: str,  # No default, should be provided
+        entity_type: str,
         attributes: Optional[Dict[str, TypedValue]] = None,
         category: str = "default",
     ) -> Entity:
         entity_type_key = entity_type.lower().strip()
         category_key = category.strip().lower() if category and category.strip() else "default"
-        name_key = name.strip()  # Ensure name is also stripped for consistency
+        name_key = name.strip() 
 
         if not name_key:
             self.logger.error("Entity name cannot be empty.")
@@ -34,8 +43,12 @@ class EntityManager(BaseManager[Entity], EntityManagerProtocol):  # Renamed
 
         if generated_key in self._items:
             self.logger.info(f"Entity '{generated_key}' already exists. It will be replaced.")
+            existing_entity_to_replace = self._items.get(generated_key)
+            if existing_entity_to_replace:
+                self.release_claims(existing_entity_to_replace) 
+
         entity = Entity(
-            name=name_key,  # Use stripped name
+            name=name_key,
             entity_type=entity_type_key,
             category=category_key,
             attributes=attributes or {},
@@ -53,14 +66,77 @@ class EntityManager(BaseManager[Entity], EntityManagerProtocol):  # Renamed
         return self.get(key)
 
     def remove_entity(self, name: str, entity_type: str, category: str) -> bool:
-        """Remove an entity by its name, type, and category."""
+        """Remove an entity by its name, type, and category. Also releases its claims."""
         key = self._generate_key(entity_type, category, name)
-        if key in self._items:
+        entity_to_remove = self.get(key) # Get the entity object before removing it
+
+        if entity_to_remove:
+            self.release_claims(entity_to_remove) # Release claims before removing
             self.remove(key)  # BaseManager.remove takes key
-            self.logger.debug(f"Removed entity '{key}'.")
+            self.logger.debug(f"Removed entity '{key}' and released its claims.")
             return True
+        
         self.logger.warning(f"Entity '{key}' not found for removal.")
         return False
+
+    def get_all_active_entities(self) -> List[Entity]:
+        """Returns a list of all entities that currently have an active occurrence."""
+        active_entities = []
+        for entity in self._items.values():
+            # Assuming 'active_occurrence_start_time' is the indicator
+            # and its TypedValue.value will be a datetime object if active, or None if not.
+            if entity.get_attribute_value("active_occurrence_start_time") is not None:
+                active_entities.append(entity)
+        return active_entities
+
+    def register_claims(self, entity: Entity) -> None:
+        """Registers the exclusive resource claims for the given entity."""
+        entity_id = entity.get_identifier()
+        claims = entity.get_exclusive_resource_claims()
+        if not claims:
+            return
+
+        for resource in claims:
+            if resource in self._claimed_resources:
+                self.logger.error(
+                    f"Attempted to register claim for resource '{resource}' by '{entity_id}', "
+                    f"but it's already claimed by '{self._claimed_resources[resource]}'. "
+                    "This indicates a logic error in conflict resolution."
+                )
+            self._claimed_resources[resource] = entity_id
+            self.logger.debug(f"Entity '{entity_id}' claimed resource '{resource}'.")
+        self.logger.debug(f"Current claims map: {self._claimed_resources}")
+
+
+    def release_claims(self, entity: Entity) -> None:
+        """Releases all exclusive resource claims held by the given entity."""
+        entity_id = entity.get_identifier()
+        claims_to_release = entity.get_exclusive_resource_claims() # Get what it *would* claim
+        
+        resources_held_by_entity = [
+            res for res, holder_id in self._claimed_resources.items() if holder_id == entity_id
+        ]
+
+        if not resources_held_by_entity:
+            return
+
+        for resource in resources_held_by_entity:
+            if self._claimed_resources.get(resource) == entity_id:
+                del self._claimed_resources[resource]
+                self.logger.debug(f"Entity '{entity_id}' released resource '{resource}'.")
+            else:
+                # This case should ideally not happen if logic is correct
+                self.logger.warning(
+                    f"Tried to release resource '{resource}' for entity '{entity_id}', "
+                    f"but it was either not claimed or claimed by another entity: '{self._claimed_resources.get(resource)}'."
+                )
+        if resources_held_by_entity: # Log only if something was actually released
+             self.logger.debug(f"Current claims map after release by {entity_id}: {self._claimed_resources}")
+
+
+    def get_claiming_entity_id(self, resource: str) -> Optional[str]:
+        """Returns the identifier of the entity currently claiming the given resource, or None."""
+        return self._claimed_resources.get(resource)
 
     def get_by_type(self, entity_type: str, category: Optional[str] = None) -> List[Entity]:
         entity_type_key = entity_type.lower().strip()
