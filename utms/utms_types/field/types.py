@@ -323,7 +323,7 @@ class TypedValue:
             return None
 
         if self.field_type == FieldType.CODE and isinstance(val_to_serialize, (Expression, Symbol)):
-            return hy.repr(val_to_serialize)
+            return hy_obj_to_string(val_to_serialize)
 
         if self.field_type == FieldType.LIST and self.item_schema_type:
             if isinstance(val_to_serialize, list):

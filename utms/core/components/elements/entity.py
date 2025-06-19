@@ -2,6 +2,9 @@ import os
 import shutil
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
+import pickle
+import hashlib
+from decimal import Decimal
 
 import hy
 import hy.models
@@ -19,6 +22,16 @@ from utms.core.plugins.elements.dynamic_entity import plugin_generator
 from utms.utils import hy_to_python, list_to_dict, sanitize_filename
 from utms.utms_types import HyNode
 from utms.utms_types.field.types import FieldType, TypedValue, infer_type
+
+from dataclasses import dataclass
+
+@dataclass
+class CachedEntityData:
+    """A simple, pickle-safe container for entity data."""
+    name: str
+    entity_type: str
+    category: str
+    attributes: Dict[str, Dict[str, Any]]
 
 
 class EntityComponent(SystemComponent):
@@ -61,6 +74,15 @@ class EntityComponent(SystemComponent):
                 type_dir = os.path.join(self._entity_type_instances_base_dir, f"{type_key}s")
                 if not os.path.exists(type_dir):
                     os.makedirs(type_dir)
+
+    def _get_cache_path_for_file(self, source_filepath: str) -> str:
+        """Generates a unique, safe cache file path for a given source file."""
+        abs_path = os.path.abspath(source_filepath)
+        path_hash = hashlib.md5(abs_path.encode('utf-8')).hexdigest()
+        cache_dir = os.path.join(os.path.expanduser("~"), ".cache", "utms", "entities")
+        os.makedirs(cache_dir, exist_ok=True)
+
+        return os.path.join(cache_dir, f"{path_hash}.pkl")
 
     def load(self) -> None:
         if self._loaded:
@@ -301,18 +323,62 @@ class EntityComponent(SystemComponent):
             )
             if not os.path.isdir(type_specific_instance_dir):
                 continue
+
             category_files = [
                 f for f in os.listdir(type_specific_instance_dir) if f.endswith(".hy")
             ]
             if not category_files:
                 continue
+
             for filename in category_files:
-                category_name = sanitize_filename(os.path.splitext(filename)[0])
                 filepath = os.path.join(type_specific_instance_dir, filename)
+                cache_filepath = self._get_cache_path_for_file(filepath)
+
+                is_cache_valid = False
+                if os.path.exists(cache_filepath):
+                    try:
+                        if os.path.getmtime(filepath) <= os.path.getmtime(cache_filepath):
+                            is_cache_valid = True
+                    except FileNotFoundError:
+                        # Source file might have been deleted, cache is invalid.
+                        is_cache_valid = False
+
+                if is_cache_valid:
+                    self.logger.debug(f"CACHE HIT for '{filepath}'. Loading from cache.")
+                    try:
+                        with open(cache_filepath, 'rb') as f:
+                            cached_data_list: List[CachedEntityData] = pickle.load(f)
+
+                        for cached_data in cached_data_list:
+                            deserialized_attributes = {
+                                attr_name: TypedValue.deserialize(attr_data)
+                                for attr_name, attr_data in cached_data.attributes.items()
+                            }
+                            self._entity_manager.create(
+                                name=cached_data.name,
+                                entity_type=cached_data.entity_type,
+                                category=cached_data.category,
+                                attributes=deserialized_attributes,
+                            )
+                        total_instances_loaded_all_types += len(cached_data_list)
+                        continue
+
+                    except Exception as e_cache:
+                        self.logger.warning(f"Failed to load from cache file '{cache_filepath}': {e_cache}. Falling back to full load.")
+
+                # --- END OF CACHING LOGIC ---
+
+                # If we are here, it's a CACHE MISS or the cache was invalid.
+                self.logger.debug(f"CACHE MISS for '{filepath}'. Performing full load.")
+                category_name = sanitize_filename(os.path.splitext(filename)[0])
                 try:
                     instance_nodes = self._ast_manager.parse_file(filepath)
                     if not instance_nodes:
+                        # If the file is empty, ensure any old cache is removed.
+                        if os.path.exists(cache_filepath):
+                            os.remove(cache_filepath)
                         continue
+
                     entity_schema_for_loader = self.entity_types.get(
                         entity_type_key.lower(), {}
                     ).get("attributes_schema", {})
@@ -326,17 +392,48 @@ class EntityComponent(SystemComponent):
                         current_entity_schema=entity_schema_for_loader,
                         known_complex_type_schemas=complex_types_for_loader,
                     )
-                    self.logger.debug(
-                        f"category_context created. Its variables keys: {list(category_context.variables.keys())}"
-                    )
 
-                    loaded_instances = self._loader.process(instance_nodes, category_context)
-                    total_instances_loaded_all_types += len(loaded_instances)
+                    # The loader process creates/updates entities in the manager.
+                    # It returns a dict of {key: EntityObject}.
+                    loaded_instances_dict = self._loader.process(instance_nodes, category_context)
+
+                    # We need the list of Entity objects to pickle.
+                    loaded_entities_list = list(loaded_instances_dict.values())
+                    try:
+                        entities_to_cache = []
+                        for entity in loaded_entities_list:
+                            serialized_attributes = {
+                                attr_name: tv.serialize()
+                                for attr_name, tv in entity.get_all_attributes_typed().items()
+                            }
+                            entities_to_cache.append(
+                                CachedEntityData(
+                                    name=entity.name,
+                                    entity_type=entity.entity_type,
+                                    category=entity.category,
+                                    attributes=serialized_attributes
+                                )
+                            )
+                        with open(cache_filepath, 'wb') as f:
+                            pickle.dump(entities_to_cache, f)
+                        self.logger.debug(f"Cache created for '{filepath}' at '{cache_filepath}'.")
+                    except Exception as e_cache_write:
+                        self.logger.error(f"Failed to write cache file '{cache_filepath}': {e_cache_write}", exc_info=True)
+
+
+                    total_instances_loaded_all_types += len(loaded_instances_dict)
+
+
                 except Exception as e_file:
                     self.logger.error(f"Error loading from '{filepath}': {e_file}", exc_info=True)
+                    # If loading fails, remove any potentially stale cache file.
+                    if os.path.exists(cache_filepath):
+                        os.remove(cache_filepath)
+
         self.logger.debug(
             f"Total instances from category files: {total_instances_loaded_all_types}"
         )
+
 
     def get_complex_type_schema(self, complex_type_name: str) -> Optional[Dict[str, Any]]:
         """
@@ -348,161 +445,119 @@ class EntityComponent(SystemComponent):
         self.logger.warning(f"Schema for complex type '{complex_type_name}' not found.")
         return None
 
-    def save(self) -> None:
+    def save_schemas(self):
+        """Saves only the entity type schema definitions (def-entity) to disk."""
         self.logger.info("Saving entity type schemas...")
         self._ensure_dirs()
         schema_plugin = plugin_registry.get_node_plugin("def-entity")
         if not schema_plugin:
             self.logger.error("Schema plugin 'def-entity' not found. Cannot save schemas")
-        else:
-            schemas_by_file: Dict[str, List[Dict[str, Any]]] = {}
-            for entity_type_key, schema_def in self.entity_types.items():
-                source_filename = schema_def.get("source_file", "default.hy")
-                if source_filename not in schemas_by_file:
-                    schemas_by_file[source_filename] = []
-                schemas_by_file[source_filename].append(schema_def)
+            return # Return early
 
-            for source_filename, schemas_in_file in schemas_by_file.items():
-                output_filepath = os.path.join(self._entity_schema_def_dir, source_filename)
-                type_def_hy_lines = []
+        schemas_by_file: Dict[str, List[Dict[str, Any]]] = {}
+        for entity_type_key, schema_def in self.entity_types.items():
+            source_filename = schema_def.get("source_file", "default.hy")
+            schemas_by_file.setdefault(source_filename, []).append(schema_def)
 
-                sorted_schemas = sorted(schemas_in_file, key=lambda s: s.get("name", ""))
+        for source_filename, schemas_in_file in schemas_by_file.items():
+            output_filepath = os.path.join(self._entity_schema_def_dir, source_filename)
+            type_def_hy_lines = []
 
-                for schema_def in sorted_schemas:
-                    display_name = schema_def["name"]
-                    python_attr_schemas = schema_def["attributes_schema"]
+            sorted_schemas = sorted(schemas_in_file, key=lambda s: s.get("name", ""))
 
-                    node_for_formatting = HyNode(type="def-entity", value=display_name)
-                    setattr(node_for_formatting, "definition_kind", "entity-type")
-                    setattr(
-                        node_for_formatting, "attribute_schemas_raw_hy", python_attr_schemas
-                    )
-                    type_def_hy_lines.extend(schema_plugin.format(node_for_formatting))
-                    type_def_hy_lines.append("")
+            for schema_def in sorted_schemas:
+                display_name = schema_def["name"]
+                python_attr_schemas = schema_def["attributes_schema"]
+
+                node_for_formatting = HyNode(type="def-entity", value=display_name)
+                setattr(node_for_formatting, "definition_kind", "entity-type")
+                setattr(node_for_formatting, "attribute_schemas_raw_hy", python_attr_schemas)
+                type_def_hy_lines.extend(schema_plugin.format(node_for_formatting))
+                type_def_hy_lines.append("")
+            try:
+                with open(output_filepath, "w", encoding="utf-8") as f:
+                    f.write("\n".join(type_def_hy_lines))
+                self.logger.info(
+                    f"Saved {len(schemas_in_file)} entity type defs to {output_filepath}"
+                )
+            except Exception as e_save_schema:
+                self.logger.error(
+                    f"Error saving entity type defs to '{output_filepath}': {e_save_schema}", exc_info=True
+                )
+
+
+    def _save_entities_in_category(self, entity_type: str, category: str):
+        """
+        Saves all in-memory entities belonging to a specific type and category
+        to their corresponding .hy file. This is a targeted save operation that
+        avoids a full, slow rescan and prevents accidental deletion of other files.
+        """
+        entity_type_key = entity_type.lower()
+        category_key = category.lower()
+
+        # 1. Find all entities in memory that match this specific file.
+        entities_to_save = [
+            e for e in self._items.values()
+            if e.entity_type == entity_type_key and e.category == category_key
+        ]
+
+        # 2. Determine the correct file path.
+        type_specific_dir = os.path.join(self._entity_type_instances_base_dir, f"{entity_type_key}s")
+        if not os.path.exists(type_specific_dir):
+            os.makedirs(type_specific_dir)
+        category_filename = f"{sanitize_filename(category_key)}.hy"
+        instance_file_path = os.path.join(type_specific_dir, category_filename)
+
+        # 3. If there are no entities for this category left in memory,
+        #    it means we've deleted the last one. Delete the now-empty file.
+        if not entities_to_save:
+            if os.path.exists(instance_file_path):
+                self.logger.info(f"Last entity from '{instance_file_path}' removed. Deleting empty category file.")
                 try:
-                    with open(output_filepath, "w", encoding="utf-8") as f:
-                        f.write("\n".join(type_def_hy_lines))
-                    self.logger.info(
-                        f"Saved {len(self.entity_types)} entity type defs to {output_filepath}"
-                    )
-                except Exception as e_save_schema:
-                    self.logger.error(
-                        f"Error saving entity type defs: {e_save_schema}", exc_info=True
-                    )
-
-        instances_by_type_and_category: Dict[str, Dict[str, List[Entity]]] = {}
-        for entity_instance in self._items.values():
-            instances_by_type_and_category.setdefault(entity_instance.entity_type, {}).setdefault(
-                entity_instance.category, []
-            ).append(entity_instance)
-
-        existing_files_to_check_for_emptiness = {}
-        for entity_type_key, categories_dict in instances_by_type_and_category.items():
-            type_specific_instance_dir = os.path.join(
-                self._entity_type_instances_base_dir, f"{entity_type_key}s"
-            )
-            if not os.path.exists(type_specific_instance_dir):
-                os.makedirs(type_specific_instance_dir)
-            for f_name in os.listdir(type_specific_instance_dir):
-                if f_name.endswith(".hy"):
-                    existing_files_to_check_for_emptiness[
-                        os.path.join(type_specific_instance_dir, f_name)
-                    ] = True
-            for category_key, instances_list in categories_dict.items():
-                instance_plugin = plugin_registry.get_node_plugin(f"def-{entity_type_key}")
-                if not instance_plugin:
-                    self.logger.warning(
-                        f"No plugin for 'def-{entity_type_key}'. Cannot save for '{entity_type_key}/{category_key}'."
-                    )
-                    continue
-                category_filename = f"{sanitize_filename(category_key)}.hy"
-                instance_file_path = os.path.join(type_specific_instance_dir, category_filename)
-                instance_hy_lines = []
-                for entity_instance in sorted(instances_list, key=lambda inst: inst.name):
-                    node_for_formatting = HyNode(
-                        type=f"def-{entity_type_key}", value=entity_instance.name
-                    )
-                    fresh_attributes_typed = {}
-                    for attr_name, tv in entity_instance.get_all_attributes_typed().items():
-                        # Re-create the TypedValue from its own properties.
-                        fresh_attributes_typed[attr_name] = TypedValue(
-                            value=tv.value,
-                            field_type=tv.field_type,
-                            is_dynamic=tv.is_dynamic,
-                            original=tv.original,
-                            item_type=tv.item_type,
-                            enum_choices=tv.enum_choices,
-                            item_schema_type=tv.item_schema_type,
-                            referenced_entity_type=tv.referenced_entity_type,
-                            referenced_entity_category=tv.referenced_entity_category,
-                        )
-
-                    setattr(
-                        node_for_formatting,
-                        "attributes_typed",
-                        fresh_attributes_typed,  # Use the fresh dictionary
-                    )
-                    if (
-                        entity_instance.name == "Complete UTMS migration"
-                        or "test" in entity_instance.name
-                    ):
-                        self.logger.debug(
-                            f"DEBUG SAVE: Entity '{entity_instance.name}' (type: {entity_instance.entity_type})"
-                        )
-                        for (
-                            attr_name_debug,
-                            tv_debug,
-                        ) in entity_instance.get_all_attributes_typed().items():
-                            self.logger.debug(f"  Attr '{attr_name_debug}':")
-                            self.logger.debug(
-                                f"    tv_debug.value = {repr(tv_debug.value)} (Type: {type(tv_debug.value)})"
-                            )
-                            self.logger.debug(f"    tv_debug.field_type = {tv_debug.field_type}")
-                            self.logger.debug(f"    tv_debug.is_dynamic = {tv_debug.is_dynamic}")
-                            self.logger.debug(f"    tv_debug.original = {repr(tv_debug.original)}")
-                            persistence_string = tv_debug.serialize_for_persistence()
-                            self.logger.debug(
-                                f"    serialize_for_persistence() -> {repr(persistence_string)}"
-                            )
-                            if (
-                                tv_debug.is_dynamic
-                                and tv_debug.original
-                                and persistence_string != tv_debug.original
-                            ):
-                                self.logger.error(
-                                    f"PERSISTENCE MISMATCH for dynamic '{attr_name_debug}': Original='{tv_debug.original}', Got='{persistence_string}'"
-                                )
-                            elif (
-                                not tv_debug.is_dynamic
-                                and isinstance(tv_debug.value, str)
-                                and tv_debug.value.startswith("{'value':")
-                            ):  # Heuristic
-                                self.logger.error(
-                                    f"PERSISTENCE LOOKS LIKE SERIALIZED DICT for static '{attr_name_debug}': {persistence_string}"
-                                )
-                    instance_hy_lines.extend(instance_plugin.format(node_for_formatting))
-                    instance_hy_lines.append("")
-                try:
-                    with open(instance_file_path, "w", encoding="utf-8") as f:
-                        f.write("\n".join(instance_hy_lines))
-                    self.logger.info(
-                        f"Saved {len(instances_list)} of '{entity_type_key}' (cat: '{category_key}') to {instance_file_path}"
-                    )
-                    if instance_file_path in existing_files_to_check_for_emptiness:
-                        del existing_files_to_check_for_emptiness[instance_file_path]
-                except Exception as e_save_inst:
-                    self.logger.error(
-                        f"Error saving '{entity_type_key}/{category_key}': {e_save_inst}",
-                        exc_info=True,
-                    )
-        for empty_filepath in existing_files_to_check_for_emptiness.keys():
-            if os.path.basename(empty_filepath).lower() != "default.hy":
-                try:
-                    os.remove(empty_filepath)
-                    self.logger.info(f"Removed empty category file: {empty_filepath}")
+                    os.remove(instance_file_path)
                 except OSError as e_remove:
-                    self.logger.error(f"Error removing {empty_filepath}: {e_remove}")
-        self.logger.info("Entities saving complete.")
+                    self.logger.error(f"Error removing empty category file {instance_file_path}: {e_remove}")
+            return # Nothing more to do.
+
+        # 4. Get the correct plugin to format the output.
+        instance_plugin = plugin_registry.get_node_plugin(f"def-{entity_type_key}")
+        if not instance_plugin:
+            self.logger.warning(
+                f"No plugin for 'def-{entity_type_key}'. Cannot save entities for category '{category_key}'."
+            )
+            return
+
+        # 5. Format and write the entities to the file.
+        #    This logic is directly extracted from your old save() method.
+        instance_hy_lines = []
+        for entity_instance in sorted(entities_to_save, key=lambda inst: inst.name):
+            # Create a HyNode object that the plugin's format() method expects.
+            node_for_formatting = HyNode(
+                type=f"def-{entity_type_key}", value=entity_instance.name
+            )
+            # The formatter plugin reads from the .attributes_typed attribute of the node.
+            setattr(
+                node_for_formatting,
+                "attributes_typed",
+                entity_instance.get_all_attributes_typed(),
+            )
+
+            # The plugin formats the node into a list of strings (Hy code).
+            instance_hy_lines.extend(instance_plugin.format(node_for_formatting))
+            instance_hy_lines.append("") # Add a blank line between entities
+
+        try:
+            with open(instance_file_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(instance_hy_lines))
+            self.logger.info(
+                f"Saved {len(entities_to_save)} entities of type '{entity_type_key}' (cat: '{category_key}') to {instance_file_path}"
+            )
+        except Exception as e_save_inst:
+            self.logger.error(
+                f"Error saving entities to '{instance_file_path}': {e_save_inst}",
+                exc_info=True,
+            )
+
 
     def _get_entity_schema(self, entity_type_str: str) -> Optional[Dict[str, Any]]:
         type_def = self.entity_types.get(entity_type_str.lower())
@@ -687,7 +742,7 @@ class EntityComponent(SystemComponent):
             attributes=final_typed_attributes,
             category=category_key,
         )
-        self.save()
+        self._save_entities_in_category(entity_type_key, category_key)
         return entity_instance
 
     def update_entity_attribute(
@@ -775,7 +830,7 @@ class EntityComponent(SystemComponent):
                 item_type=item_type_enum,
             )
         entity.set_attribute_typed(attr_name, updated_typed_value)
-        self.save()
+        self._save_entities_in_category(entity_type, category)
         self.logger.info(
             f"Updated attribute '{attr_name}' for entity '{entity_type}:{category}:{name}'. New TV: {repr(updated_typed_value)}"
         )
@@ -791,7 +846,7 @@ class EntityComponent(SystemComponent):
                 f"Entity not found in manager for removal: type='{entity_type_key}', category='{category_key}', name='{name_key}'"
             )
         else:
-            self.save()
+            self._save_entities_in_category(entity_type_key, category_key)
             self.logger.info(f"Removed entity: {entity_type_key}:{category_key}:{name_key}")
 
     def rename_entity(
@@ -839,7 +894,8 @@ class EntityComponent(SystemComponent):
             attributes=entity_to_rename.attributes,
         )
 
-        self.save()  # Persist changes
+        self._save_entities_in_category(entity_type_key, old_category_key)  # Persist changes
+        self._save_entities_in_category(entity_type_key, new_category_key)  # Persist changes
         self.logger.info(
             f"Renamed entity from '{entity_type_key}:{old_category_key}:{old_name_key}' "
             f"to '{entity_type_key}:{new_category_key}:{new_name_key}'."
@@ -914,7 +970,6 @@ class EntityComponent(SystemComponent):
             self.logger.info(
                 f"Renamed category '{old_filepath}' to '{new_filepath}'. Updated {len(entities_to_update)} entities in memory."
             )
-            # self.save() # Consider if immediate save is needed or if next global save is enough
             return True
         except Exception as e:
             self.logger.error(f"Error renaming category: {e}", exc_info=True)
@@ -956,7 +1011,6 @@ class EntityComponent(SystemComponent):
                 self.logger.info(
                     f"Deleted {len(entities_in_category)} entities from category '{category_name}'."
                 )
-            # self.save() # Consider if immediate save is needed
             return True
         except Exception as e:
             self.logger.error(f"Error deleting category '{category_name}': {e}", exc_info=True)
@@ -988,6 +1042,21 @@ class EntityComponent(SystemComponent):
 
     def get_tasks(self, category: Optional[str] = None) -> List[Entity]:
         return self.get_by_type("task", category)
+
+    def get_all_active_entities(self) -> List[Entity]:
+        """
+        Ensures all entities are loaded and then returns a list of all entities
+        that currently have an active occurrence (a "running timer").
+
+        This is the safe, public-facing way to get this information.
+        """
+        # This check ensures that we have a complete view of all entities
+        # before we check their status.
+        if not self._loaded:
+            self.logger.info("get_all_active_entities called, ensuring full load first.")
+            self.load()
+
+        return self._entity_manager.get_all_active_entities()
 
     def start_occurrence(
         self, entity_type: str, category: str, name: str, list_attribute_name: str = "occurrences" # Keep signature
@@ -1053,7 +1122,7 @@ class EntityComponent(SystemComponent):
             )
             try:
                 daily_log_component = self.get_component("daily_logs")
-                if daily_log_component: # Check if component exists
+                if daily_log_component is not None:
                     if not daily_log_component.is_loaded(): # Check if loaded
                         daily_log_component.load()
                     daily_log_component.switch_context(context_to_switch)
@@ -1068,7 +1137,7 @@ class EntityComponent(SystemComponent):
                 )
 
         self._run_hook_code(entity_to_start, "on-start-hook", "start")
-        self.save() # Persists entity changes (and potentially daily_log changes)
+        self._save_entities_in_category(entity_to_start.entity_type, entity_to_start.category)
         return entity_to_start
 
     def end_occurrence(
@@ -1100,7 +1169,7 @@ class EntityComponent(SystemComponent):
             if _is_system_triggered:
                  self.logger.debug(f"Entity '{entity_to_stop.get_identifier()}' was already stopped (system trigger). Ensuring claims are released.")
                  self._entity_manager.release_claims(entity_to_stop)
-                 self.save() # Save potential claim release
+                 self._save_entities_in_category(entity_to_stop.entity_type, entity_to_stop.category) # Save potential claim release
                  return entity_to_stop # Return the entity as is
             else:
                 raise ValueError(f"No active occurrence was found to end for entity '{name}'.")
@@ -1140,7 +1209,7 @@ class EntityComponent(SystemComponent):
         else:
             self.logger.debug(f"Skipping on-end-hook for '{entity_id}' as it was system-triggered.")
         
-        self.save()
+        self._save_entities_in_category(entity_to_stop.entity_type, entity_to_stop.category)
         return entity_to_stop
 
 
@@ -1178,6 +1247,7 @@ class EntityComponent(SystemComponent):
                 "sh": sh,
                 "breakpoint": breakpoint,
             }
+
             self._loader._dynamic_service.evaluate(
                 expression=code_to_run,
                 context=hook_context,
@@ -1192,3 +1262,129 @@ class EntityComponent(SystemComponent):
                 f"Error executing '{hook_attribute_name}' for entity '{entity.name}': {e}",
                 exc_info=True,
             )
+
+    def log_metric(
+        self,
+        category: str,
+        name: str,
+        value: Any,
+        notes: Optional[str] = None,
+        timestamp: Optional[datetime] = None
+    ) -> Entity:
+        """
+        Logs a new point-in-time entry for a METRIC entity.
+
+        This method handles validation of the incoming value against the metric's
+        defined `metric_type`.
+        """
+        self.logger.debug(f"Attempting to log entry for metric '{category}:{name}' with value '{value}'")
+        entity_type = "metric" # This method is only for metrics
+
+        metric_entity = self.get_entity(entity_type, category, name)
+        if not metric_entity:
+            raise ValueError(f"Metric not found: {entity_type}:{category}:{name}")
+
+        # --- The Enforcer Logic ---
+        # 1. Read the validation rule from the entity itself.
+        defined_type_str = metric_entity.get_attribute_value("metric_type")
+        if not defined_type_str:
+            raise TypeError(f"Metric '{name}' does not have a 'metric_type' defined and cannot be logged against.")
+
+        # 2. Check the user's input value against the rule.
+        is_valid = False
+        if defined_type_str == "decimal":
+            is_valid = isinstance(value, (float, int, Decimal))
+        elif defined_type_str == "integer":
+            is_valid = isinstance(value, int)
+        elif defined_type_str == "boolean":
+            is_valid = isinstance(value, bool)
+        elif defined_type_str == "string":
+            is_valid = isinstance(value, str)
+
+        if not is_valid:
+            raise ValueError(
+                f"Invalid value '{value}' (type: {type(value).__name__}) for metric '{name}'. "
+                f"This metric expects a '{defined_type_str}'."
+            )
+
+        # 3. If valid, create the new entry object.
+        from utms.utils import get_ntp_date # Assuming this utility exists
+        
+        entry_timestamp = timestamp if timestamp else get_ntp_date()
+
+        new_entry = {
+            "timestamp": entry_timestamp,
+            "value": value, # Use the original, validated value with its correct type
+            "notes": notes or "",
+        }
+
+        # 4. Append the new entry to the list and save.
+        entries_tv = metric_entity.get_attribute_typed("entries")
+        if not entries_tv: # Should not happen with default_value in schema, but good practice
+             entries_tv = TypedValue(
+                value=[], field_type=FieldType.LIST, item_schema_type="METRIC_ENTRY"
+            )
+             metric_entity.set_attribute_typed("entries", entries_tv)
+
+        # Get the current list, ensuring it's a list
+        current_list = entries_tv.value if isinstance(entries_tv.value, list) else []
+        new_list = current_list + [new_entry]
+        
+        # Update the TypedValue with the new list
+        entries_tv.value = new_list
+        entries_tv.original = python_to_hy_string(new_list)
+
+        self.logger.info(f"Logged new entry for metric '{name}': {new_entry}")
+
+        # Persist the changes to the .hy file
+        self._save_entities_in_category(metric_entity.entity_type, metric_entity.category)
+
+        return metric_entity            
+
+    def remove_metric_entry(self, category: str, name: str, timestamp_iso: str) -> Entity:
+        """
+        Removes a specific entry from a METRIC's entries list, identified by its ISO timestamp.
+        """
+        self.logger.debug(f"Attempting to remove entry from metric '{category}:{name}' at time '{timestamp_iso}'")
+        entity_type = "metric"
+
+        metric_entity = self.get_entity(entity_type, category, name)
+        if not metric_entity:
+            raise ValueError(f"Metric not found: {entity_type}:{category}:{name}")
+
+        entries_tv = metric_entity.get_attribute_typed("entries")
+        if not entries_tv or not isinstance(entries_tv.value, list):
+            # No entries to remove from
+            raise ValueError(f"No entries found for metric '{name}' to remove from.")
+
+        # Parse the target timestamp string into a timezone-aware datetime object for comparison
+        try:
+            # The incoming string might or might not have Z. Making it aware is key.
+            target_ts = datetime.fromisoformat(timestamp_iso.replace("Z", "+00:00"))
+        except ValueError:
+            raise ValueError(f"Invalid timestamp format: '{timestamp_iso}'. Please use ISO 8601 format.")
+
+        original_list = entries_tv.value
+        # We need to compare aware datetime objects, so ensure items in the list are also datetime
+        new_list = [
+            entry for entry in original_list
+            if not (
+                isinstance(entry.get("timestamp"), datetime) and
+                entry.get("timestamp").isoformat() == target_ts.isoformat()
+            )
+        ]
+
+        if len(new_list) == len(original_list):
+            # If the list length hasn't changed, no entry was found
+            raise ValueError(f"No entry found with timestamp '{timestamp_iso}' for metric '{name}'.")
+
+        # Update the TypedValue with the new, filtered list
+        entries_tv.value = new_list
+        entries_tv.original = python_to_hy_string(new_list)
+
+        self.logger.info(f"Removed entry at {timestamp_iso} from metric '{name}'.")
+
+        # Persist the changes
+        self._save_entities_in_category(metric_entity.entity_type, metric_entity.category)
+
+        return metric_entity    

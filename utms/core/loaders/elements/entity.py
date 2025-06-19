@@ -197,6 +197,8 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
             parsed_default_for_tv: Any
             is_default_expr_dynamic = False
 
+            original_for_default_tv: Optional[str] = None # Initialize the variable
+
             if isinstance(
                 default_value_from_schema, str
             ) and default_value_from_schema.strip().startswith("("):
@@ -261,21 +263,21 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
                 ):
                     final_field_type_for_default = declared_field_type
 
+            item_type_hy_obj = get_from_hy_dict(attr_schema_details, "item_type")
+            item_type_str = hy_to_python(item_type_hy_obj) # This will be None if item_type wasn't found
+
             final_attributes_for_model[schema_attr_name] = TypedValue(
                 value=resolved_default_python_value,
                 field_type=final_field_type_for_default,
                 is_dynamic=is_default_expr_dynamic,
                 original=original_for_default_tv,
-                item_type=(
-                    FieldType.from_string(attr_schema_details["item_type"])
-                    if hy_to_python(get_from_hy_dict(attr_schema_details, "item_type"))
-                    else None
-                ),
+                item_type=(FieldType.from_string(item_type_str) if item_type_str else None), # Use the safe value
                 enum_choices=hy_to_python(get_from_hy_dict(attr_schema_details, "enum_choices")),
                 item_schema_type=hy_to_python(get_from_hy_dict(attr_schema_details, "item_schema_type")),
                 referenced_entity_type=hy_to_python(get_from_hy_dict(attr_schema_details, "referenced_entity_type")),
                 referenced_entity_category=hy_to_python(get_from_hy_dict(attr_schema_details, "referenced_entity_category")),
             )
+
             current_entity_py_attributes_for_self[schema_attr_name] = resolved_default_python_value
             setattr(self_object_for_eval, schema_attr_name, resolved_default_python_value)
             self.logger.debug(

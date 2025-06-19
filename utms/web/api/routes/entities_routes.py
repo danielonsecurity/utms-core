@@ -11,6 +11,7 @@ from utms.web.api.models.entities import (  # Add new Pydantic models for catego
     AttributeUpdatePayload,
     EndOccurrencePayload,
     EntityTypeDetailSchema,
+    LogMetricPayload,
 )
 from utms.web.dependencies import get_config
 
@@ -636,3 +637,132 @@ async def end_entity_occurrence_api(
     except Exception as e:
         logger.error(f"Error ending occurrence for {entity_type}:{name}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
+
+@router.get(
+    "/api/entities/active",
+    response_class=JSONResponse,
+    summary="Get all entities with a currently running timer (active occurrence)",
+)
+async def get_active_entities_api(
+    entities_component: EntityComponent = Depends(get_entities_component),
+):
+    """
+    Retrieves a list of all entities that have an 'active_occurrence_start_time'
+    set, indicating they are currently being tracked.
+    """
+    try:
+        # Use the safe, public method on the component that we created.
+        # This ensures all entities are loaded before the check is performed.
+        active_entities_list = entities_component.get_all_active_entities()
+
+        # Serialize the results for the API response, just like the main GET endpoint.
+        api_response_list = []
+        for entity_model_instance in active_entities_list:
+            serialized_attributes = {
+                attr_key: typed_value_obj.serialize()
+                for attr_key, typed_value_obj in entity_model_instance.get_all_attributes_typed().items()
+            }
+            api_response_list.append(
+                {
+                    "name": entity_model_instance.name,
+                    "entity_type": entity_model_instance.entity_type,
+                    "category": entity_model_instance.category,
+                    "attributes": serialized_attributes,
+                }
+            )
+        return api_response_list
+    except Exception as e:
+        logger.error(f"Error fetching active entities: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")    
+
+
+@router.post(
+    "/api/metrics/{category}/{name}/entries",
+    response_class=JSONResponse,
+    summary="Log a new data point for a metric",
+    status_code=200,
+)
+async def log_metric_entry_api(
+    category: str,
+    name: str,
+    payload: LogMetricPayload,
+    entities_component: EntityComponent = Depends(get_entities_component),
+):
+    """
+    Logs a new data entry for a given METRIC entity.
+    The type of the 'value' in the payload must match the metric's 'metric_type'.
+    """
+    try:
+        updated_entity = entities_component.log_metric(
+            category=category,
+            name=name,
+            value=payload.value,
+            notes=payload.notes,
+            timestamp=payload.timestamp,
+        )
+        
+        # Serialize the entire updated entity for the response
+        serialized_attributes = {
+            k: tv.serialize() for k, tv in updated_entity.get_all_attributes_typed().items()
+        }
+        return {
+            "name": updated_entity.name,
+            "entity_type": updated_entity.entity_type,
+            "category": updated_entity.category,
+            "attributes": serialized_attributes,
+        }
+
+    except ValueError as e:
+        # Catches both "Metric not found" and "Invalid value" errors
+        detail_str = str(e).lower()
+        status_code = 404 if "not found" in detail_str else 400
+        raise HTTPException(status_code=status_code, detail=str(e))
+    except TypeError as e:
+        # Catches schema errors like missing 'metric_type'
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error logging metric for {category}:{name}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")    
+
+
+@router.delete(
+    "/api/metrics/{category}/{name}/entries",
+    response_class=JSONResponse,
+    summary="Remove a specific data point from a metric's log",
+    status_code=200,
+)
+async def remove_metric_entry_api(
+    category: str,
+    name: str,
+    timestamp: str = Query(..., description="The ISO 8601 timestamp of the entry to delete."),
+    entities_component: EntityComponent = Depends(get_entities_component),
+):
+    """
+    Deletes a single entry from a metric's log, identified by its exact timestamp.
+    """
+    try:
+        updated_entity = entities_component.remove_metric_entry(
+            category=category,
+            name=name,
+            timestamp_iso=timestamp,
+        )
+        
+        # Serialize the entire updated entity for the response
+        serialized_attributes = {
+            k: tv.serialize() for k, tv in updated_entity.get_all_attributes_typed().items()
+        }
+        return {
+            "name": updated_entity.name,
+            "entity_type": updated_entity.entity_type,
+            "category": updated_entity.category,
+            "attributes": serialized_attributes,
+        }
+
+    except ValueError as e:
+        # Catches "Metric not found", "No entry found", and "Invalid timestamp" errors
+        detail_str = str(e).lower()
+        status_code = 404 if "not found" in detail_str else 400
+        raise HTTPException(status_code=status_code, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error removing metric entry for {category}:{name}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")    

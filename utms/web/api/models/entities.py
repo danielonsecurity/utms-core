@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional, Union
+from datetime import datetime
 
 from pydantic import BaseModel, Field  # Field might not be needed for these simple payloads
 
@@ -62,3 +63,9 @@ class EndOccurrencePayload(BaseModel):
     metadata: Optional[Dict[str, Any]] = Field(
         default_factory=dict, description="Optional key-value metadata."
     )
+
+class LogMetricPayload(BaseModel):
+    """Payload for logging a new data point for a metric."""
+    value: Any
+    notes: Optional[str] = None
+    timestamp: Optional[datetime] = None    

@@ -120,6 +120,19 @@ class DynamicResolutionService(ServiceMixin):
         Returns:
             Tuple of (resolved_value, dynamic_expression_info)
         """
+        try:
+            expr_str = hy.repr(expression)
+        except Exception:
+            expr_str = str(expression)
+            
+        self.logger.critical(
+            f"\n"
+            f"--- [AUDIT] DYNAMIC EVALUATION TRIGGERED ---\n"
+            f"    WHAT: {expr_str}\n"
+            f"    FOR:  {component_type} -> {component_label}\n"
+            f"    ATTR: {attribute}\n"
+            f"--------------------------------------------\n"
+        )
         self.logger.debug(
             "DynamicResolutionService: Evaluating for %s.%s.%s: EXPR=%s, CONTEXT_KEYS=%s",
             component_type,
