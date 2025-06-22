@@ -24,5 +24,3 @@ Usage:
 
 from .convert import register_daytime_convert_command
 from .timetable import register_daytime_timetable_command
-
-__all__ = ["register_daytime_timetable_command", "register_daytime_convert_command"]

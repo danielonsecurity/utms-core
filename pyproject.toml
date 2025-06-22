@@ -66,7 +66,7 @@
     utms = "utms.cli.shell:main"
 
 [tool.poetry.dependencies]
-    python = ">=3.10"
+    python = ">=3.10,<3.14"
     ntplib = "^0.4.0"
     colorama = "^0.4.6"
     dateparser = "^1.2.0"
@@ -78,6 +78,14 @@
     prettytable = "^3.12.0"
     pillow = "^11.0.0"
     appdirs = "^1.4.4"
+    lark = "^1.2.2"
+    hy = "^1.0.0"
+    icalendar = "^6.1.1"
+    fastapi = "^0.115.8"
+    uvicorn = "^0.34.0"
+pygame = "^2.6.1"
+sh = "^2.2.2"
+pyserial = "^3.5"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -96,6 +104,12 @@
     types-dateparser = "^1.2.0.20240420"
     pytest-cov = "^6.0.0"
     sphinx-rtd-theme = "^3.0.2"
+    python-lsp-server = {extras = ["all"], version = "^1.12.2"}
+    python-lsp-black = "^2.0.0"
+    pyls-isort = "^0.2.2"
+    jedi = "^0.19.2"
+    rope = "^1.13.0"
+    yapf = "^0.43.0"
 
 [build-system]
     requires = ["poetry-core"]
@@ -119,7 +133,7 @@
         "import-error"]
     max-line-length = 100
     ignore = ["docs", "tests", ".tox", ".git"]
-
+    ignore-patterns = ["__init__.py"]
 
 [tool.mypy]
     disallow_untyped_calls = true
@@ -127,6 +141,7 @@
     strict = true
     files = "src, tests"
     ignore_missing_imports = true
+    implicit_reexport = true
 
 
 [flake8]

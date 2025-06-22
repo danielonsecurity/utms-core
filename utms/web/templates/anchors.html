@@ -1,0 +1,164 @@
+{% extends "index.html" %}
+
+{% block page_title %}Anchors{% endblock %}
+
+{% block content %}
+<div class="anchors">
+  <div class="anchors__controls">
+    <div class="anchors__search">
+      <div class="anchors__search-field">
+	<i class="material-icons">label</i>
+	<input type="text" class="anchors__search-input" placeholder="Search by label..." id="labelSearch">
+      </div>
+      <div class="anchors__search-field">
+	<i class="material-icons">title</i>
+	<input type="text" class="anchors__search-input" placeholder="Search by name..." id="nameSearch">
+      </div>
+    </div>
+    <div class="anchors__controls-row">
+      <div class="anchors__filters">
+	<div class="anchors__filters-label">Active filters:</div>
+	<div id="activeFilters" class="filters__tags">
+          <!-- Active filters will be inserted here by JavaScript -->
+	</div>
+	<button class="btn btn--clear" id="clearFiltersBtn">Clear All</button>
+      </div>
+      <div class="sort">
+	<select id="sortSelect" class="sort__select">
+	  <option value="value-asc">Value ↑</option>
+	  <option value="value-desc">Value ↓</option>
+	  <option value="label-asc">Label A-Z</option>
+	  <option value="label-desc">Label Z-A</option>
+	</select>
+      </div>
+    </div>
+  </div>
+
+  <div class="anchors__grid" id="anchorsGrid">
+
+    {% for label, anchor in anchors.items() %}
+    <div class="anchor-card card" data-anchor="{{ label }}">
+      <div class="card__header">
+        <h3 class="anchor-card__title edit-target" data-field="label">{{ label }}</h3>
+	<div class="anchor-card__controls">
+	  <button class="btn btn--icon btn--edit" data-action="edit" title="Edit anchor">
+	    <i class="material-icons">edit</i>
+	  </button>
+	  <span class="anchor-card__edit-controls" style="display: none;">
+	    <button class="btn btn--icon btn--delete" data-action="delete">
+	      <i class="material-icons">delete</i>
+	    </button>
+            <button class="btn btn--icon btn--save" data-action="save">
+	      <i class="material-icons">save</i>
+	    </button>
+            <button class="btn btn--icon btn--cancel" data-action="cancel">
+              <i class="material-icons">close</i>
+            </button>
+	  </span>
+	</div>
+      </div>
+      <div class="card__body">
+        <div class="anchor-card__info">
+          <div class="anchor-card__row">
+            <span class="anchor-card__label">Name:</span>
+            <div class="anchor-card__value-container">
+	      <div class="anchor-card__evaluated-value {% if anchor.name_original %}has-original{% endif %}">
+		<span class="anchor-card__value {% if not anchor.name_original %}edit-target{% endif %}" 
+			     data-field="name" 
+			     data-type="text">{{ anchor.name }}</span>
+
+		{% if anchor.name_original %}
+		<button class="anchor-card__original-btn" title="Show original expression" data-target="name">
+                  <i class="material-icons">code</i>
+		</button>
+		<div class="anchor-card__original-code">
+                  <pre class="anchor-card__code">{{ anchor.name_original }}</pre>
+		</div>
+		{% endif %}
+	      </div>
+            </div>
+          </div>
+
+          <div class="anchor-card__row">
+            <span class="anchor-card__label">Value:</span>
+	    <div class="anchor-card__value-container">
+	      <div class="anchor-card__evaluated-value {% if anchor.value_original %}has-original{% endif %}">
+		<span class="anchor-card__value {% if not anchor.value_original %}edit-target{% endif %}" 
+			     data-field="value" 
+			     data-type="number">{{ anchor.value }}</span>
+		
+		{% if anchor.value_original %}
+		<button class="anchor-card__original-btn" title="Show original expression" data-target="value">
+                  <i class="material-icons">code</i>
+		</button>
+		<div class="anchor-card__original-code">
+                  <pre class="anchor-card__code">{{ anchor.value_original }}</pre>
+		</div>
+		{% endif %}
+	      </div>
+
+	    </div>
+          </div>
+
+          {% if anchor.uncertainty %}
+          <div class="anchor-card__row">
+            <span class="anchor-card__label">Uncertainty:</span>
+            <div class="anchor-card__uncertainty">
+	      <div class="anchor-card__uncertainty-item">Absolute: {{ anchor.uncertainty.absolute }}</div>
+	      <div class="anchor-card__uncertainty-item">Relative: {{ anchor.uncertainty.relative }}</div>
+	      {% if anchor.uncertainty.confidence_95 %}
+	      <div class="anchor-card__uncertainty-item">95% Confidence: 
+                [{{ anchor.uncertainty.confidence_95[0] }}, 
+                {{ anchor.uncertainty.confidence_95[1] }}]
+	      </div>
+	      {% endif %}
+            </div>
+          </div>
+          {% endif %}
+          <div class="anchor-card__row">
+            <span class="anchor-card__label">Formats:</span>
+            <div class="anchor-card__formats">
+	      {% for format in anchor.formats %}
+	      <div class="anchor-card__format">
+                {% if format.format %}
+                <span class="anchor-card__format-type">{{ format.format }}</span>
+                {% endif %}
+                {% if format.units %}
+                <span class="anchor-card__format-units">{{ format.units|join(', ') }}</span>
+                {% endif %}
+                {% if format.options %}
+                <span class="anchor-card__format-options">{{ format.options }}</span>
+                {% endif %}
+	      </div>
+	      {% endfor %}
+            </div>
+          </div>
+	  {% if anchor.groups %}
+	  <div class="anchor-card__row">
+	    <span class="anchor-card__label">Groups:</span>
+	    <span class="groups edit-target" data-field="groups">
+	      {% for group in anchor.groups %}
+	      <span class="groups__tag">
+		<span class="groups__name">{{ group }}</span>
+		<i class="groups__remove material-icons">close</i>
+	      </span>
+	      {% endfor %}
+	      <button class="groups__add">
+		<i class="material-icons">add</i>
+	      </button>
+	    </span>
+	  </div>
+	  {% endif %}
+
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% endblock %}
+
+  {% block scripts %}
+  {{ super() }}
+  <script type="module" src="{{ url_for('static', path='/js/anchors.js') }}"></script>
+  {% endblock %}

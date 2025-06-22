@@ -1,0 +1,41 @@
+.container {
+    display: flex;
+    min-height: 100vh;
+}
+
+.content {
+    flex: 1;
+    background: var(--background-color);
+    padding: 20px;
+    margin-left: var(--sidebar-width);
+    min-height: 100vh;
+    transition: margin-left 0.3s ease;
+}
+
+.content__header {
+    margin-bottom: 20px;
+    padding: 20px;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.content__title {
+    color: var(--text-color);
+    font-weight: 500;
+    margin: 0;
+}
+
+.content__body {
+    padding: 20px;
+}
+
+.sidebar--collapsed + .content {
+    margin-left: 60px;
+}
+
+/* Ensure the content doesn't overlap tooltips */
+.content {
+    position: relative;
+    z-index: 1;
+}
+

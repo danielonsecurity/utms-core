@@ -27,9 +27,3 @@ Usage:
 from .get import register_config_get_command
 from .list import register_config_list_command
 from .set import register_config_set_command
-
-__all__ = [
-    "register_config_get_command",
-    "register_config_list_command",
-    "register_config_set_command",
-]

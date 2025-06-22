@@ -6,7 +6,7 @@ the process of configuring command-line argument parsers by
 encapsulating reusable argument definitions.
 """
 
-from utms.cli.commands.core.command import Command
+from ..core import Command
 
 
 def add_anchor_list_argument(command: Command) -> None:

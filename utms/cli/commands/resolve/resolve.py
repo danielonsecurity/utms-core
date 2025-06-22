@@ -23,15 +23,17 @@ import argparse
 from datetime import datetime
 from decimal import Decimal
 
-from utms import AI, Config
-from utms.cli.commands.core import Command, CommandManager
-from utms.cli.commands.resolve.helper import (
+from utms import AI
+from utms import UTMSConfig as Config
+from utms.core.time.utils import print_time
+
+from ..core import Command, CommandManager
+from .helper import (
     add_anchor_list_argument,
     add_input_argument,
     add_plt_argument,
     add_units_argument,
 )
-from utms.utils import print_time
 
 
 def handle_resolve_command(args: argparse.Namespace, config: Config) -> None:
@@ -54,6 +56,8 @@ def handle_resolve_command(args: argparse.Namespace, config: Config) -> None:
     ai = AI(config)
     input_string = " ".join(args.input)
     parsed_timestamp = ai.resolve_date(input_string)
+
+    breakpoint()
 
     if isinstance(parsed_timestamp, (datetime, Decimal)):
         print_time(parsed_timestamp, config, args.anchor_list, args.units, args.plt)

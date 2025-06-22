@@ -1,0 +1,39 @@
+{% extends "index.html" %}
+
+{% block page_title %}Variables{% endblock %}
+
+{% block content %}
+<div class="variables">
+  <div class="variables__grid">
+    {% for name, variable in variables.items() %}
+    <div class="variable-card card">
+      <div class="card__header">
+        <h3 class="variable-card__title">{{ name }}</h3>
+      </div>
+      <div class="card__body">
+        <div class="variable-card__info">
+	  <div class="variable-card__row">
+	    <span class="variable-card__label">Type:</span>
+	    <span class="variable-card__type">{{ variable.type }}</span>
+	  </div>
+          <div class="variable-card__row">
+            <span class="variable-card__label">Value:</span>
+            <div class="variable-card__value-container">
+              <div class="variable-card__evaluated-value has-original">
+                <span class="variable-card__value">{{ variable.value }}</span>
+                <button class="variable-card__original-btn" title="Show original expression">
+                  <i class="material-icons">code</i>
+                </button>
+                <div class="variable-card__original-code">
+                  <pre class="variable-card__code">{{ variable.value_original }}</pre>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

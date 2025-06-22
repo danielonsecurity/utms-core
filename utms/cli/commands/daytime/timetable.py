@@ -12,8 +12,9 @@ Exports:
     - `register_daytime_timetable_command`: Function to register the daytime timetable command.
 """
 
-from utms.cli.commands.core import Command, CommandManager
 from utms.utils import generate_time_table
+
+from ..core import Command, CommandManager
 
 
 def register_daytime_timetable_command(command_manager: CommandManager) -> None:

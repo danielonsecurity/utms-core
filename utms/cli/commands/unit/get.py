@@ -10,8 +10,8 @@ Functions:
         retrieval of unit details by abbreviation.
 """
 
-from utms.cli.commands.core import Command, CommandManager
-from utms.cli.commands.unit.helper import add_abbreviation_argument
+from ..core import Command, CommandManager
+from .helper import add_abbreviation_argument
 
 
 def register_unit_get_command(command_manager: CommandManager) -> None:

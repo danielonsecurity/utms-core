@@ -25,7 +25,7 @@ Steps
    .. code-block:: console
 
       $ utms --version
-      0.1.0
+      0.1.10
 
       $ utms --help
       usage: utms [-h] [--version] [--debug]
@@ -64,7 +64,7 @@ Steps
 
       $ utms resolve end of ww2
 
-   Output:
+   Output (yours may vary depending on configured :term:`Anchors` and :term:`Units`):
 
    .. code-block::
 

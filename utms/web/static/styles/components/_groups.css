@@ -1,0 +1,82 @@
+.groups {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-xs);
+}
+
+.groups__tag {
+    background: var(--primary-color);
+    color: white;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-radius: 16px;
+    font-size: 0.9em;
+    cursor: pointer;
+    padding-right: var(--spacing-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    white-space: nowrap;
+    transition: background-color 0.2s ease;
+}
+
+.groups__tag:hover {
+    background: var(--accent-color);
+}
+
+.groups__name {
+    color: white;
+    cursor: pointer;
+    line-height: 1;
+}
+
+.groups__name:hover {
+    color: var(--background-color);
+}
+
+.groups__remove {
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--background-color);
+    display: none;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.groups__remove.visible {
+    display: inline-flex;
+}
+
+.groups__remove.material-icons {
+    display: none !important;
+}
+
+.groups.editing .groups__remove.material-icons {
+    display: inline-flex !important;
+}
+
+.groups__add {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--primary-color);
+    padding: var(--spacing-xs);
+    border-radius: 50%;
+    display: none;
+}
+
+.groups__add.visible {
+    display: inline-flex;
+}
+
+.groups__add:hover {
+    background: rgba(var(--primary-color), 0.1);
+}
+
+/* When groups are editable */
+.groups.editing .groups__remove {
+    display: inline-flex;
+}
+
+.groups.editing .groups__add {
+    display: inline-flex;
+}

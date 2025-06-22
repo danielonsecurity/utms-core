@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>UTMS Dashboard</title>
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', path='/images/favicon.ico') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='/styles/main.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  </head>
+  <body data-page="{{ active_page }}">
+    <div class="container">
+      <nav class="sidebar">
+        <div class="sidebar__header">
+	  <img src="{{ url_for('static', path='/images/logo.png') }}" alt="UTMS Logo" class="sidebar__logo">
+          <h2 class="sidebar__header-title">UTMS</h2>
+        </div>
+	<ul class="sidebar__nav">
+	  <li class="sidebar__nav-item {% if active_page == 'dashboard' %}sidebar__nav-item--active{% endif %}">
+	    <a href="/" class="sidebar__nav-link" data-title="Dashboard">
+	      <i class="sidebar__nav-icon material-icons">dashboard</i>
+	      <span class="sidebar__nav-text">Dashboard</span>
+	    </a>
+	  </li>
+	  <li class="sidebar__nav-item {% if active_page == 'config' %}sidebar__nav-item--active{% endif %}">
+	    <a href="/config" class="sidebar__nav-link" data-title="Configuration">
+	      <i class="sidebar__nav-icon material-icons">settings</i>
+	      <span class="sidebar__nav-text">Configuration</span>
+	    </a>
+	  </li>
+	  <li class="sidebar__nav-item {% if active_page == 'units' %}sidebar__nav-item--active{% endif %}">
+	    <a href="/units" class="sidebar__nav-link" data-title="Units">
+	      <i class="sidebar__nav-icon material-icons">straighten</i>
+	      <span class="sidebar__nav-text">Units</span>
+	    </a>
+	  </li>
+	  <li class="sidebar__nav-item {% if active_page == 'anchors' %}sidebar__nav-item--active{% endif %}">
+	    <a href="/anchors" class="sidebar__nav-link" data-title="Anchors">
+	      <i class="sidebar__nav-icon material-icons">anchor</i>
+	      <span class="sidebar__nav-text">Anchors</span>
+	    </a>
+	  </li>
+	  <li class="sidebar__nav-item {% if active_page == 'variables' %}sidebar__nav-item--active{% endif %}">
+	    <a href="/variables" class="sidebar__nav-link" data-title="Variables">
+	      <i class="sidebar__nav-icon material-icons">data_object</i>
+	      <span class="sidebar__nav-text">Variables</span>
+	    </a>
+	  </li>
+	  <li class="sidebar__nav-item {% if active_page == 'clock' %}sidebar__nav-item--active{% endif %}">
+	    <a href="/clock" class="sidebar__nav-link" data-title="Clock">
+	      <i class="sidebar__nav-icon material-icons">schedule</i>
+	      <span class="sidebar__nav-text">Clock</span>
+	    </a>
+	  </li>
+	  <li class="sidebar__nav-item {% if active_page == 'calendar' %}sidebar__nav-item--active{% endif %}">
+	    <a href="/calendar" class="sidebar__nav-link" data-title="Calendar">
+	      <i class="sidebar__nav-icon material-icons">calendar_today</i>
+	      <span class="sidebar__nav-text">Calendar</span>
+	    </a>
+	  </li>
+	  <li class="sidebar__nav-item {% if active_page == 'resolve' %}sidebar__nav-item--active{% endif %}">
+	    <a href="/resolve" class="sidebar__nav-link" data-title="Resolve">
+	      <i class="sidebar__nav-icon material-icons">smart_toy</i>
+	      <span class="sidebar__nav-text">Resolve</span>
+	    </a>
+	  </li>
+	  <li class="sidebar__nav-item {% if active_page == 'events' %}sidebar__nav-item--active{% endif %}">
+	    <a href="/events" class="sidebar__nav-link" data-title="Events">
+	      <i class="sidebar__nav-icon material-icons">event</i>
+	      <span class="sidebar__nav-text">Events</span>
+	    </a>
+	  </li>
+	  <li class="sidebar__nav-item {% if active_page == 'analytics' %}sidebar__nav-item--active{% endif %}">
+	    <a href="/analytics" class="sidebar__nav-link" data-title="Analytics">
+	      <i class="sidebar__nav-icon material-icons">analytics</i>
+	      <span class="sidebar__nav-text">Analytics</span>
+	    </a>
+	  </li>
+	</ul>
+	<div class="sidebar__toggle">
+	  <button class="sidebar__toggle-button" id="sidebar-toggle-btn">
+	    <i class="sidebar__toggle-icon material-icons">chevron_left</i>
+	  </button>
+	</div>	
+      </nav>
+
+      
+        <main class="content">
+            <header class="content__header">
+                <h1 class="content__title">{% block page_title %}{% endblock %}</h1>
+            </header>
+            
+            <div class="content__body">
+              {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/decimal.js/10.4.3/decimal.min.js"></script>
+    <script type="module" src="{{ url_for('static', path='/js/main.js') }}"></script>
+</body>
+</html>

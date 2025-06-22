@@ -7,8 +7,12 @@ between various time systems, and more....
 Author: [Daniel Neagaru]
 """
 
-from .ai import AI
-from .config import Config
-from .constants import VERSION
+from .core.logger import LoggerManager
 
-__all__ = ["AI", "Config", "VERSION"]
+LoggerManager.bootstrap()
+
+
+from .core import constants
+from .core.ai import AI
+from .core.config import UTMSConfig
+from .core.config.constants import VERSION

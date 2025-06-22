@@ -19,7 +19,7 @@ Usage:
         register_anchor_list_command(command_manager)
 """
 
-from utms.cli.commands.core import Command, CommandManager
+from ..core import Command, CommandManager
 
 
 def register_anchor_list_command(command_manager: CommandManager) -> None:

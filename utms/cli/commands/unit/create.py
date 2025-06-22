@@ -16,13 +16,10 @@ Functions:
 import argparse
 from decimal import Decimal
 
-from utms import Config
-from utms.cli.commands.core import Command, CommandManager
-from utms.cli.commands.unit.helper import (
-    add_abbreviation_argument,
-    add_name_argument,
-    add_value_seconds_argument,
-)
+from utms import UTMSConfig as Config
+
+from ..core import Command, CommandManager
+from .helper import add_abbreviation_argument, add_name_argument, add_value_seconds_argument
 
 
 def create_unit(args: argparse.Namespace, config: Config) -> None:

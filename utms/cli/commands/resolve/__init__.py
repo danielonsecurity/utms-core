@@ -16,5 +16,3 @@ Usage:
 """
 
 from .resolve import register_resolve_command
-
-__all__ = ["register_resolve_command"]

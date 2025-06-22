@@ -1,0 +1,93 @@
+{% extends "index.html" %}
+
+{% macro render_save_button(key, index=None) %}
+<button class="config__btn config__btn--save" 
+        data-key="{{ key }}"
+        {% if index is not none %}data-index="{{ index }}"{% endif %}>
+  <i class="material-icons">save</i>
+</button>
+{% endmacro %}
+
+{% block page_title %}Configuration{% endblock %}
+
+{% block content %}
+<div class="config">
+  {% for key, value in config.items() %}
+  {% if not key.endswith('-choices') %}
+  <div class="config__item card">
+    <div class="card__header">
+      <label class="config__label" for="{{ key }}">{{ key }}</label>
+    </div>
+    <div class="card__body">
+      {% if value is sequence and value is not string %}
+      <div class="config__list">
+        {% for item in value %}
+        <div class="config__list-item">
+          {% set choices_key = key + "-choices" %}
+          {% if choices_key in config %}
+          <select id="{{ key }}_{{ loop.index0 }}" 
+                  data-key="{{ key }}" 
+                  data-index="{{ loop.index0 }}"
+                  class="config__select">
+            {% for choice in config[choices_key] %}
+            <option value="{{ choice }}" {% if choice == item %}selected{% endif %}>
+              {{ choice }}
+            </option>
+            {% endfor %}
+            <option value="__new__">Add New...</option>
+          </select>
+          {% else %}
+          <input type="text"
+		 class="config__input"
+                 id="{{ key }}_{{ loop.index0 }}" 
+                 value="{{ item }}"
+                 data-list-key="{{ key }}"
+                 data-list-index="{{ loop.index0 }}" />
+          {% endif %}
+	  {{ render_save_button(key, loop.index0) }}
+
+        </div>
+        {% endfor %}
+        <button class="config__btn config__btn--add" data-add-list-key="{{ key }}">
+	  <i class="material-icons">add</i>
+	  Add Item
+	</button>
+      </div>
+      {% else %}
+      <div class="config__field">
+	{% set choices_key = key + "-choices" %}
+	{% if choices_key in config %}
+	<select id="{{ key }}" 
+		data-config-key="{{ key }}"
+		class="config__select">
+          {% for choice in config[choices_key] %}
+          <option value="{{ choice }}" {% if choice == value %}selected{% endif %}>
+            {{ choice }}
+          </option>
+          {% endfor %}
+          <option value="__new__">Add New...</option>
+	</select>
+	{% else %}
+	<input type="text"
+	       class="config__input"
+               id="{{ key }}" 
+               value="{{ value }}"
+               data-config-key="{{ key }}" />
+	{% endif %}
+	{{ render_save_button(key) }}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script type="module">
+ import { initializeConfig } from '{{ url_for("static", path="/js/modules/config.js") }}';
+ document.addEventListener('DOMContentLoaded', initializeConfig);
+</script>
+{% endblock %}

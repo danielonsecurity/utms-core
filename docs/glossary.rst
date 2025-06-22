@@ -15,5 +15,11 @@ Glossary
     Logarithmic Scale
       A `Logarithmic Scale`_ is a nonlinear scale used to represent quantities that span several orders of magnitude. In such a scale, each unit increase represents a multiplication of the previous value rather than a fixed addition. This is useful for displaying values that vary widely in scale, such as measuring time across cosmic and quantum realms, where small and large intervals must be represented compactly.
 
+    Anchor
+      Anchor
+
+    Unit
+      Unit
+
 
 .. include:: links.rst      

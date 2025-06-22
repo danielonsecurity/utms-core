@@ -1,9 +1,3 @@
-.. utms documentation master file, created by
-   sphinx-quickstart on Wed Dec 11 01:57:15 2024.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-
 Universal Time Measurement System (UTMS)
 =============================================
 
@@ -22,7 +16,7 @@ UTMS reimagines time for applications ranging from cosmic
 scales to everyday use, addressing the complexities and limitations of
 current Earth-centric time systems.
 
----
+
 
 🌌 **Why Current Timekeeping Systems Fall Short**
 -----------------------------------------------------
@@ -40,7 +34,7 @@ as the universal unit of time. This provides a consistent
 metric across all observers, ensuring universality and accuracy
 regardless of the context.
 
----
+
 
 🧮 **Core Features of UTMS**
 ----------------------------
@@ -72,7 +66,7 @@ regardless of the context.
    Earth-bound routines, like work schedules, while providing a
    simplified alternative to the traditional 24-hour format.
 
----
+
 
 🔧 **Applications of UTMS**
 --------------------------
@@ -88,7 +82,7 @@ regardless of the context.
   more intuitive with a decimalized system that removes the
   ambiguities of conventional time systems.
 
----
+
 
 🌟 **Getting Started with UTMS**
 -------------------------------
@@ -100,7 +94,7 @@ The **UTMS** project includes:
 - Practical examples showing how UTMS can be applied to both
   historical events and future predictions.
 
----
+
 
 💡 **Future Enhancements**
 --------------------------
@@ -109,7 +103,7 @@ The **UTMS** project includes:
 - Expanding support to include prehistoric and cosmic event timelines.
 - Developing improved visualization tools to enhance user experience and accessibility.
 
----
+
 
 🤝 **Contribute to UTMS**
 -------------------------

@@ -26,11 +26,3 @@ from .delete import register_anchor_delete_command
 from .get import register_anchor_get_command
 from .list import register_anchor_list_command
 from .set import register_anchor_set_command
-
-__all__ = [
-    "register_anchor_get_command",
-    "register_anchor_set_command",
-    "register_anchor_delete_command",
-    "register_anchor_create_command",
-    "register_anchor_list_command",
-]

@@ -1,6 +1,10 @@
 
-# UTMS - Universal Time Measurement System
+# UTMS - Universal Time Measurement/Management System
+Universal Time Measurement/Management System (UTMS): Beyond timekeeping -
+A new Paradigm for Measuring and Managing Time.
 
+**WIP**: The code here is highly unstable, documentation is outdated, code is experimental, but free to take a look around at what I'm working on.
+      
 #### 🚀 **Revolutionizing How We Measure Time**
 
 The **Universal Time Measurement System (UTMS)** is a bold reimagining
@@ -22,7 +26,13 @@ With UTMS, time measurement becomes:
 - **Practical**: Simplifies calculations with a decimal-based hierarchy.
 - **Flexible**: Allows for multiple reference points, from the Unix epoch to your birthday.
 
----
+
+
+![Units](utms/resources/units.jpeg)
+![Anchors](utms/resources/anchors.jpeg)
+![Variables](utms/resources/variables.jpeg)
+![Resolve](utms/resources/resolve.jpeg)
+
 
 #### 🌌 **The Problem with Current Timekeeping**
 

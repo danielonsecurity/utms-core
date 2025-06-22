@@ -50,9 +50,7 @@ def register_config_get_command(command_manager: CommandManager) -> None:
         In CLI:
             config get <key>
     """
-    command = Command(
-        "config", "get", lambda args: print(command_manager.config.get_value(args.key))
-    )
+    command = Command("config", "get", lambda args: print(command_manager.config.get(args.key)))
     command.set_help("Get a configuration value")
     command.set_description("Get the config option from its key")
     # Add the arguments for this command
