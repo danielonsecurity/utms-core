@@ -58,6 +58,10 @@ class EntityManager(BaseManager[Entity], EntityManagerProtocol):  # Renamed
         self.logger.debug(f"Created/Replaced Entity '{generated_key}': {repr(entity)}")
         return entity
 
+    def get_all_entities(self) -> List[Entity]:
+        """Returns a flat list of all managed entity instances."""
+        return list(self._items.values())
+
     def get_by_name_type_category(
         self, name: str, entity_type: str, category: str
     ) -> Optional[Entity]:

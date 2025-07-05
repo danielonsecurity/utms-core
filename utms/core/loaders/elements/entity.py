@@ -1,5 +1,5 @@
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 import hy
 from hy.models import Expression, Symbol
@@ -14,6 +14,8 @@ from utms.utils import hy_to_python, py_list_to_hy_expression
 from utms.utms_types import HyNode
 from utms.utms_types.field.types import FieldType, TypedValue, infer_type
 
+if TYPE_CHECKING:
+    from utms.core.components.elements.entity import EntityComponent
 
 def python_value_to_hy_repr_string_for_original(value: Any) -> str:
     """
@@ -35,9 +37,10 @@ def python_value_to_hy_repr_string_for_original(value: Any) -> str:
 
 
 class EntityLoader(ComponentLoader[Entity, EntityManager]):
-    def __init__(self, manager: EntityManager):
+    def __init__(self, manager: EntityManager, component: 'EntityComponent'):
         super().__init__(manager)
-        self._resolver = EntityResolver(entity_manager=self._manager)
+        self.component = component
+        self._resolver = EntityResolver(entity_manager=self._manager, component=component)
         self._dynamic_service = DynamicResolutionService(resolver=self._resolver)
 
     def _get_entity_schema(self, entity_type_str: str) -> Optional[Dict[str, Any]]:
@@ -114,10 +117,55 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
 
         # Pass 1: Attributes explicitly defined in the instance .hy file
         for attr_name, initial_typed_value in initial_attributes_typed.items():
+            if attr_name == "checklist":
+                self.logger.debug(f"  Special processing for 'checklist' attribute.")
+                
+                checklist_items_raw = initial_typed_value.value
+                processed_checklist = []
+
+                if isinstance(checklist_items_raw, (list, hy.models.List)):
+                    for item_hy in checklist_items_raw:
+                        if not isinstance(item_hy, hy.models.Dict):
+                            self.logger.warning(f"Unexpected item type in checklist: {type(item_hy)}. Converting or skipping.")
+                            # Attempt a safe conversion, or just add if it's already a dict
+                            if isinstance(item_hy, dict):
+                                 processed_checklist.append(item_hy)
+                            continue
+
+                        item_py = {}
+                        for key_hy, val_hy in item_hy.items():
+                            key_str = hy_to_python(key_hy) # Convert hy.Keyword or hy.Symbol to string
+
+                            if key_str == 'default_action':
+                                # Preserve the action/code as a HyExpression for later execution
+                                item_py[key_str] = TypedValue(value=val_hy, field_type=FieldType.ACTION) 
+                            else:
+                                # Convert other values to standard Python types
+                                item_py[key_str] = hy_to_python(val_hy)
+                        
+                        processed_checklist.append(item_py)
+
+                # Create a new TypedValue with the processed Python-native list of dicts
+                processed_typed_value = TypedValue(
+                    value=processed_checklist,
+                    field_type=initial_typed_value.field_type,
+                    item_schema_type=initial_typed_value.item_schema_type,
+                    is_dynamic=initial_typed_value.is_dynamic,
+                    original=initial_typed_value.original
+                )
+
+                final_attributes_for_model[attr_name] = processed_typed_value
+                current_entity_py_attributes_for_self[attr_name] = processed_checklist
+                setattr(self_object_for_eval, attr_name, processed_checklist)
+                attributes_processed_from_instance.add(attr_name)
+                self.logger.debug(f"  Processed 'checklist' into list of Python dicts while preserving actions.")
+                continue
+
+    
             attr_schema_details = entity_schema.get(attr_name, hy.models.Dict())
             declared_type_hy_obj = get_from_hy_dict(attr_schema_details, "type")
             declared_type_str = hy_to_python(declared_type_hy_obj)
-            if declared_type_str == "code":
+            if declared_type_str in ("code", "action"):
                 final_attributes_for_model[attr_name] = initial_typed_value
                 self.logger.debug(
                     f"  Preserving hook '{attr_name}' as-is: {initial_typed_value.original}"

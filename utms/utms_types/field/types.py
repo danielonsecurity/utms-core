@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 import json
 from decimal import Decimal
 from enum import Enum
@@ -28,8 +28,9 @@ class FieldType(Enum):
     DATETIME = "datetime"
     LIST = "list"
     DICT = "dict"
-    CODE = "code"  # For Hy expressions
-    ENUM = "enum"  # For fields with a predefined set of values
+    CODE = "code"
+    ACTION = "action"
+    ENUM = "enum"
     ENTITY_REFERENCE = "entity_reference"
 
     @classmethod
@@ -129,6 +130,12 @@ class TypedValue:
                 )
                 return value  # Store the HyExpression directly for CODE type
 
+            if self.field_type == FieldType.ACTION:
+                logger.debug(
+                    f"ACTION field receives HyExpression '{value}'. Storing as HyExpression."
+                )
+                return value
+
         if self.field_type == FieldType.ENTITY_REFERENCE:
             if isinstance(value, str):
                 return None if value == "None" else value
@@ -144,8 +151,19 @@ class TypedValue:
         if self.field_type == FieldType.DATETIME:
             if value is None or value == "None":
                 return None
-            if isinstance(value, datetime.datetime) or isinstance(value, DecimalTimeStamp):
+            if isinstance(value, (datetime, DecimalTimeStamp)):
                 return value
+            if isinstance(value, str):
+                try:
+                    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+                except (ValueError, TypeError):
+                    logger.warning(
+                        f"Could not parse string '{value}' as a datetime. Storing as is."
+                    )
+                    return value # Fallback to old behavior if parsing fails
+            if isinstance(value, hy.models.Expression):
+                return value
+            
             logger.warning(
                 f"DATETIME field received unexpected value type {type(value)}: '{value}'. Storing as is."
             )
@@ -262,6 +280,9 @@ class TypedValue:
             elif self.field_type == FieldType.CODE:
                 return py_value
 
+            elif self.field_type == FieldType.ACTION:
+                return py_value
+
             else:
                 logger.warning(
                     f"Unknown FieldType '{self.field_type}' encountered for value '{value}'. "
@@ -322,19 +343,31 @@ class TypedValue:
         if val_to_serialize is None:
             return None
 
-        if self.field_type == FieldType.CODE and isinstance(val_to_serialize, (Expression, Symbol)):
+        if self.field_type in (FieldType.CODE, FieldType.ACTION) and isinstance(val_to_serialize, (Expression, Symbol)):
             return hy_obj_to_string(val_to_serialize)
 
         if self.field_type == FieldType.LIST and self.item_schema_type:
-            if isinstance(val_to_serialize, list):
-                return [
-                    item.serialize() if isinstance(item, TypedValue) else item
-                    for item in val_to_serialize
-                ]
-            return val_to_serialize  # Fallback
+            if not isinstance(val_to_serialize, list):
+                return val_to_serialize # Fallback if not a list
+            def deep_serialize_hy(data: Any) -> Any:
+                if isinstance(data, (Expression, Symbol)):
+                    return hy_obj_to_string(data)
+                if isinstance(data, list):
+                    return [deep_serialize_hy(item) for item in data]
+                if isinstance(data, dict):
+                    return {str(k): deep_serialize_hy(v) for k, v in data.items()}
+                # This handles hy.models.Dict, hy.models.List, etc., by converting them first.
+                if isinstance(data, hy.models.Object):
+                    python_equivalent = hy_to_python(data)
+                    return deep_serialize_hy(python_equivalent)
+                
+                # It's already a primitive (str, int, bool, None)
+                return data
+
+            return deep_serialize_hy(val_to_serialize)
 
         if self.field_type == FieldType.DATETIME:
-            if isinstance(val_to_serialize, datetime.datetime):
+            if isinstance(val_to_serialize, datetime):
                 return val_to_serialize.isoformat()
             if isinstance(val_to_serialize, DecimalTimeStamp):
                 return float(val_to_serialize)
@@ -557,7 +590,7 @@ def infer_type(value: Any) -> FieldType:
         if first_symbol_str == "entity-ref":
             return FieldType.ENTITY_REFERENCE
 
-    if isinstance(value, datetime.datetime):
+    if isinstance(value, datetime):
         return FieldType.DATETIME
 
     if isinstance(value, DecimalTimeStamp):

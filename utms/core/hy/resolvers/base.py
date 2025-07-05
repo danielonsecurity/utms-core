@@ -1,5 +1,5 @@
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from types import FunctionType, ModuleType  # pylint: disable=no-name-in-module
 from typing import Any, Set, Tuple, TYPE_CHECKING
 
@@ -60,6 +60,7 @@ class HyResolver(ResolverMixin):
     def __init__(self) -> None:
         self.default_globals = {
             "datetime": datetime,
+            "timedelta": timedelta,
             "time": time,
         }
 
@@ -182,6 +183,12 @@ class HyResolver(ResolverMixin):
         from utms.utms_types import HyExpression, HySymbol, HyList, HyDict
         symbol_name = str(sym)
         self.logger.debug(f"HyResolver._resolve_symbol: '{symbol_name}'")
+        if symbol_name == "True":
+            return True
+        if symbol_name == "False":
+            return False
+        if symbol_name == "None":
+            return None
 
         evaluation_scope = self.get_locals_dict(context, local_names)
 

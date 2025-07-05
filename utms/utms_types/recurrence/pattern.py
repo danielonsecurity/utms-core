@@ -2,7 +2,7 @@ from datetime import datetime, time, timedelta  # Add time to imports
 from typing import Any, List, Optional, Union
 
 from utms.core.time import DecimalTimeLength, DecimalTimeStamp, TimeExpressionParser
-from utms.utms_types import HyNode
+from utms.utms_types import HyNode, UnitManagerProtocol
 
 from .base import (
     Constraint,
@@ -17,14 +17,14 @@ from .builders import RecurrenceBuilder
 
 
 class RecurrencePattern:
-    def __init__(self):
+    def __init__(self, units_provider: Optional[UnitManagerProtocol] = None):
         self.name = None
         self.label = None
         self.spec = RecurrenceSpec()
         self.modifiers: List[Modifier] = []
         self.constraints: List[Constraint] = []
         self.groups = []
-        self.parser = TimeExpressionParser()
+        self.parser = TimeExpressionParser(units_provider=units_provider)
 
     @classmethod
     def every(cls, interval: Union[str, DecimalTimeLength]) -> "RecurrencePattern":

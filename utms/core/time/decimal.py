@@ -39,6 +39,8 @@ class DecimalTimeStamp(TimeStamp):
     def __init__(self, value: Union[int, float, Decimal, "DecimalTimeStamp"]) -> None:
         if isinstance(value, DecimalTimeStamp):
             self._value: Decimal = value._value
+        elif isinstance(value, datetime):
+            self._value: Decimal = Decimal(str(value.timestamp()))
         else:
             self._value = Decimal(str(value))
 

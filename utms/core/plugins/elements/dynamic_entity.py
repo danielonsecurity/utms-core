@@ -113,7 +113,8 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
             enum_choices_from_schema = hy_to_python(get_from_hy_dict(attr_schema_details, "enum_choices", default=[]))
 
             item_schema_type_str = hy_to_python(get_from_hy_dict(attr_schema_details, "item_schema_type"))
-            referenced_entity_type_str = hy_to_python(get_from_hy_dict(attr_schema_details, "referenced_entity_type"))
+            ref_type_from_schema = hy_to_python(get_from_hy_dict(attr_schema_details, "ref-type"))            
+            referenced_entity_type_str = ref_type_from_schema
             referenced_entity_category_str = hy_to_python(get_from_hy_dict(attr_schema_details, "referenced_entity_category"))
 
             is_dynamic_attr = is_dynamic_content(raw_hy_value_object)
@@ -169,8 +170,10 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
         )
 
         if attributes_typed_dict:
-
-            for attr_name, typed_value_instance in sorted(attributes_typed_dict.items()):
+            sorted_attributes = sorted(
+                [(str(k).lstrip(':'), v) for k, v in attributes_typed_dict.items()]
+            )
+            for attr_name, typed_value_instance in sorted_attributes:
                 value_str_for_hy_file = typed_value_instance.serialize_for_persistence()
                 lines.append(f"  ({attr_name} {value_str_for_hy_file})")
 

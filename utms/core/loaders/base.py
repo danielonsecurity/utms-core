@@ -33,7 +33,7 @@ class LoaderContext:
 
 class ComponentLoader(
     ABC, Generic[T, M], LoaderMixin
-):  # Added LoggerMixin from utms.core.mixins.base
+): 
     """Base class for component loaders.
 
     Responsible for:

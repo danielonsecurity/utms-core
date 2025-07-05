@@ -46,6 +46,10 @@ class UTMSConfig(ConfigProtocol, LoggerMixin):
             self.logger.debug("Registering components")
             self._register_components()
 
+            self.logger.info("Loading base components (config, variables)...")
+            self.config.load()
+            self.variables.load()            
+
             self._resource_manager = ResourceService(self._utms_dir)
             self._resource_manager.init_resources()
 
@@ -67,6 +71,32 @@ class UTMSConfig(ConfigProtocol, LoggerMixin):
         self._component_manager.register("daily_logs", DailyLogComponent)
 
         self.logger.debug("Components registered")
+
+
+    def load_all_components(self) -> None:
+        """
+        Loads all registered components in a specific dependency-aware order.
+        This ensures that components a service depends on are ready first.
+        """
+        self.logger.info("Starting two-phase component loading...")
+        
+        # Phase 1: Core configuration and primitives (no dependencies)
+        self.logger.info("Loading: config, units, variables")
+        self.get_component("config")
+        self.get_component("units")
+        self.get_component("variables")
+
+        # Phase 2: Components that depend on primitives
+        self.logger.info("Loading: patterns")
+        self.get_component("patterns")
+        
+        # Phase 3: Components that may depend on patterns and other primitives
+        self.logger.info("Loading: entities, anchors, daily_logs")
+        self.get_component("entities")
+        self.get_component("anchors")
+        self.get_component("daily_logs")
+
+        self.logger.info("All components loaded successfully.")
 
     def get_component(self, name: str) -> SystemComponent:
         """Get a component by name, loading it if necessary"""

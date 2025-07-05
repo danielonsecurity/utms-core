@@ -1,6 +1,6 @@
 import subprocess
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 
 from utms.core.hy.resolvers.base import HyResolver
 from utms.core.managers.elements.entity import EntityManager
@@ -22,20 +22,33 @@ from utms.utms_types import (
     is_expression,
 )
 
+if TYPE_CHECKING:
+    from utms.core.components.entities import EntityComponent
 
 class EntityResolver(HyResolver):
     """Resolver for entity expressions in Hy code."""
 
-    def __init__(self, entity_manager: EntityManager) -> None:
+    def __init__(self, entity_manager: EntityManager, component: 'EntityComponent') -> None:
         super().__init__()
         self._entity_manager = entity_manager
-        self.default_globals.update(
-            {
-                "entity-ref": self._hy_entity_ref,
-                "get-attr": self._hy_get_attr,
-                "shell": lambda *args, **kwargs: self._hy_shell(*args, **kwargs),
-            }
-        )
+        self.component = component
+        custom_functions = {
+            "entity-ref": self._hy_entity_ref,
+            "get-attr": self._hy_get_attr,
+            "shell": lambda *args, **kwargs: self._hy_shell(*args, **kwargs),
+            "log-metric": lambda category, name, value, **kwargs: self.component.log_metric(category, name, value, **kwargs),
+            "start-occurrence": lambda type, cat, name: self.component.start_occurrence(type, cat, name),
+            "end-occurrence": lambda type, cat, name, **kwargs: self.component.end_occurrence(type, cat, name, **kwargs),
+            "create-entity": lambda type, cat, name, **kwargs: self.component.create_entity(name, type, category=cat, attributes_raw=kwargs.get("attributes", {})),
+            "update-entity-attribute": lambda type, cat, name, attr, val: self.component.update_entity_attribute(type, cat, name, attr, val),
+        }
+        
+        # Populate default_globals with both kebab-case and snake_case versions
+        self.default_globals.update(custom_functions)
+        for name, func in custom_functions.items():
+            if "-" in name:
+                self.default_globals[name.replace("-", "_")] = func
+
 
     def get_locals_dict(self, context: Context, local_names: LocalsDict = None) -> LocalsDict:
         """Provide entity-specific context for Hy evaluation"""

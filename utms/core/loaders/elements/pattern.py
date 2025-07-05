@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from utms.core.hy.resolvers import PatternResolver
 from utms.core.loaders.base import ComponentLoader, LoaderContext
@@ -11,8 +11,9 @@ from utms.utms_types.recurrence.pattern import RecurrencePattern
 class PatternLoader(ComponentLoader[RecurrencePattern, PatternManager]):
     """Loader for Pattern components."""
 
-    def __init__(self, manager: PatternManager):
+    def __init__(self, manager: PatternManager, component: Optional[Any] = None):
         super().__init__(manager)
+        self.component = component
         self._resolver = PatternResolver()
 
     def parse_definitions(self, nodes: List[HyNode]) -> Dict[str, dict]:
@@ -44,9 +45,14 @@ class PatternLoader(ComponentLoader[RecurrencePattern, PatternManager]):
     def create_object(self, label: str, properties: Dict[str, Any]) -> RecurrencePattern:
         """Create a Pattern from properties."""
         kwargs = properties["kwargs"]
-
-        # Create pattern with basic properties
-        pattern = RecurrencePattern.every(hy_to_python(kwargs.get("every")))
+        units_provider = None
+        if self.context and self.context.dependencies:
+            units_provider = self.context.dependencies.get("units_provider")        
+        pattern = RecurrencePattern(units_provider=units_provider)
+        interval_str = hy_to_python(kwargs.get("every"))
+        if interval_str:
+            pattern.spec.interval = pattern.parser.evaluate(interval_str)
+            pattern._original_interval = interval_str
 
         pattern.label = label
         pattern.name = hy_to_python(kwargs.get("name", label))

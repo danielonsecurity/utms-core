@@ -42,7 +42,7 @@ class EntityComponent(SystemComponent):
         self._ast_manager = HyAST()
         # Use the renamed EntityManager and EntityLoader
         self._entity_manager = EntityManager()
-        self._loader = EntityLoader(self._entity_manager)
+        self._loader = EntityLoader(self._entity_manager, component=self)
 
         self._entity_schema_def_dir = os.path.join(self._config_dir, "entities")
         self._complex_type_def_dir = os.path.join(self._config_dir, "types")
@@ -141,7 +141,8 @@ class EntityComponent(SystemComponent):
                     f"Complex type definition directory not found or is not a directory: {self._complex_type_def_dir}"
                 )
             variables_component = self.get_component("variables")
-            variables = {}
+            variables = {name: var.value for name, var in variables_component.items()}
+            self.logger.debug(f"Entity loader context populated with variables: {list(variables.keys())}")
 
             if variables_component:
                 for name, var_model in variables_component.items():
@@ -209,6 +210,32 @@ class EntityComponent(SystemComponent):
             self._loaded = False
             raise
 
+    def get_sanitized_entity_schema(self, entity_type_str: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves the schema for an entity type and returns a fully sanitized,
+        Python-native dictionary version of it, safe for use in core logic.
+        """
+        raw_schema = self._get_entity_schema(entity_type_str)
+        if not raw_schema:
+            return None
+
+        sanitized_schema: Dict[str, Dict[str, Any]] = {}
+        for attr_name, attr_schema_hy_dict in raw_schema.items():
+            if isinstance(attr_schema_hy_dict, hy.models.Dict):
+                try:
+                    py_list = hy_to_python(attr_schema_hy_dict)
+                    sanitized_schema[attr_name] = list_to_dict(py_list)
+                except Exception as e_conv:
+                    self.logger.error(f"Failed to sanitize schema for '{entity_type_str}.{attr_name}': {e_conv}")
+                    sanitized_schema[attr_name] = {} # Provide empty dict on failure
+            elif isinstance(attr_schema_hy_dict, dict):
+                sanitized_schema[attr_name] = attr_schema_hy_dict
+            else:
+                 self.logger.warning(f"Unexpected schema format for '{entity_type_str}.{attr_name}': {type(attr_schema_hy_dict)}")
+                 sanitized_schema[attr_name] = {}
+
+        return sanitized_schema
+
     def _extract_entity_types_from_nodes(
         self, type_def_nodes: List[HyNode], source_file: str
     ) -> None:
@@ -237,6 +264,22 @@ class EntityComponent(SystemComponent):
             raw_hy_attr_schemas: Dict[str, hy.models.HyObject] = getattr(
                 node, "attribute_schemas_raw_hy", {}
             )
+
+            processed_py_attr_schemas: Dict[str, Dict[str, Any]] = {}
+            for attr_name_str, attr_schema_hy_dict in raw_hy_attr_schemas.items():
+                if not isinstance(attr_schema_hy_dict, hy.models.Dict):
+                    self.logger.warning(f"Schema for attribute '{attr_name_str}' of entity type '{entity_type_key}' is not a valid HyDict. Skipping.")
+                    continue
+                try:
+                    py_list = hy_to_python(attr_schema_hy_dict)
+                    py_dict = list_to_dict(py_list)
+                    processed_py_attr_schemas[attr_name_str] = py_dict
+                except Exception as e_conv:
+                    self.logger.error(
+                        f"Error converting schema for attribute '{attr_name_str}' of entity type '{entity_type_key}' from '{source_file}': {e_conv}",
+                        exc_info=True,
+                    )
+
 
             self.entity_types[entity_type_key] = {
                 "name": display_name,
@@ -644,7 +687,12 @@ class EntityComponent(SystemComponent):
         if not entity_type_key:
             raise ValueError("Entity type cannot be empty.")
 
-        schema = self._get_entity_schema(entity_type_key) or {}
+        sanitized_attributes_raw = {}
+        if attributes_raw:
+            for k, v in attributes_raw.items():
+                sanitized_attributes_raw[str(k).lstrip(':')] = v 
+
+        schema = self.get_sanitized_entity_schema(entity_type_key) or {}
         final_typed_attributes: Dict[str, TypedValue] = {}
         raw_attributes_to_process = attributes_raw or {}
         variables_for_eval_context = {}
@@ -657,6 +705,7 @@ class EntityComponent(SystemComponent):
                 if val_to_add is not None:
                     variables_for_eval_context[var_name_ctx] = val_to_add
                     variables_for_eval_context[var_name_ctx.replace("-", "_")] = val_to_add
+
         for attr_name, raw_value_from_api in raw_attributes_to_process.items():
             attr_schema_details = schema.get(attr_name, {})
             declared_type_str = attr_schema_details.get("type")
@@ -759,7 +808,7 @@ class EntityComponent(SystemComponent):
         if not entity:
             raise ValueError(f"Entity {entity_type}:{category}:{name} not found for update.")
         existing_typed_value = entity.get_attribute_typed(attr_name)
-        schema = self._get_entity_schema(entity_type.lower()) or {}
+        schema = self.get_sanitized_entity_schema(entity_type.lower()) or {}
         attr_schema_details = schema.get(attr_name, {})
         field_type_for_new_tv: FieldType
         declared_type_str = attr_schema_details.get("type")
@@ -1182,6 +1231,35 @@ class EntityComponent(SystemComponent):
             "notes": notes or "",
             "metadata": metadata or {},
         }
+        if entity_to_stop.has_attribute("checklist"):
+            self.logger.info(f"Entity '{entity_to_stop.get_identifier()}' has a checklist. Processing for smart defaults.")
+            
+            checklist = entity_to_stop.get_attribute_value("checklist", [])
+            if checklist:
+                for item in checklist:
+                    if not item.get("is_mandatory"):
+                        continue
+
+                    default_action_tv = item.get("default_action")
+                    
+                    if default_action_tv and default_action_tv.value:
+                        step_name = item.get('name', 'unnamed_step')
+                        code_to_run = default_action_tv.value
+                        
+                        self.logger.info(f"Executing default action for mandatory step: {step_name}")
+                        try:
+                            # Call the evaluation service directly, just like _run_hook_code does.
+                            # The context is now correctly configured in the EntityResolver.
+                            self._loader._dynamic_service.evaluate(
+                                expression=code_to_run,
+                                context={"self": entity_to_stop}, # Provide the routine as 'self'
+                                component_type="checklist_action",
+                                component_label=f"{entity_to_stop.get_identifier()}:{step_name}",
+                                attribute="default_action"
+                            )
+                        except Exception as e:
+                            self.logger.error(f"Failed to run default action for '{step_name}': {e}")        
+
         occurrences_tv = entity_to_stop.get_attribute_typed(list_attribute_name)
         if not occurrences_tv:
             occurrences_tv = TypedValue(

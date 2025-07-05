@@ -9,7 +9,6 @@ import serial.tools.list_ports
 from utms.utils import list_to_dict
 from utms import UTMSConfig as Config
 from utms.core.logger import get_logger
-from ..core import Command, CommandManager
 
 
 def _parse_flat_list_to_tuples(flat_list: List[Any]) -> List[Tuple[str, str]]:
@@ -47,11 +46,9 @@ def find_arduino_port(valid_ids: List[Tuple[str, str]], logger) -> Optional[str]
     return None
 
 
-def handle_arduino_listener(args, config: Config) -> None:
-    """
-    Handles the 'server arduino' command by starting a long-running daemon.
-    """
-    logger = get_logger('arduino_agent')
+if __name__ == "__main__":
+    config = Config()
+    logger = get_logger()
     logger.info("--- UTMS Arduino Agent starting up ---")
 
     # --- Load All Configuration ---
@@ -301,15 +298,3 @@ def handle_arduino_listener(args, config: Config) -> None:
             logger.critical(f"An unexpected critical error occurred: {e}", exc_info=True)
             time.sleep(10)
 
-
-def register_server_command(command_manager: CommandManager) -> None:
-    # (This function remains unchanged)
-    command = Command(
-        "server", "arduino", lambda args: handle_arduino_listener(args, command_manager.config), is_default=False
-    )
-    command.set_help("Run the Arduino hardware listener daemon.")
-    command.set_description(
-        "Starts a long-running process that listens for events from a connected Arduino "
-        "and triggers corresponding actions via the API, based on system configuration."
-    )
-    command_manager.register_command(command)
