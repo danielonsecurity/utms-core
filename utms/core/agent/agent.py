@@ -1,3 +1,4 @@
+import hy 
 import time
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -17,7 +18,7 @@ class SchedulerAgent:
     and executes their corresponding hooks. Designed to be run as a blocking process.
     """
     def __init__(self, config: UTMSConfig):
-        self.logger = get_logger("agent")
+        self.logger = get_logger()
         self.config = config
         
         self.entity_component: EntityComponent = self.config._component_manager.get_instance("entities")
@@ -68,9 +69,7 @@ class SchedulerAgent:
                 )
 
                 if not (is_datetime_trigger or is_pattern_trigger):
-                    continue # Not a temporal attribute, move to the next one
-                
-                # We found a potential trigger. Check for its hook by convention.
+                    continue
                 self.logger.debug(f"    -> Discovered potential trigger on {entity.get_identifier()}: '{attr_name}'")
                 hook_name = f"on_{attr_name}_hook"
 
@@ -95,65 +94,71 @@ class SchedulerAgent:
                         lookahead_until_dts=lookahead_until_dts
                     )
 
-    def _process_datetime_trigger(self, entity: Entity, trigger_name:str, trigger_value: TypedValue, hook_name: str, lookahead_until_dts: DecimalTimeStamp):
-        trigger_name = "deadline" # We know this for now
-        self.logger.debug(f"      -> Processing trigger '{trigger_name}' for '{entity.get_identifier()}'")
+    def _process_datetime_trigger(self, entity: Entity, trigger_name: str, trigger_value: TypedValue, hook_name: str, lookahead_until_dts: DecimalTimeStamp):
+            self.logger.debug(f"      -> Processing generic datetime trigger '{trigger_name}' for '{entity.get_identifier()}'")
 
-        status = entity.get_attribute_value("status")
-        if status in ["completed", "done", "archived", "cancelled"]:
-            self.logger.debug(f"         - SKIPPING: Entity status is '{status}'.")
-            return
+            trigger_dt = trigger_value.value
+            if not isinstance(trigger_dt, datetime):
+                self.logger.debug(f"         - SKIPPING: Trigger attribute '{trigger_name}' is not a valid datetime. Got: {type(trigger_dt)}")
+                return
 
-        deadline_dt = trigger_value.value
-        if not isinstance(deadline_dt, datetime):
-            self.logger.debug(f"         - SKIPPING: Deadline attribute is not a valid datetime object. Got: {type(deadline_dt)}")
-            return
-            
-        self.logger.debug(f"         - Found deadline datetime: {deadline_dt}")
-        
-        cursor_name = f"{trigger_name}_cursor"
-        raw_cursor_value = entity.get_attribute_value(cursor_name)
-        
-        cursor_dts = None
-        if raw_cursor_value is None:
-            cursor_dts = DecimalTimeStamp(0) # First run, cursor is at the beginning of time
-        elif isinstance(raw_cursor_value, (datetime, DecimalTimeStamp)):
-            cursor_dts = DecimalTimeStamp(raw_cursor_value) # Convert if needed
-        elif isinstance(raw_cursor_value, (int, float, Decimal)):
-            cursor_dts = DecimalTimeStamp(raw_cursor_value)
-            
-        if cursor_dts is None:
-            self.logger.error(f"         - CRITICAL: Could not process cursor value. Raw value was '{raw_cursor_value}'. Skipping.")
-            return
+            self.logger.debug(f"         - Found trigger datetime: {trigger_dt}")
+            cursor_name = f"{trigger_name}_cursor"
 
-        self.logger.debug(f"         - Found cursor timestamp: {cursor_dts}")
+            if not entity.has_attribute(cursor_name):
+                self.logger.debug(f"         - SKIPPING: No corresponding cursor attribute '{cursor_name}' found.")
+                return
 
-        deadline_dts = DecimalTimeStamp(deadline_dt)
+            raw_cursor_value = entity.get_attribute_value(cursor_name)
 
-        if cursor_dts < deadline_dts <= lookahead_until_dts:
-            self.logger.info(f"        !!!! TRIGGERING '{hook_name}' on '{entity.get_identifier()}' for deadline: {deadline_dt} !!!!")
-            
-            hook_code = entity.get_attribute_value(hook_name)
-            if hook_code:
+            cursor_dts = None
+            if raw_cursor_value is None:
+                cursor_dts = DecimalTimeStamp(0) # First run, cursor is at the beginning of time
+            elif isinstance(raw_cursor_value, (datetime, DecimalTimeStamp)):
+                cursor_dts = DecimalTimeStamp(raw_cursor_value)
+            elif isinstance(raw_cursor_value, (int, float, Decimal)):
+                cursor_dts = DecimalTimeStamp(raw_cursor_value)
+
+            if cursor_dts is None:
+                self.logger.error(f"         - CRITICAL: Could not process cursor '{cursor_name}'. Raw value was '{raw_cursor_value}'. Skipping.")
+                return
+
+            self.logger.debug(f"         - Found cursor '{cursor_name}' with timestamp: {cursor_dts}")
+
+            trigger_dts = DecimalTimeStamp(trigger_dt)
+
+            if cursor_dts < trigger_dts <= lookahead_until_dts:
+                self.logger.info(f"        !!!! TRIGGERING '{hook_name}' on '{entity.get_identifier()}' for datetime trigger '{trigger_name}' at: {trigger_dt} !!!!")
+
+                hook_tv = entity.get_attribute_typed(hook_name)
+                if hook_tv and hook_tv.value:
+                    hook_expression = hook_tv.value
+
+                    if not (isinstance(hook_expression, hy.models.Expression) and len(hook_expression) > 1 and str(hook_expression[0]) == "quote"):
+                        self.logger.warning(f"Hook '{hook_name}' on '{entity.get_identifier()}' is not a valid quoted expression. Skipping.")
+                    else:
+                        code_to_run = hook_expression[1]
+                        try:
+                            self.resolution_service.evaluate(
+                                expression=code_to_run,
+                                context={"self": entity}, 
+                                component_label=entity.get_identifier(),
+                                component_type="agent_hook", 
+                                attribute=hook_name
+                            )
+                        except Exception as e:
+                            self.logger.error(f"Error executing hook '{hook_name}': {e}", exc_info=True)
+                            return 
+                self.logger.debug(f"         - Updating cursor '{cursor_name}' to trigger time.")
                 try:
-                    self.resolution_service.evaluate(
-                        expression=hook_code, context={"self": entity}, component_label=entity.get_identifier(),
-                        component_type="agent_hook", attribute=hook_name
+                    self.entity_component.update_entity_attribute(
+                        entity.entity_type, entity.category, entity.name, cursor_name, trigger_dt
                     )
                 except Exception as e:
-                    self.logger.error(f"Error executing hook '{hook_name}': {e}", exc_info=True)
+                    self.logger.error(f"Failed to update cursor for '{entity.get_identifier()}': {e}", exc_info=True)
 
-            try:
-                self.entity_component.update_entity_attribute(
-                    entity_type=entity.entity_type, category=entity.category, name=entity.name, 
-                    attr_name=cursor_name, 
-                    new_raw_value_from_api=deadline_dt # Pass the standard datetime object
-                )
-                self.logger.info(f"        -> Successfully updated '{cursor_name}' for '{entity.get_identifier()}'.")
-            except Exception as e:
-                self.logger.error(f"CRITICAL: Failed to update cursor for '{entity.get_identifier()}': {e}", exc_info=True)
-        else:
-            self.logger.debug(f"         - SKIPPING: Condition not met. [cursor < deadline <= lookahead] -> [{cursor_dts} < {deadline_dts} <= {lookahead_until_dts}]")
+            else:
+                self.logger.debug(f"         - SKIPPING: Condition not met. [cursor < trigger <= lookahead] -> [{cursor_dts} < {trigger_dts} <= {lookahead_until_dts}]")
 
     def _process_recurring_trigger(self, entity: Entity, trigger_name: str, trigger_value: TypedValue, hook_name: str, lookahead_until_dts: DecimalTimeStamp):
         self.logger.debug(f"      -> Processing recurring trigger '{trigger_name}' for '{entity.get_identifier()}'")
@@ -207,27 +212,26 @@ class SchedulerAgent:
         if next_event_dts <= lookahead_until_dts:
             self.logger.info(f"        !!!! TRIGGERING '{hook_name}' on '{entity.get_identifier()}' for pattern '{pattern_label}' at {next_event_dts} !!!!")
             
-            hook_code = entity.get_attribute_value(hook_name)
-            if hook_code:
-                try:
-                    self.resolution_service.evaluate(
-                        expression=hook_code, context={"self": entity}, component_label=entity.get_identifier(),
-                        component_type="agent_hook", attribute=hook_name
-                    )
-                except Exception as e:
-                    self.logger.error(f"Error executing hook '{hook_name}': {e}", exc_info=True)
+        hook_tv = entity.get_attribute_typed(hook_name)
+        if hook_tv and hook_tv.value:
+            hook_expression = hook_tv.value
+
+            if not (isinstance(hook_expression, hy.models.Expression) and len(hook_expression) > 1 and str(hook_expression[0]) == "quote"):
+                self.logger.warning(f"Hook '{hook_name}' on '{entity.get_identifier()}' is not a valid quoted expression. Skipping.")
+                return
+
+            code_to_run = hook_expression[1]
 
             try:
-                # CRITICAL: Update the cursor to the time of the event we just processed.
-                # This ensures we look for the *next* event on the next tick.
-                self.entity_component.update_entity_attribute(
-                    entity_type=entity.entity_type, category=entity.category, name=entity.name, 
-                    attr_name=cursor_name, 
-                    new_raw_value_from_api=next_event_dts.to_gregorian() # Pass a standard datetime
+                self.resolution_service.evaluate(
+                    expression=code_to_run,
+                    context={"self": entity}, 
+                    component_label=entity.get_identifier(),
+                    component_type="agent_hook", 
+                    attribute=hook_name
                 )
-                self.logger.info(f"        -> Successfully updated '{cursor_name}' to {next_event_dts}.")
             except Exception as e:
-                self.logger.error(f"CRITICAL: Failed to update cursor for '{entity.get_identifier()}': {e}", exc_info=True)
+                self.logger.error(f"Error executing hook '{hook_name}': {e}", exc_info=True)
         else:
              self.logger.debug(f"         - SKIPPING: Next occurrence {next_event_dts} is outside lookahead window {lookahead_until_dts}.")
             

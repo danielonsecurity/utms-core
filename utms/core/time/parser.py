@@ -69,7 +69,7 @@ class TimeExpressionParser:
             match = self.token_pattern.match(token)
             if match:
                 number = match.group("number")
-                unit_symbol = (match.group("unit") or "s").lower()
+                unit_symbol = (match.group("unit") or "s")
                 output_queue.append(
                     hy.models.Expression(
                         [
@@ -128,21 +128,20 @@ class TimeExpressionParser:
         context = {}
         for _, unit_obj in self.units_provider.items():
             time_length_val = DecimalTimeLength(unit_obj.value)
+            if unit_obj.label:
+                context[str(unit_obj.label)] = time_length_val
 
             all_names_for_unit = set()
-
-            all_names_for_unit.add(str(unit_obj.label))
-
             if isinstance(unit_obj.name, list):
                 all_names_for_unit.update([str(n) for n in unit_obj.name])
             elif unit_obj.name is not None:
                 all_names_for_unit.add(str(unit_obj.name))
+            
             for name in all_names_for_unit:
-                lower_name = name.lower()
-                context[lower_name] = time_length_val
-                if not lower_name.endswith('s'):
-                    context[lower_name + 's'] = time_length_val
-
+                context[name] = time_length_val
+                # Add a lowercase plural version for convenience (e.g., 'minutes')
+                if not name.lower().endswith('s'):
+                    context[name.lower() + 's'] = time_length_val
         # Add standard math functions.
         context.update(
             {

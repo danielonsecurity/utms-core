@@ -83,7 +83,7 @@ Define a new entity type TASK:
   (deadline {:type "datetime" :label "Deadline" :default_value None})
   (creation_date {:type "datetime" :label "Created" :default_value current-time})
   (occurrences {:type "list" :item_schema_type "OCCURRENCE"})
-  (active_occurrence_start_time {:type "datetime"})
+  (active-occurrence-start-time {:type "datetime"})
   (exclusive_resource_claims {:type "list" :item_type "string" :label "Exclusive Resource Claims" :default_value []})
   (on-start-hook {:type "code" :label "Code to run on start"})
   (on-end-hook {:type "code" :label "Code to run on end"})
@@ -93,7 +93,7 @@ Define a new entity type TASK:
 Define a new TASK:
 ```hy
 (def-task "UTMS coding"
-  (active_occurrence_start_time None)
+  (active-occurrence-start-time None)
   (context (entity-ref "context" "default" "UTMS"))
   (creation_date None)
   (deadline None)

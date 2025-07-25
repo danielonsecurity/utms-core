@@ -439,6 +439,20 @@ class TypedValue:
         field_type_enum = FieldType.from_string(field_type_str)
         item_type_enum = FieldType.from_string(item_type_str) if item_type_str else None
 
+        if field_type_enum == FieldType.CODE and isinstance(value, str) and value.strip().startswith('('):
+            try:
+                parsed_value = hy.read(value)
+                if isinstance(parsed_value, (hy.models.Expression, hy.models.Symbol)):
+                    value = parsed_value
+                else:
+                    logger.warning(
+                        f"Deserializing CODE field, but parsed value is not a Hy Expression/Symbol: '{value}'. Using as string."
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Error using hy.read on CODE field value '{value}': {e}. Using as string."
+                )
+
         if field_type_enum == FieldType.LIST and item_schema_type and isinstance(value, list):
             processed_value_list = []
             for item_str in value:

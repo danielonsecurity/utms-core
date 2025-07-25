@@ -110,9 +110,6 @@ class HyResolver(ResolverMixin):
         """
         Recursively resolves a HyValue to a Python native value or callable.
         """
-        if "notify_send" in str(expr):
-            print(f"DEBUG: Intercepted potential command string: {expr}")
-            breakpoint()
         from utms.utms_types import HySymbol, HyExpression, HyList, HyDict, HyKeyword
         self.logger.debug(
             f"HyResolver._resolve_value: expr='{expr}' (type: {type(expr)}), local_names_keys: {list(local_names.keys()) if local_names else 'None'}"

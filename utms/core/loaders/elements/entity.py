@@ -79,6 +79,7 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
                 continue
 
             initial_attributes_typed: Dict[str, TypedValue] = getattr(node, "attributes_typed", {})
+
             entity_props = {
                 "name": entity_instance_name,
                 "entity_type_str": current_entity_type_from_context,
@@ -115,116 +116,38 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
         self_object_for_eval = SimpleNamespace(**current_entity_py_attributes_for_self)
         attributes_processed_from_instance = set()
 
-        # Pass 1: Attributes explicitly defined in the instance .hy file
-        for attr_name, initial_typed_value in initial_attributes_typed.items():
-            if attr_name == "checklist":
-                self.logger.debug(f"  Special processing for 'checklist' attribute.")
-                
-                checklist_items_raw = initial_typed_value.value
-                processed_checklist = []
+        for raw_attr_name, initial_typed_value in initial_attributes_typed.items():
+            attr_name = str(raw_attr_name).replace('-', '_')
+            original_str = (initial_typed_value.original or "").strip()
+            is_quoted = original_str.startswith("'") or original_str.startswith("(quote")
 
-                if isinstance(checklist_items_raw, (list, hy.models.List)):
-                    for item_hy in checklist_items_raw:
-                        if not isinstance(item_hy, hy.models.Dict):
-                            self.logger.warning(f"Unexpected item type in checklist: {type(item_hy)}. Converting or skipping.")
-                            # Attempt a safe conversion, or just add if it's already a dict
-                            if isinstance(item_hy, dict):
-                                 processed_checklist.append(item_hy)
-                            continue
-
-                        item_py = {}
-                        for key_hy, val_hy in item_hy.items():
-                            key_str = hy_to_python(key_hy) # Convert hy.Keyword or hy.Symbol to string
-
-                            if key_str == 'default_action':
-                                # Preserve the action/code as a HyExpression for later execution
-                                item_py[key_str] = TypedValue(value=val_hy, field_type=FieldType.ACTION) 
-                            else:
-                                # Convert other values to standard Python types
-                                item_py[key_str] = hy_to_python(val_hy)
-                        
-                        processed_checklist.append(item_py)
-
-                # Create a new TypedValue with the processed Python-native list of dicts
-                processed_typed_value = TypedValue(
-                    value=processed_checklist,
-                    field_type=initial_typed_value.field_type,
-                    item_schema_type=initial_typed_value.item_schema_type,
-                    is_dynamic=initial_typed_value.is_dynamic,
-                    original=initial_typed_value.original
-                )
-
-                final_attributes_for_model[attr_name] = processed_typed_value
-                current_entity_py_attributes_for_self[attr_name] = processed_checklist
-                setattr(self_object_for_eval, attr_name, processed_checklist)
-                attributes_processed_from_instance.add(attr_name)
-                self.logger.debug(f"  Processed 'checklist' into list of Python dicts while preserving actions.")
-                continue
-
-    
-            attr_schema_details = entity_schema.get(attr_name, hy.models.Dict())
-            declared_type_hy_obj = get_from_hy_dict(attr_schema_details, "type")
-            declared_type_str = hy_to_python(declared_type_hy_obj)
-            if declared_type_str in ("code", "action"):
-                final_attributes_for_model[attr_name] = initial_typed_value
-                self.logger.debug(
-                    f"  Preserving hook '{attr_name}' as-is: {initial_typed_value.original}"
-                )
-                current_entity_py_attributes_for_self[attr_name] = initial_typed_value.value
-                setattr(self_object_for_eval, attr_name, initial_typed_value.value)
-
-                continue
-            attributes_processed_from_instance.add(attr_name)
-            resolved_python_value: Any
-            final_original_str = initial_typed_value.original  # String from plugin
-            current_field_type = initial_typed_value.field_type
-
-            if not initial_typed_value.is_dynamic:
-                resolved_python_value = initial_typed_value.value
-                final_attributes_for_model[attr_name] = initial_typed_value
-            else:
-                context_for_dynamic_service = {
-                    **global_variables_for_evaluation,
-                    "self": self_object_for_eval,
-                }
-                raw_hy_object_to_evaluate = initial_typed_value._raw_value
-                resolved_val_raw, _ = self._dynamic_service.evaluate(
-                    expression=raw_hy_object_to_evaluate,
-                    context=context_for_dynamic_service,
+            if is_quoted:
+                self.logger.debug(f"  Preserving quoted attribute '{attr_name}' as-is: {original_str}")
+                final_tv_props = initial_typed_value.serialize()
+                try:
+                    final_tv_props['value'] = hy.read(original_str)
+                except Exception as e:
+                    self.logger.error(f"Failed to parse quoted expression for '{attr_name}': {e}. Storing as is.")
+                    final_tv_props['value'] = initial_typed_value.value
+                final_attributes_for_model[attr_name] = TypedValue.deserialize(final_tv_props)
+            elif initial_typed_value.is_dynamic:
+                self.logger.debug(f"  Evaluating dynamic attribute '{attr_name}': {original_str}")
+                resolved_python_value, _ = self._dynamic_service.evaluate(
+                    expression=initial_typed_value.value,
+                    context={"self": self_object_for_eval, **global_variables_for_evaluation},
                     component_type="entity_attribute",
-                    component_label=f"{entity_type_name_str}:{category_name_str}:{entity_instance_name}",
-                    attribute=attr_name,
+                    component_label=definition_processing_key,
+                    attribute=attr_name
                 )
-                resolved_python_value = hy_to_python(resolved_val_raw)
-                # Use schema-defined type if available, else infer from resolved value
-                attr_schema_details_for_type = entity_schema.get(attr_name, {})
-                type_from_schema = hy_to_python(get_from_hy_dict(attr_schema_details_for_type,"type"))
-                current_field_type = (
-                    FieldType.from_string(type_from_schema)
-                    if type_from_schema
-                    else infer_type(resolved_python_value)
-                )
+                final_tv_props = initial_typed_value.serialize()
+                final_tv_props['value'] = resolved_python_value
+                final_attributes_for_model[attr_name] = TypedValue.deserialize(final_tv_props)
+            else:
+                final_attributes_for_model[attr_name] = initial_typed_value
+            attributes_processed_from_instance.add(attr_name)
 
-                final_attributes_for_model[attr_name] = TypedValue(
-                    value=resolved_python_value,
-                    field_type=current_field_type,
-                    is_dynamic=True,
-                    original=final_original_str,
-                    item_type=initial_typed_value.item_type,
-                    enum_choices=initial_typed_value.enum_choices,
-                    item_schema_type=initial_typed_value.item_schema_type,
-                    referenced_entity_type=initial_typed_value.referenced_entity_type,
-                    referenced_entity_category=initial_typed_value.referenced_entity_category,
-                )
-
-            current_entity_py_attributes_for_self[attr_name] = resolved_python_value
-            setattr(self_object_for_eval, attr_name, resolved_python_value)
-            self.logger.debug(
-                f"  Processed instance attribute '{attr_name}'. Value: {repr(resolved_python_value)}"
-            )
-
-        # Pass 2: Apply defaults for schema attributes not provided in the instance
-        for schema_attr_name, attr_schema_details in entity_schema.items():
+        for raw_schema_attr_name, attr_schema_details in entity_schema.items():
+            schema_attr_name = str(raw_schema_attr_name).replace('-','_')
             if schema_attr_name in attributes_processed_from_instance:
                 continue
 
@@ -277,18 +200,7 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
 
             resolved_default_python_value: Any
             if is_default_expr_dynamic:
-                context_for_dynamic_service = {
-                    **global_variables_for_evaluation,
-                    "self": self_object_for_eval,
-                }
-                resolved_raw, _ = self._dynamic_service.evaluate(
-                    expression=parsed_default_for_tv,
-                    context=context_for_dynamic_service,
-                    component_type="entity_default",
-                    component_label=f"{entity_type_name_str}:{category_name_str}:{entity_instance_name}",
-                    attribute=schema_attr_name,
-                )
-                resolved_default_python_value = hy_to_python(resolved_raw)
+                resolved_default_python_value = None 
             else:
                 resolved_default_python_value = parsed_default_for_tv
 

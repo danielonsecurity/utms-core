@@ -1,4 +1,5 @@
 from typing import Any, Dict, List, Optional, Union
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query  # Added Query
 from fastapi.responses import JSONResponse
@@ -7,7 +8,9 @@ from utms.core.components.elements.entity import EntityComponent
 from utms.core.config import UTMSConfig
 from utms.core.logger import get_logger
 from utms.utils import sanitize_filename
-from utms.web.api.models.entities import (  # Add new Pydantic models for category payloads if desired, or use Body fields
+from utms.core.time.parser import TimeExpressionParser
+from utms.core.time import DecimalTimeLength
+from utms.web.api.models.entities import ( 
     AttributeUpdatePayload,
     EndOccurrencePayload,
     EntityTypeDetailSchema,
@@ -67,13 +70,15 @@ async def get_entities_api(  # Renamed for clarity
     ),
     entities_component: EntityComponent = Depends(get_entities_component),
 ):
+    logger.info(f"API: get_entities called with entity_type='{entity_type}', category='{category}'")
     try:
         entities_list = []
         if entity_type:
-            # Component's get_by_type now accepts an optional category
+            logger.info(f"Searching for type '{entity_type.lower()}' in category '{category.lower() if category else None}'")
             entities_list = entities_component.get_by_type(
                 entity_type.lower(), category.lower() if category else None
             )
+            logger.info(f"entities_component.get_by_type returned {len(entities_list)} entities.")
         elif category:
             # If only category is specified, get all entities from that category across all types
             # This might require a new component method or iteration here.
@@ -199,12 +204,30 @@ async def create_new_entity_api(
     )
     try:
         category_key = category.lower() if category else "default"
-        # get_entity checks across all categories if name is assumed unique per type
         if entities_component.get_entity(entity_type.lower(), category_key, name):
             raise HTTPException(
                 status_code=409,
                 detail=f"Entity '{entity_type}:{name}' already exists (name must be unique for this type).",
             )
+        if entity_type.lower() == "timer":
+            logger.debug("Detected TIMER entity creation. Processing duration.")
+            duration_expr = attributes_raw.get("duration_expression")
+            if duration_expr:
+                try:
+                    # Assumes your config has a 'units' component accessible
+                    units_provider = get_config().get_component("units").get_all_units()
+                    parser = TimeExpressionParser(units_provider=units_provider)
+                    
+                    time_length: DecimalTimeLength = parser.evaluate(duration_expr)
+                    duration_in_seconds = int(time_length)
+                    
+                    attributes_raw["duration_seconds"] = duration_in_seconds
+                    logger.info(f"TIMER '{name}': Converted '{duration_expr}' to {duration_in_seconds}s.")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to parse duration_expression '{duration_expr}': {e}", exc_info=True)
+                    # Fail the request if the expression is invalid
+                    raise HTTPException(status_code=400, detail=f"Invalid duration_expression: {e}")
 
         # Component's create_entity now accepts category
         created_entity_model = entities_component.create_entity(
@@ -251,6 +274,9 @@ async def update_entity_attribute_api(  # Renamed for clarity
         f"API update_entity_attribute: {entity_type}:{category}:{name}.{attr_name} with payload: {payload.model_dump(mode='json')}"
     )
     try:
+        is_timer_duration_update = (
+            entity_type.lower() == "timer" and attr_name.lower() == "duration_expression"
+        )
         entities_component.update_entity_attribute(
             entity_type=entity_type.lower(),
             category=category.lower(),
@@ -260,6 +286,28 @@ async def update_entity_attribute_api(  # Renamed for clarity
             is_new_value_dynamic=payload.is_dynamic,
             new_original_expression=payload.original,
         )
+        if is_timer_duration_update:
+            logger.debug("Timer duration_expression updated. Recalculating duration_seconds.")
+            new_duration_expr = payload.value
+            try:
+                units_provider = get_config().get_component("units").get_all_units()
+                parser = TimeExpressionParser(units_provider=units_provider)
+                
+                time_length: DecimalTimeLength = parser.evaluate(new_duration_expr)
+                duration_in_seconds = int(time_length)
+                
+                logger.info(f"Updating duration_seconds to {duration_in_seconds} for TIMER '{name}'.")
+                entities_component.update_entity_attribute(
+                    entity_type=entity_type.lower(),
+                    category=category.lower(),
+                    name=name,
+                    attr_name="duration_seconds",
+                    new_raw_value_from_api=duration_in_seconds,
+                )
+            except Exception as e:
+                logger.error(f"Failed to parse and update duration_seconds for expression '{new_duration_expr}': {e}", exc_info=True)
+
+                raise HTTPException(status_code=400, detail=f"Invalid duration_expression: {e}")
         updated_entity_model = entities_component.get_entity(
             entity_type.lower(), category.lower(), name
         )
@@ -574,7 +622,7 @@ async def start_entity_occurrence_api(
 ):
     """
     Starts a new timed occurrence for a given entity.
-    This sets the 'active_occurrence_start_time' attribute to the current time.
+    This sets the 'active-occurrence-start-time' attribute to the current time.
     """
     try:
         updated_entity = entities_component.start_occurrence(
@@ -613,7 +661,7 @@ async def end_entity_occurrence_api(
 ):
     """
     Ends an in-progress timed occurrence. This creates a new entry in the
-    'occurrences' list and clears the 'active_occurrence_start_time'.
+    'occurrences' list and clears the 'active-occurrence-start-time'.
     """
     try:
         updated_entity = entities_component.end_occurrence(
@@ -647,7 +695,7 @@ async def get_active_entities_api(
     entities_component: EntityComponent = Depends(get_entities_component),
 ):
     """
-    Retrieves a list of all entities that have an 'active_occurrence_start_time'
+    Retrieves a list of all entities that have an 'active-occurrence-start-time'
     set, indicating they are currently being tracked.
     """
     try:
@@ -765,4 +813,68 @@ async def remove_metric_entry_api(
         raise HTTPException(status_code=status_code, detail=str(e))
     except Exception as e:
         logger.error(f"Error removing metric entry for {category}:{name}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")    
+
+@router.post(
+    "/api/entities/timer/{category}/{name}/start",
+    response_class=JSONResponse,
+    summary="Starts or resumes a timer",
+)
+async def start_timer_api(
+    category: str,
+    name: str,
+    entities_component: EntityComponent = Depends(get_entities_component),
+):
+    try:
+        updated_entity = entities_component.start_timer(category=category, name=name)
+        return updated_entity.serialize() # Assumes your entities have a serialize method
+    except (ValueError, TypeError) as e:
+        # Handle errors like "timer not found" or "timer already running"
+        detail = str(e).lower()
+        status_code = 404 if "not found" in detail else 409 if "already running" in detail else 400
+        raise HTTPException(status_code=status_code, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error starting timer {category}:{name}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
+
+
+@router.post(
+    "/api/entities/timer/{category}/{name}/pause",
+    response_class=JSONResponse,
+    summary="Pauses a running timer",
+)
+async def pause_timer_api(
+    category: str,
+    name: str,
+    entities_component: EntityComponent = Depends(get_entities_component),
+):
+    try:
+        updated_entity = entities_component.pause_timer(category=category, name=name)
+        return updated_entity.serialize()
+    except (ValueError, TypeError) as e:
+        detail = str(e).lower()
+        status_code = 404 if "not found" in detail else 409 if "not running" in detail else 400
+        raise HTTPException(status_code=status_code, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error pausing timer {category}:{name}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
+
+
+@router.post(
+    "/api/entities/timer/{category}/{name}/reset",
+    response_class=JSONResponse,
+    summary="Resets a timer to its initial state",
+)
+async def reset_timer_api(
+    category: str,
+    name: str,
+    entities_component: EntityComponent = Depends(get_entities_component),
+):
+    try:
+        updated_entity = entities_component.reset_timer(category=category, name=name)
+        return updated_entity.serialize()
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error resetting timer {category}:{name}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An internal server error occurred.")    

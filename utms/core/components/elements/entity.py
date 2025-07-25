@@ -1,6 +1,6 @@
 import os
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional, Union
 import pickle
 import hashlib
@@ -383,7 +383,6 @@ class EntityComponent(SystemComponent):
                         if os.path.getmtime(filepath) <= os.path.getmtime(cache_filepath):
                             is_cache_valid = True
                     except FileNotFoundError:
-                        # Source file might have been deleted, cache is invalid.
                         is_cache_valid = False
 
                 if is_cache_valid:
@@ -403,21 +402,17 @@ class EntityComponent(SystemComponent):
                                 category=cached_data.category,
                                 attributes=deserialized_attributes,
                             )
+
                         total_instances_loaded_all_types += len(cached_data_list)
                         continue
 
                     except Exception as e_cache:
                         self.logger.warning(f"Failed to load from cache file '{cache_filepath}': {e_cache}. Falling back to full load.")
-
-                # --- END OF CACHING LOGIC ---
-
-                # If we are here, it's a CACHE MISS or the cache was invalid.
                 self.logger.debug(f"CACHE MISS for '{filepath}'. Performing full load.")
                 category_name = sanitize_filename(os.path.splitext(filename)[0])
                 try:
                     instance_nodes = self._ast_manager.parse_file(filepath)
                     if not instance_nodes:
-                        # If the file is empty, ensure any old cache is removed.
                         if os.path.exists(cache_filepath):
                             os.remove(cache_filepath)
                         continue
@@ -435,12 +430,7 @@ class EntityComponent(SystemComponent):
                         current_entity_schema=entity_schema_for_loader,
                         known_complex_type_schemas=complex_types_for_loader,
                     )
-
-                    # The loader process creates/updates entities in the manager.
-                    # It returns a dict of {key: EntityObject}.
                     loaded_instances_dict = self._loader.process(instance_nodes, category_context)
-
-                    # We need the list of Entity objects to pickle.
                     loaded_entities_list = list(loaded_instances_dict.values())
                     try:
                         entities_to_cache = []
@@ -725,35 +715,14 @@ class EntityComponent(SystemComponent):
             is_dynamic_attr_flag = False
             original_expr_str = None
             value_for_tv_constructor = raw_value_from_api
+            is_dynamic_attr_flag = False
+            original_expr_str = None
 
-            if (
-                isinstance(raw_value_from_api, str)
-                and raw_value_from_api.strip().startswith("(")
-                and raw_value_from_api.strip().endswith(")")
-            ):
+            if isinstance(raw_value_from_api, str) and raw_value_from_api.strip().startswith("("):
                 is_dynamic_attr_flag = True
                 original_expr_str = raw_value_from_api
-                if field_type_enum not in [
-                    FieldType.CODE,
-                    FieldType.DATETIME,
-                    FieldType.ENTITY_REFERENCE,
-                ]:  # Types that store expressions directly
-                    try:
-                        resolved_val_raw, _ = self._loader._dynamic_service.evaluate(
-                            expression=original_expr_str,
-                            context=variables_for_eval_context,
-                            component_type=f"entity.{entity_type_key}",
-                            component_label=f"{category_key}:{name_key}",
-                            attribute=attr_name,
-                        )
-                        value_for_tv_constructor = hy_to_python(resolved_val_raw)
-                    except Exception as e_resolve:  # pragma: no cover
-                        self.logger.error(
-                            f"Resolve fail in create for '{attr_name}': {e_resolve}. Storing original or None."
-                        )
-                        value_for_tv_constructor = (
-                            original_expr_str if field_type_enum == FieldType.CODE else None
-                        )
+                if field_type_enum not in [FieldType.CODE]:
+                    value_for_tv_constructor = None
 
             final_typed_attributes[attr_name] = TypedValue(
                 value=value_for_tv_constructor,
@@ -827,57 +796,24 @@ class EntityComponent(SystemComponent):
         enum_choices = attr_schema_details.get("enum_choices", [])
         if not enum_choices and existing_typed_value and existing_typed_value.enum_choices:
             enum_choices = existing_typed_value.enum_choices
-        value_to_store_in_typed_value = new_raw_value_from_api
+        value_to_store = new_raw_value_from_api
+        final_original_expr = None
+        
         if is_new_value_dynamic:
             if not new_original_expression or not new_original_expression.strip().startswith("("):
-                raise ValueError(
-                    "Dynamic update requires valid Hy s-expression for 'new_original_expression'."
-                )
-            variables_for_eval_context = {}
-            variables_component = self.get_component("variables")
-            if variables_component:
-                for var_n, var_m in variables_component.items():
-                    variables_for_eval_context[var_n] = getattr(
-                        var_m.value, "value", None
-                    )  # Simplified
-            try:
-                resolved_val_raw, _ = self._loader._dynamic_service.evaluate(
-                    expression=new_original_expression,
-                    context=variables_for_eval_context,
-                    component_type=f"entity.{entity_type.lower()}",
-                    component_label=name,
-                    attribute=attr_name,
-                )
-                value_to_store_in_typed_value = hy_to_python(resolved_val_raw)
-                if field_type_for_new_tv == FieldType.CODE and not isinstance(
-                    value_to_store_in_typed_value, str
-                ):
-                    field_type_for_new_tv = infer_type(value_to_store_in_typed_value)
-            except Exception as e_resolve:
-                self.logger.error(
-                    f"Failed to resolve expr '{new_original_expression}' for update: {e_resolve}. Storing original or None.",
-                    exc_info=True,
-                )
-                value_to_store_in_typed_value = (
-                    new_original_expression if field_type_for_new_tv == FieldType.CODE else None
-                )
-            updated_typed_value = TypedValue(
-                value=value_to_store_in_typed_value,
-                field_type=field_type_for_new_tv,
-                is_dynamic=True,
-                original=new_original_expression,
-                enum_choices=enum_choices,
-                item_type=item_type_enum,
-            )
-        else:
-            updated_typed_value = TypedValue(
-                value=new_raw_value_from_api,
-                field_type=field_type_for_new_tv,
-                is_dynamic=False,
-                original=None,
-                enum_choices=enum_choices,
-                item_type=item_type_enum,
-            )
+                 raise ValueError("Dynamic update requires a valid Hy s-expression for 'new_original_expression'.")
+            final_original_expr = new_original_expression
+            value_to_store = final_original_expr if field_type_for_new_tv == FieldType.CODE else None
+        
+        updated_typed_value = TypedValue(
+            value=value_to_store,
+            field_type=field_type_for_new_tv,
+            is_dynamic=is_new_value_dynamic,
+            original=final_original_expr,
+            enum_choices=enum_choices,
+            item_type=item_type_enum,
+        )
+
         entity.set_attribute_typed(attr_name, updated_typed_value)
         self._save_entities_in_category(entity_type, category)
         self.logger.info(
@@ -1118,6 +1054,7 @@ class EntityComponent(SystemComponent):
 
         active_start_time_attr = "active_occurrence_start_time" # Standard attribute name
         if not entity_to_start.has_attribute(active_start_time_attr):
+            breakpoint()
             raise TypeError(
                 f"Entity '{name}' (type: {entity_type}) is not configured to track active occurrences "
                 f"(missing '{active_start_time_attr}' attribute in its schema or instance)."
@@ -1185,7 +1122,7 @@ class EntityComponent(SystemComponent):
                     f"Failed to switch context for entity '{entity_to_start_id}': {e}", exc_info=True
                 )
 
-        self._run_hook_code(entity_to_start, "on-start-hook", "start")
+        self._run_hook_code(entity_to_start, "on_start_hook", "start")
         self._save_entities_in_category(entity_to_start.entity_type, entity_to_start.category)
         return entity_to_start
 
@@ -1282,8 +1219,8 @@ class EntityComponent(SystemComponent):
         entity_id = entity_to_stop.get_identifier()
         self.logger.info(f"Ended and logged occurrence for '{entity_id}' in memory.")
 
-        if not _is_system_triggered: # Only run 'on-end-hook' for manual stops
-            self._run_hook_code(entity_to_stop, "on-end-hook", "end")
+        if not _is_system_triggered:
+            self._run_hook_code(entity_to_stop, "on_end_hook", "end")
         else:
             self.logger.debug(f"Skipping on-end-hook for '{entity_id}' as it was system-triggered.")
         
@@ -1294,43 +1231,31 @@ class EntityComponent(SystemComponent):
     def _run_hook_code(self, entity: Entity, hook_attribute_name: str, event_name: str):
         """
         Finds and executes the Hy code defined in a hook attribute on an entity.
-
-        Args:
-            entity: The entity instance.
-            hook_attribute_name: The name of the attribute holding the hook code (e.g., "on-start-hook").
-            event_name: A string for logging (e.g., "start").
         """
         self.logger.debug(
             f"Checking for '{hook_attribute_name}' on '{entity.name}' for '{event_name}' event."
         )
-
         hook_tv = entity.get_attribute_typed(hook_attribute_name)
 
         if not hook_tv or not hook_tv.original:
-            self.logger.debug(f"No hook defined for this event.")
+            self.logger.debug(f"No hook expression defined for this event.")
             return
 
-        if hook_tv.field_type != FieldType.CODE:
-            self.logger.warning(
-                f"Attribute '{hook_attribute_name}' on '{entity.name}' is not of type 'code'. Cannot execute. "
-                f"Found type: {hook_tv.field_type}"
-            )
+        hook_expression = hook_tv.value
+        if not (isinstance(hook_expression, hy.models.Expression) and str(hook_expression[0]) == "quote"):
+            self.logger.warning(f"Hook '{hook_attribute_name}' on '{entity.name}' is not a quoted expression. Skipping.")
             return
-
-        code_to_run = hook_tv.value
-        self.logger.info(f"Executing '{event_name}' hook for '{entity.name}': {code_to_run}")
+        code_to_run = hook_expression[1] 
+        self.logger.info(f"Executing '{event_name}' hook for '{entity.name}': {hy.repr(code_to_run)}")
 
         try:
-            hook_context = {
-                "sh": sh,
-                "breakpoint": breakpoint,
-            }
+            hook_context = {"self": entity}
 
-            self._loader._dynamic_service.evaluate(
+            _, _ = self._loader._dynamic_service.evaluate(
                 expression=code_to_run,
                 context=hook_context,
                 component_type="entity_hook",
-                component_label=f"{entity.entity_type}:{entity.category}:{entity.name}",
+                component_label=entity.get_identifier(),
                 attribute=hook_attribute_name,
             )
             self.logger.info(f"Successfully executed '{event_name}' hook for '{entity.name}'.")
@@ -1466,3 +1391,72 @@ class EntityComponent(SystemComponent):
         self._save_entities_in_category(metric_entity.entity_type, metric_entity.category)
 
         return metric_entity    
+
+    def start_timer(self, category: str, name: str) -> Entity:
+        entity = self.get_entity("timer", category, name)
+        if not entity:
+            raise ValueError(f"Timer 'timer:{category}:{name}' not found.")
+
+        status = entity.get_attribute_value("status")
+        if status == "running":
+            raise ValueError("Timer is already running.")
+
+        now = datetime.now()
+
+        if status == "paused":
+            # Resuming a paused timer
+            remaining_seconds = entity.get_attribute_value("remaining_at_pause", 0)
+            new_end_time = now + timedelta(seconds=remaining_seconds)
+            self.update_entity_attribute("timer", category, name, "end_time", new_end_time)
+            self.update_entity_attribute("timer", category, name, "remaining_at_pause", None) # Clear the pause value
+        else: # status is 'idle' or 'finished'
+            # Starting a fresh timer
+            duration_seconds = entity.get_attribute_value("duration_seconds")
+            if not duration_seconds:
+                raise ValueError("Timer has no duration_seconds set.")
+            new_end_time = now + timedelta(seconds=duration_seconds)
+            self.update_entity_attribute("timer", category, name, "end_time", new_end_time)
+            self.update_entity_attribute("timer", category, name, "finish_cursor", None) # Clear cursor on restart
+
+        # Finally, set status to running
+        self.update_entity_attribute("timer", category, name, "status", "running")
+        return self.get_entity("timer", category, name)
+
+
+    def pause_timer(self, category: str, name: str) -> Entity:
+        entity = self.get_entity("timer", category, name)
+        if not entity:
+            raise ValueError(f"Timer 'timer:{category}:{name}' not found.")
+
+        status = entity.get_attribute_value("status")
+        if status != "running":
+            raise ValueError("Timer is not running, cannot pause.")
+
+        now = datetime.now()
+        end_time = entity.get_attribute_value("end_time")
+
+        if not isinstance(end_time, datetime):
+            raise TypeError("Timer end_time is not a valid datetime.")
+
+        remaining_seconds = max(0, (end_time - now).total_seconds())
+
+        self.update_entity_attribute("timer", category, name, "status", "paused")
+        self.update_entity_attribute("timer", category, name, "pause_time", now)
+        self.update_entity_attribute("timer", category, name, "remaining_at_pause", int(remaining_seconds))
+
+        return self.get_entity("timer", category, name)
+
+
+    def reset_timer(self, category: str, name: str) -> Entity:
+        entity = self.get_entity("timer", category, name)
+        if not entity:
+            raise ValueError(f"Timer 'timer:{category}:{name}' not found.")
+
+        self.update_entity_attribute("timer", category, name, "status", "idle")
+        # Clear all state-related fields
+        self.update_entity_attribute("timer", category, name, "end_time", None)
+        self.update_entity_attribute("timer", category, name, "pause_time", None)
+        self.update_entity_attribute("timer", category, name, "remaining_at_pause", None)
+        self.update_entity_attribute("timer", category, name, "finish_cursor", None)
+
+        return self.get_entity("timer", category, name)    

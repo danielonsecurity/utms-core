@@ -83,13 +83,13 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
 
             attr_name_from_hy = str(attr_expr_in_hy[0])
             raw_hy_value_object = attr_expr_in_hy[1]
-
+            normalized_attr_name_for_schema_lookup = attr_name_from_hy.replace('_', '-')
             self.logger.debug(f"  Attribute from Hy: '{attr_name_from_hy}' = {raw_hy_value_object}")
 
-            attr_schema_details = self._attribute_schemas.get(attr_name_from_hy)
+            attr_schema_details = self._attribute_schemas.get(normalized_attr_name_for_schema_lookup)
             if not attr_schema_details:
                 self.logger.warning(
-                    f"No schema definition found for attribute '{attr_name_from_hy}' "
+                    f"No schema definition found for attribute '{normalized_attr_name_for_schema_lookup}' "
                     f"in entity type '{self._entity_type_str}' (instance: '{entity_instance_name}'). "
                     f"Will attempt to infer type, but this is not ideal."
                 )

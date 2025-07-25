@@ -54,7 +54,6 @@ class PatternComponent(SystemComponent):
                     self.logger.debug(f"Loading patterns from file: {filepath}")
                     try:
                         nodes = self._ast_manager.parse_file(filepath)
-                        breakpoint()
                         patterns_from_file = self._loader.process(nodes, context)
                         self._items.update(patterns_from_file)
                         all_loaded_patterns.update(patterns_from_file)

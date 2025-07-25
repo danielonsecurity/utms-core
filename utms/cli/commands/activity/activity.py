@@ -38,7 +38,7 @@ def handle_start_command(args: argparse.Namespace, config: Config) -> None:
         if response.status_code == 200:
             # Success
             data = response.json()
-            start_time = data.get('attributes', {}).get('active_occurrence_start_time', {}).get('value', 'N/A')
+            start_time = data.get('attributes', {}).get('active-occurrence-start-time', {}).get('value', 'N/A')
             print(f"✅ Success! Occurrence started at {start_time}.")
         elif response.status_code == 404:
             # Entity not found
