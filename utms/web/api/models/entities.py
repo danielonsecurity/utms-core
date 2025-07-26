@@ -69,3 +69,6 @@ class LogMetricPayload(BaseModel):
     value: Any
     notes: Optional[str] = None
     timestamp: Optional[datetime] = None    
+
+class SetStepStatusPayload(BaseModel):
+    completed: bool    

@@ -12,14 +12,14 @@ import sh
 
 from utms.core.components.base import SystemComponent
 from utms.core.hy.ast import HyAST
-from utms.core.hy.utils import python_to_hy_string
+from utms.core.hy.utils import python_to_hy_string, hy_obj_to_string
 from utms.core.loaders.base import LoaderContext
 from utms.core.loaders.elements.entity import EntityLoader
 from utms.core.managers.elements.entity import EntityManager
 from utms.core.models.elements.entity import Entity
 from utms.core.plugins import plugin_registry
 from utms.core.plugins.elements.dynamic_entity import plugin_generator
-from utms.utils import hy_to_python, list_to_dict, sanitize_filename
+from utms.utils import hy_to_python, python_to_hy_model, list_to_dict, sanitize_filename
 from utms.utms_types import HyNode
 from utms.utms_types.field.types import FieldType, TypedValue, infer_type
 
@@ -518,78 +518,81 @@ class EntityComponent(SystemComponent):
                     f"Error saving entity type defs to '{output_filepath}': {e_save_schema}", exc_info=True
                 )
 
-
     def _save_entities_in_category(self, entity_type: str, category: str):
-        """
-        Saves all in-memory entities belonging to a specific type and category
-        to their corresponding .hy file. This is a targeted save operation that
-        avoids a full, slow rescan and prevents accidental deletion of other files.
-        """
         entity_type_key = entity_type.lower()
         category_key = category.lower()
 
-        # 1. Find all entities in memory that match this specific file.
-        entities_to_save = [
-            e for e in self._items.values()
-            if e.entity_type == entity_type_key and e.category == category_key
-        ]
-
-        # 2. Determine the correct file path.
+        entities_to_save = [e for e in self._items.values() if e.entity_type == entity_type_key and e.category == category_key]
+        
         type_specific_dir = os.path.join(self._entity_type_instances_base_dir, f"{entity_type_key}s")
-        if not os.path.exists(type_specific_dir):
-            os.makedirs(type_specific_dir)
+        if not os.path.exists(type_specific_dir): os.makedirs(type_specific_dir)
         category_filename = f"{sanitize_filename(category_key)}.hy"
         instance_file_path = os.path.join(type_specific_dir, category_filename)
 
-        # 3. If there are no entities for this category left in memory,
-        #    it means we've deleted the last one. Delete the now-empty file.
         if not entities_to_save:
             if os.path.exists(instance_file_path):
                 self.logger.info(f"Last entity from '{instance_file_path}' removed. Deleting empty category file.")
-                try:
-                    os.remove(instance_file_path)
-                except OSError as e_remove:
-                    self.logger.error(f"Error removing empty category file {instance_file_path}: {e_remove}")
-            return # Nothing more to do.
-
-        # 4. Get the correct plugin to format the output.
-        instance_plugin = plugin_registry.get_node_plugin(f"def-{entity_type_key}")
-        if not instance_plugin:
-            self.logger.warning(
-                f"No plugin for 'def-{entity_type_key}'. Cannot save entities for category '{category_key}'."
-            )
+                try: os.remove(instance_file_path)
+                except OSError as e_remove: self.logger.error(f"Error removing empty category file {instance_file_path}: {e_remove}")
             return
 
-        # 5. Format and write the entities to the file.
-        #    This logic is directly extracted from your old save() method.
+        instance_plugin = plugin_registry.get_node_plugin(f"def-{entity_type_key}")
+        if not instance_plugin:
+            self.logger.warning(f"No plugin for 'def-{entity_type_key}'. Cannot save entities for category '{category_key}'.")
+            return
+
         instance_hy_lines = []
         for entity_instance in sorted(entities_to_save, key=lambda inst: inst.name):
-            # Create a HyNode object that the plugin's format() method expects.
-            node_for_formatting = HyNode(
-                type=f"def-{entity_type_key}", value=entity_instance.name
-            )
-            # The formatter plugin reads from the .attributes_typed attribute of the node.
-            setattr(
-                node_for_formatting,
-                "attributes_typed",
-                entity_instance.get_all_attributes_typed(),
-            )
+            node_for_formatting = HyNode(type=f"def-{entity_type_key}", value=entity_instance.name)
+            attributes_for_formatting = entity_instance.get_all_attributes_typed().copy()
 
-            # The plugin formats the node into a list of strings (Hy code).
+            for attr_name, attr_tv in attributes_for_formatting.items():
+                # Process any list that has a defined schema (e.g., checklist, occurrences)
+                if attr_tv.field_type == FieldType.LIST and attr_tv.item_schema_type:
+                    if isinstance(attr_tv.value, list):
+                        
+                        final_hy_objects = []
+                        for item in attr_tv.value:
+                            # If the item is already a valid Hy object, it's in the
+                            # correct format. Trust it and pass it through.
+                            if isinstance(item, hy.models.Object):
+                                final_hy_objects.append(item)
+                                continue
+
+                            # If we get here, the item is in a legacy format (e.g., a raw
+                            # Python dict or a plist). We need to convert it.
+                            py_dict = {}
+                            if isinstance(item, list):      # Handle plists
+                                py_dict = list_to_dict(item)
+                            elif isinstance(item, dict):    # Handle Python dicts
+                                py_dict = item
+                            else:
+                                continue # Skip unknown formats
+
+                            # Convert the legacy format to a proper Hy object
+                            final_hy_objects.append(python_to_hy_model(py_dict))
+
+                        # Now, final_hy_objects contains a clean list of only hy.models.Object items.
+                        final_hy_list_object = hy.models.List(final_hy_objects)
+                        
+                        adapted_tv = TypedValue(
+                            value=final_hy_list_object,
+                            field_type=attr_tv.field_type,
+                            item_schema_type=attr_tv.item_schema_type
+                        )
+                        adapted_tv._value = final_hy_list_object
+                        attributes_for_formatting[attr_name] = adapted_tv
+            
+            setattr(node_for_formatting, "attributes_typed", attributes_for_formatting)
             instance_hy_lines.extend(instance_plugin.format(node_for_formatting))
-            instance_hy_lines.append("") # Add a blank line between entities
+            instance_hy_lines.append("")
 
         try:
             with open(instance_file_path, "w", encoding="utf-8") as f:
                 f.write("\n".join(instance_hy_lines))
-            self.logger.info(
-                f"Saved {len(entities_to_save)} entities of type '{entity_type_key}' (cat: '{category_key}') to {instance_file_path}"
-            )
+            self.logger.info(f"Saved {len(entities_to_save)} entities of type '{entity_type_key}' (cat: '{category_key}') to {instance_file_path}")
         except Exception as e_save_inst:
-            self.logger.error(
-                f"Error saving entities to '{instance_file_path}': {e_save_inst}",
-                exc_info=True,
-            )
+            self.logger.error(f"Error saving entities to '{instance_file_path}': {e_save_inst}", exc_info=True)
 
 
     def _get_entity_schema(self, entity_type_str: str) -> Optional[Dict[str, Any]]:
@@ -1048,13 +1051,12 @@ class EntityComponent(SystemComponent):
     ) -> Entity:
         self.logger.debug(f"Attempting to start occurrence for {entity_type}:{category}:{name}")
         entity_to_start = self.get_entity(entity_type, category, name) # Uses self._entity_manager internally
-        
+
         if not entity_to_start:
             raise ValueError(f"Entity not found: {entity_type}:{category}:{name}")
 
         active_start_time_attr = "active_occurrence_start_time" # Standard attribute name
         if not entity_to_start.has_attribute(active_start_time_attr):
-            breakpoint()
             raise TypeError(
                 f"Entity '{name}' (type: {entity_type}) is not configured to track active occurrences "
                 f"(missing '{active_start_time_attr}' attribute in its schema or instance)."
@@ -1062,6 +1064,31 @@ class EntityComponent(SystemComponent):
 
         if entity_to_start.get_attribute_value(active_start_time_attr) is not None:
             raise ValueError(f"An occurrence is already in progress for entity '{name}'.")
+
+        if entity_to_start.has_attribute("checklist"):
+            self.logger.info(f"Resetting checklist state for new occurrence of '{entity_to_start.get_identifier()}'.")
+            checklist_tv = entity_to_start.get_attribute_typed("checklist")
+            
+            if checklist_tv and isinstance(checklist_tv.value, list):
+                updated_checklist_items = []
+                for item in checklist_tv.value:
+                    py_dict = {}
+                    if isinstance(item, list):
+                        py_dict = list_to_dict(item)
+                    elif isinstance(item, (hy.models.Dict, hy.models.Expression)):
+                        item_as_plist = hy_to_python(item)
+                        py_dict = list_to_dict(item_as_plist)
+                    else:
+                        continue # Skip unknown items
+                    
+                    # This is the key logic for this method: RESET the completed status.
+                    py_dict['completed'] = False
+                    
+                    # Convert the modified Python dict back to a proper hy.models.Dict
+                    updated_checklist_items.append(python_to_hy_model(py_dict))
+
+                # Assign the new list of reset hy.models.Dict objects back to the TypedValue
+                checklist_tv.value = updated_checklist_items
 
         newly_claimed_resources = entity_to_start.get_exclusive_resource_claims()
         entity_to_start_id = entity_to_start.get_identifier()
@@ -1137,96 +1164,169 @@ class EntityComponent(SystemComponent):
         _is_system_triggered: bool = False 
     ) -> Entity:
         self.logger.debug(f"Attempting to end occurrence for {entity_type}:{category}:{name}{' (system-triggered)' if _is_system_triggered else ''}")
-        entity_to_stop = self.get_entity(entity_type, category, name) # Existing method
+        entity_to_stop = self.get_entity(entity_type, category, name)
         
         if not entity_to_stop:
             raise ValueError(f"Entity not found to end occurrence: {entity_type}:{category}:{name}")
 
         active_start_time_attr = "active_occurrence_start_time"
-        if not entity_to_stop.has_attribute(active_start_time_attr) or not entity_to_stop.has_attribute(
-            list_attribute_name
-        ):
-            raise TypeError(
-                f"Entity '{name}' (type: {entity_type}) is not configured to track occurrences correctly."
-            )
+        if not entity_to_stop.has_attribute(active_start_time_attr) or not entity_to_stop.has_attribute(list_attribute_name):
+            raise TypeError(f"Entity '{name}' (type: {entity_type}) is not configured to track occurrences correctly.")
 
         start_time = entity_to_stop.get_attribute_value(active_start_time_attr)
         if start_time is None:
             if _is_system_triggered:
-                 self.logger.debug(f"Entity '{entity_to_stop.get_identifier()}' was already stopped (system trigger). Ensuring claims are released.")
+                 self.logger.debug(f"Entity '{entity_to_stop.get_identifier()}' was already stopped (system trigger).")
                  self._entity_manager.release_claims(entity_to_stop)
-                 self._save_entities_in_category(entity_to_stop.entity_type, entity_to_stop.category) # Save potential claim release
-                 return entity_to_stop # Return the entity as is
+                 self._save_entities_in_category(entity_to_stop.entity_type, entity_to_stop.category)
+                 return entity_to_stop
             else:
                 raise ValueError(f"No active occurrence was found to end for entity '{name}'.")
 
         from utms.utils import get_ntp_date 
         end_time = get_ntp_date()
-        new_occurrence_data = {
-            "start_time": start_time,
-            "end_time": end_time,
-            "notes": notes or "",
-            "metadata": metadata or {},
-        }
+        new_occurrence_data = { "start_time": start_time, "end_time": end_time, "notes": notes or "", "metadata": metadata or {} }
+
         if entity_to_stop.has_attribute("checklist"):
             self.logger.info(f"Entity '{entity_to_stop.get_identifier()}' has a checklist. Processing for smart defaults.")
-            
-            checklist = entity_to_stop.get_attribute_value("checklist", [])
-            if checklist:
-                for item in checklist:
-                    if not item.get("is_mandatory"):
+            checklist_tv = entity_to_stop.get_attribute_typed("checklist")
+            if checklist_tv and isinstance(checklist_tv.value, list):
+                
+                updated_checklist_items = [] # We need to build a new list with the updated states
+                
+                for item_hy_dict in checklist_tv.value:
+                    py_dict = {}
+                    if isinstance(item_hy_dict, list):
+                        py_dict = list_to_dict(item_hy_dict)
+                    elif isinstance(item_hy_dict, (hy.models.Dict, hy.models.Expression)):
+                        py_dict = list_to_dict(hy_to_python(item_hy_dict))
+                    else:
+                        updated_checklist_items.append(item_hy_dict) # Pass through unknown items
                         continue
-
-                    default_action_tv = item.get("default_action")
                     
-                    if default_action_tv and default_action_tv.value:
-                        step_name = item.get('name', 'unnamed_step')
-                        code_to_run = default_action_tv.value
+                    # Check if the step is mandatory and not already completed
+                    is_mandatory = str(py_dict.get("is_mandatory")).lower() == 'true'
+                    is_completed = str(py_dict.get("completed")).lower() == 'true'
+
+                    if is_mandatory and not is_completed:
+                        step_name = py_dict.get('name', 'unnamed_step')
+                        self.logger.info(f"Auto-completing mandatory step: {step_name}")
                         
-                        self.logger.info(f"Executing default action for mandatory step: {step_name}")
-                        try:
-                            # Call the evaluation service directly, just like _run_hook_code does.
-                            # The context is now correctly configured in the EntityResolver.
-                            self._loader._dynamic_service.evaluate(
-                                expression=code_to_run,
-                                context={"self": entity_to_stop}, # Provide the routine as 'self'
-                                component_type="checklist_action",
-                                component_label=f"{entity_to_stop.get_identifier()}:{step_name}",
-                                attribute="default_action"
-                            )
-                        except Exception as e:
-                            self.logger.error(f"Failed to run default action for '{step_name}': {e}")        
+                        # Mark the step as complete in our temporary dictionary
+                        py_dict['completed'] = True
+                        
+                        action_as_list = py_dict.get("default_action")
+                        if isinstance(action_as_list, list) and len(action_as_list) > 0:
+                            action_to_run = python_to_hy_model(action_as_list)
+                            self.logger.info(f"Executing default action for: {step_name}")
+                            try:
+                                self._loader._dynamic_service.evaluate(
+                                    expression=action_to_run, context={"self": entity_to_stop},
+                                    component_type="checklist_action",
+                                    component_label=f"{entity_to_stop.get_identifier()}:{step_name}",
+                                    attribute="default_action"
+                                )
+                            except Exception as e:
+                                self.logger.error(f"Failed to run default action for '{step_name}': {e}")
+                    updated_checklist_items.append(python_to_hy_model(py_dict))
+                checklist_tv.value = updated_checklist_items
 
         occurrences_tv = entity_to_stop.get_attribute_typed(list_attribute_name)
         if not occurrences_tv:
-            occurrences_tv = TypedValue(
-                value=[], field_type=FieldType.LIST, item_schema_type="OCCURRENCE"
-            )
+            occurrences_tv = TypedValue(value=[], field_type=FieldType.LIST, item_schema_type="OCCURRENCE")
             entity_to_stop.set_attribute_typed(list_attribute_name, occurrences_tv)
         
-        current_list = occurrences_tv.value if isinstance(occurrences_tv.value, list) else []
-        new_list = current_list + [new_occurrence_data]
-        
+        current_list = []
+        if isinstance(occurrences_tv.value, list):
+            for item in occurrences_tv.value:
+                if isinstance(item, hy.models.Object):
+                    current_list.append(item)
+                elif isinstance(item, dict):
+                    current_list.append(python_to_hy_model(item))
+        new_occurrence_hy_dict = python_to_hy_model(new_occurrence_data)
+        new_list = current_list + [new_occurrence_hy_dict]
         occurrences_tv.value = new_list 
-        occurrences_tv.original = python_to_hy_string(new_list) 
 
-        cleared_start_time_tv = TypedValue(
-            value=None, field_type=FieldType.DATETIME, original="None" # Good practice for persistence
-        )
+        cleared_start_time_tv = TypedValue(value=None, field_type=FieldType.DATETIME, original="None")
         entity_to_stop.set_attribute_typed(active_start_time_attr, cleared_start_time_tv)
         self._entity_manager.release_claims(entity_to_stop)
 
         entity_id = entity_to_stop.get_identifier()
         self.logger.info(f"Ended and logged occurrence for '{entity_id}' in memory.")
-
-        if not _is_system_triggered:
-            self._run_hook_code(entity_to_stop, "on_end_hook", "end")
-        else:
-            self.logger.debug(f"Skipping on-end-hook for '{entity_id}' as it was system-triggered.")
-        
+        self._run_hook_code(entity_to_stop, "on_end_hook", "end")
         self._save_entities_in_category(entity_to_stop.entity_type, entity_to_stop.category)
         return entity_to_stop
 
+
+    def toggle_checklist_step(self, entity_type: str, category: str, name: str, step_name: str, new_status: bool) -> Entity:
+        entity = self.get_entity(entity_type, category, name)
+        if not entity: raise ValueError(f"Entity '{entity_type}:{category}:{name}' not found.")
+        if not entity.get_attribute_value("active_occurrence_start_time"): raise ValueError(f"Entity '{name}' does not have an active occurrence.")
+        
+        checklist_tv = entity.get_attribute_typed("checklist")
+        if not checklist_tv or not isinstance(checklist_tv.value, list): raise TypeError(f"Entity '{name}' does not have a valid 'checklist' attribute.")
+
+        mutable_checklist = checklist_tv.value
+        updated_checklist_items = []
+        item_found = False
+        action_to_run = None
+        
+        for item in mutable_checklist:
+            py_dict = {}
+            # Handle both possible incoming formats
+            if isinstance(item, list):
+                # Format is a plist-style list
+                py_dict = list_to_dict(item)
+            elif isinstance(item, (hy.models.Dict, hy.models.Expression)):
+                # Format is a Hy AST object, convert it to a Python dict
+                item_as_plist = hy_to_python(item)
+                py_dict = list_to_dict(item_as_plist)
+            else:
+                updated_checklist_items.append(item) # Pass through unknown items
+                continue
+
+            # Perform logic on the Python dict
+            if py_dict.get("name") == step_name:
+                py_dict['completed'] = new_status
+                item_found = True
+                self.logger.info(f"Updated step '{step_name}' in memory for '{entity.get_identifier()}' to completed={new_status}.")
+                
+                if new_status:
+                    action_as_list = py_dict.get("default_action")
+                    if isinstance(action_as_list, list) and len(action_as_list) > 0:
+                        action_to_run = python_to_hy_model(action_as_list)
+
+            # Convert the modified Python dict back to a proper hy.models.Dict
+            updated_checklist_items.append(python_to_hy_model(py_dict))
+
+        if not item_found:
+            raise ValueError(f"Step '{step_name}' not found in the checklist for entity '{name}'.")
+
+        checklist_tv.value = updated_checklist_items
+        self._save_entities_in_category(entity.entity_type, entity.category)
+
+        if action_to_run:
+            self.logger.info(f"Executing action for completing step '{step_name}': {hy.repr(action_to_run)}")
+            try:
+                self._loader._dynamic_service.evaluate(
+                    expression=action_to_run, context={"self": entity},
+                    component_type="checklist_action",
+                    component_label=f"{entity.get_identifier()}:{step_name}",
+                    attribute="default_action"
+                )
+            except Exception as e:
+                self.logger.error(f"Action for step '{step_name}' failed: {e}. Reverting completed status.")
+                reverted_items = []
+                for item_hy_dict in updated_checklist_items: # work on the list of hy.models.Dict
+                    item_py_dict = list_to_dict(hy_to_python(item_hy_dict)) # Convert from Hy Dict to Py Dict
+                    if item_py_dict.get("name") == step_name:
+                        item_py_dict['completed'] = False
+                    reverted_items.append(python_to_hy_model(item_py_dict))
+                checklist_tv.value = reverted_items
+                self._save_entities_in_category(entity.entity_type, entity.category)
+                raise e
+
+        return entity
 
     def _run_hook_code(self, entity: Entity, hook_attribute_name: str, event_name: str):
         """

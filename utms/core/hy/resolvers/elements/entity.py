@@ -1,4 +1,5 @@
 import subprocess
+import requests
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 
@@ -36,6 +37,7 @@ class EntityResolver(HyResolver):
             "entity-ref": self._hy_entity_ref,
             "get-attr": self._hy_get_attr,
             "shell": lambda *args, **kwargs: self._hy_shell(*args, **kwargs),
+            "http-get": lambda url, *args, **kwargs: requests.get(url, *args, **kwargs),
             "log-metric": lambda category, name, value, **kwargs: self.component.log_metric(category, name, value, **kwargs),
             "start-occurrence": lambda type, cat, name: self.component.start_occurrence(type, cat, name),
             "end-occurrence": lambda type, cat, name, **kwargs: self.component.end_occurrence(type, cat, name, **kwargs),

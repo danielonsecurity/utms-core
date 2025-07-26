@@ -1,5 +1,6 @@
 from decimal import Decimal
 from typing import Any
+from datetime import datetime
 
 import hy
 from hy.models import Expression, Symbol, Integer, Float
@@ -103,3 +104,58 @@ def py_list_to_hy_expression(py_list: list) -> Expression:
             # For other types like None, let them pass through.
             elements.append(item)
     return Expression(elements)
+
+def python_to_hy_model(value: Any) -> hy.models.Object:
+    """
+    Recursively converts a Python object into a corresponding hy.models object.
+    """
+    if isinstance(value, datetime):
+        return hy.models.Expression([
+            hy.models.Symbol("datetime"),
+            hy.models.Integer(value.year),
+            hy.models.Integer(value.month),
+            hy.models.Integer(value.day),
+            hy.models.Integer(value.hour),
+            hy.models.Integer(value.minute),
+            hy.models.Integer(value.second),
+            hy.models.Integer(value.microsecond)
+        ])
+    
+    if isinstance(value, dict):
+        pairs = []
+        for k, v in value.items():
+            # Keys in a Hy dict are typically keywords
+            pairs.append(hy.models.Keyword(str(k)))
+            # Recursively convert the value
+            pairs.append(python_to_hy_model(v))
+        return hy.models.Dict(pairs)
+    
+    if isinstance(value, list):
+        if not value:
+            return hy.models.Expression([])
+
+        # Assume lists are function calls for actions
+        function_symbol = hy.models.Symbol(str(value[0]))
+        args = [python_to_hy_model(item) for item in value[1:]]
+        return hy.models.Expression([function_symbol] + args)
+
+    if isinstance(value, str):
+        if value.lower() == 'true':
+            return hy.models.Symbol('True')
+        if value.lower() == 'false':
+            return hy.models.Symbol('False')
+        return hy.models.String(value)
+
+    if isinstance(value, bool):
+        return hy.models.Symbol('True') if value else hy.models.Symbol('False')
+    
+    if isinstance(value, int):
+        return hy.models.Integer(value)
+
+    if isinstance(value, float):
+        return hy.models.Float(value)
+
+    if value is None:
+        return hy.models.Symbol('None')
+        
+    return hy.models.String(str(value))

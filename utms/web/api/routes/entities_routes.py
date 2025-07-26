@@ -1,3 +1,4 @@
+import hy
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timedelta
 
@@ -15,6 +16,7 @@ from utms.web.api.models.entities import (
     EndOccurrencePayload,
     EntityTypeDetailSchema,
     LogMetricPayload,
+    SetStepStatusPayload,
 )
 from utms.web.dependencies import get_config
 
@@ -878,3 +880,104 @@ async def reset_timer_api(
     except Exception as e:
         logger.error(f"Error resetting timer {category}:{name}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="An internal server error occurred.")    
+
+@router.post(
+    "/api/actions/execute",  # A more generic path, since it could be from any entity type in the future
+    response_class=JSONResponse,
+    summary="Execute a provided Hy s-expression (e.g., from a checklist action)",
+)
+async def execute_action_api(
+    action_code: str = Body(..., embed=True, description="The Hy code s-expression for the action"),
+    entity_identifier: str = Body(None, embed=True, description="Optional 'type:category:name' of the parent entity"),
+    entities_component: EntityComponent = Depends(get_entities_component),
+):
+    """
+    Evaluates a Hy s-expression, typically from a routine's checklist item.
+    This provides a secure and consistent way to trigger backend actions from the UI.
+    It uses the same dynamic evaluation service as other parts of the system.
+    """
+    logger.info(f"Executing action code: {action_code}")
+    if not isinstance(action_code, str) or not action_code.strip().startswith("("):
+        raise HTTPException(
+            status_code=400,
+            detail="Action code must be a valid Hy s-expression string starting with '('."
+        )
+
+    try:
+        context = {}
+        # If the frontend provides the parent routine, we can inject it into the context as 'self'
+        if entity_identifier:
+            try:
+                entity_type, category, name = entity_identifier.split(":", 2)
+                parent_entity = entities_component.get_entity(entity_type, category, name)
+                if parent_entity:
+                    context['self'] = parent_entity
+                    logger.debug(f"Injected parent entity '{entity_identifier}' into action context as 'self'.")
+            except Exception as e:
+                logger.warning(f"Could not parse or find parent entity from identifier '{entity_identifier}': {e}")
+        
+        # Use the existing dynamic_resolution_service, which is accessed via the loader
+        evaluation_service = entities_component._loader._dynamic_service
+        
+        resolved_value, _ = evaluation_service.evaluate(
+            component_type="adhoc_action",
+            component_label=entity_identifier or "ui_action",
+            attribute="default_action",
+            expression=hy.read(action_code), # Read the string into a Hy model
+            context=context,
+        )
+        
+        # Try to serialize the result for a clean JSON response
+        from utms.utils import hy_to_python # Local import is fine here
+        try:
+            api_result = hy_to_python(resolved_value)
+        except Exception:
+            api_result = repr(resolved_value)
+
+        return {"status": "success", "result": api_result}
+
+    except Exception as e:
+        logger.error(f"Error evaluating action '{action_code}': {e}", exc_info=True)
+        raise HTTPException(status_code=400, detail=str(e))    
+
+@router.put(
+    "/api/entities/{entity_type}/{category}/{name}/steps/{step_name}",
+    response_class=JSONResponse,
+    summary="Set an entity's checklist step status",
+)
+async def set_entity_step_status_api(
+    entity_type: str,
+    category: str,
+    name: str,
+    step_name: str,
+    payload: SetStepStatusPayload,
+    entities_component: EntityComponent = Depends(get_entities_component),
+):
+    """
+    Sets the completion state of a specific checklist item for an active entity.
+    If 'completed' is true, it also triggers the step's default_action.
+    This is entity-type agnostic.
+    """
+    try:
+        # This calls the new method we just created in EntityComponent
+        updated_entity = entities_component.toggle_checklist_step(
+            entity_type=entity_type, 
+            category=category, 
+            name=name, 
+            step_name=step_name, 
+            new_status=payload.completed
+        )
+        # Return the entire updated entity so the frontend can sync its state
+        return updated_entity.serialize()
+    except (ValueError, TypeError) as e:
+        detail_str = str(e).lower()
+        if "not found" in detail_str: 
+            status_code = 404
+        elif "not in progress" in detail_str or "no active occurrence" in detail_str: 
+            status_code = 409  # Conflict
+        else: 
+            status_code = 400  # Bad Request
+        raise HTTPException(status_code=status_code, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error setting step status for {entity_type}:{name}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
