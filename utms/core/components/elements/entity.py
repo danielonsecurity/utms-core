@@ -51,7 +51,7 @@ class EntityComponent(SystemComponent):
 
         self.entity_types: Dict[str, Dict[str, Any]] = {}
         self.complex_types: Dict[str, Dict[str, Any]] = {}
-
+        self._file_mod_times: Dict[str, float] = {}
         self._items: Dict[str, Entity] = self._entity_manager._items
 
     def _ensure_dirs(self):
@@ -147,30 +147,20 @@ class EntityComponent(SystemComponent):
             if variables_component:
                 for name, var_model in variables_component.items():
                     try:
-                        var_typed_value: TypedValue = getattr(var_model, "value", var_model)
+                        typed_value_obj = getattr(var_model, "value", None)
 
-                        if not isinstance(var_typed_value, TypedValue):
+                        if not isinstance(typed_value_obj, TypedValue):
                             self.logger.warning(
                                 f"Variable '{name}' did not resolve to a TypedValue. "
                                 "Skipping its inclusion in entity resolution context."
                             )
                             continue
-
-                        value_for_context: Any
-                        if var_typed_value.is_dynamic:
-                            value_for_context = var_typed_value._raw_value
-                            self.logger.debug(
-                                f"Variable '{name}' is dynamic. Passing original expression for re-evaluation: {value_for_context}"
-                            )
-                        else:
-                            value_for_context = var_typed_value.value
-                            self.logger.debug(
-                                f"Variable '{name}' is static. Passing resolved value: {value_for_context}"
-                            )
-
+                        value_for_context = typed_value_obj.value 
+                        
                         variables[name] = value_for_context
                         if "-" in name and name.replace("-", "_") not in variables:
                             variables[name.replace("-", "_")] = value_for_context
+
                     except Exception as e_var:
                         self.logger.error(
                             f"Error processing variable '{name}' for entity context: {e_var}",
@@ -199,6 +189,14 @@ class EntityComponent(SystemComponent):
                 self._load_entities_from_all_category_files(context_for_entity_loading)
             else:
                 self.logger.info("No entity types defined. Skipping instance loading.")
+
+            self.logger.info("Rebuilding resource claim map from persisted active entities...")
+            active_entities_on_load = self._entity_manager.get_all_active_entities()
+            for entity in active_entities_on_load:
+                if entity.get_exclusive_resource_claims():
+                    self._entity_manager.register_claims(entity)
+                    self.logger.debug(f"Re-registered claims for active entity: {entity.get_identifier()}")
+            self.logger.info(f"Resource claim map rebuilt. {len(active_entities_on_load)} active entities found.")
 
             self._loaded = True
             self.logger.info(
@@ -265,8 +263,21 @@ class EntityComponent(SystemComponent):
                 node, "attribute_schemas_raw_hy", {}
             )
 
+            # Create a new dictionary with canonical kebab-case keys.
+            canonical_hy_attr_schemas: Dict[str, hy.models.HyObject] = {}
+            for attr_name_from_file, attr_schema_hy_obj in raw_hy_attr_schemas.items():
+                canonical_name = str(attr_name_from_file).replace('_', '-')
+                if canonical_name in canonical_hy_attr_schemas:
+                    self.logger.warning(
+                        f"Duplicate attribute definition after normalization for '{attr_name_from_file}' "
+                        f"(becomes '{canonical_name}') in entity '{entity_type_key}'. Overwriting."
+                    )
+                canonical_hy_attr_schemas[canonical_name] = attr_schema_hy_obj
+
+            # This block can be removed if `processed_py_attr_schemas` is not used elsewhere.
+            # If it IS used, it should also be normalized. For now, let's assume it's not critical.
             processed_py_attr_schemas: Dict[str, Dict[str, Any]] = {}
-            for attr_name_str, attr_schema_hy_dict in raw_hy_attr_schemas.items():
+            for attr_name_str, attr_schema_hy_dict in canonical_hy_attr_schemas.items():
                 if not isinstance(attr_schema_hy_dict, hy.models.Dict):
                     self.logger.warning(f"Schema for attribute '{attr_name_str}' of entity type '{entity_type_key}' is not a valid HyDict. Skipping.")
                     continue
@@ -280,10 +291,10 @@ class EntityComponent(SystemComponent):
                         exc_info=True,
                     )
 
-
+            # Store the CANONICAL version of the schema.
             self.entity_types[entity_type_key] = {
                 "name": display_name,
-                "attributes_schema": raw_hy_attr_schemas,
+                "attributes_schema": canonical_hy_attr_schemas,
                 "source_file": source_file,
             }
             self.logger.info(
@@ -375,6 +386,10 @@ class EntityComponent(SystemComponent):
 
             for filename in category_files:
                 filepath = os.path.join(type_specific_instance_dir, filename)
+                try:
+                    self._file_mod_times[filepath] = os.path.getmtime(filepath)
+                except FileNotFoundError:
+                    continue
                 cache_filepath = self._get_cache_path_for_file(filepath)
 
                 is_cache_valid = False
@@ -429,6 +444,7 @@ class EntityComponent(SystemComponent):
                         current_entity_type=entity_type_key,
                         current_entity_schema=entity_schema_for_loader,
                         known_complex_type_schemas=complex_types_for_loader,
+                        source_file=filepath,
                     )
                     loaded_instances_dict = self._loader.process(instance_nodes, category_context)
                     loaded_entities_list = list(loaded_instances_dict.values())
@@ -466,6 +482,71 @@ class EntityComponent(SystemComponent):
         self.logger.debug(
             f"Total instances from category files: {total_instances_loaded_all_types}"
         )
+
+
+    def sync_from_disk(self) -> None:
+        """Efficiently syncs in-memory entities with changes on disk."""
+        self.logger.debug("Checking for entity file changes on disk...")
+        
+        variables_component = self.get_component("variables")
+        variables = {}
+        if variables_component:
+            for name, var in variables_component.items():
+                if hasattr(var, 'value') and isinstance(var.value, TypedValue):
+                    raw_value = var.value.value
+                    variables[name] = raw_value # e.g., 'current-time'
+                    if '-' in name:
+                        variables[name.replace('-', '_')] = raw_value # e.g., 'current_time'
+        context = LoaderContext(config_dir=self._entity_type_instances_base_dir, variables=variables)
+
+        all_current_files = set()
+        # 1. Scan for new or modified files
+        for entity_type_key in self.entity_types.keys():
+            type_dir = os.path.join(self._entity_type_instances_base_dir, f"{entity_type_key}s")
+            if not os.path.isdir(type_dir): continue
+
+            for filename in os.listdir(type_dir):
+                if not filename.endswith(".hy") or filename.startswith('.'): continue
+                
+                filepath = os.path.join(type_dir, filename)
+                all_current_files.add(filepath)
+
+                try:
+                    current_mtime = os.path.getmtime(filepath)
+                except FileNotFoundError: continue
+
+                last_mtime = self._file_mod_times.get(filepath)
+
+                if last_mtime is None or current_mtime > last_mtime:
+                    self.logger.info(f"Detected change in '{filepath}'. Reloading it.")
+                    
+                    self._entity_manager.remove_by_source_file(filepath)
+                    
+                    category_name = sanitize_filename(os.path.splitext(filename)[0])
+                    category_context = LoaderContext(
+                        config_dir=context.config_dir,
+                        variables=context.variables,
+                        current_category=category_name,
+                        current_entity_type=entity_type_key,
+                        current_entity_schema=self.entity_types.get(entity_type_key.lower(), {}).get("attributes_schema", {}),
+                        known_complex_type_schemas=self.complex_types,
+                        source_file=filepath,
+                    )
+
+                    try:
+                        instance_nodes = self._ast_manager.parse_file(filepath)
+                        self._loader.process(instance_nodes, category_context)
+                    except Exception as e:
+                        self.logger.error(f"Failed to reload file '{filepath}': {e}", exc_info=True)
+
+                    self._file_mod_times[filepath] = current_mtime
+
+        # 2. Scan for deleted files
+        deleted_files = set(self._file_mod_times.keys()) - all_current_files
+        for filepath in deleted_files:
+            self.logger.info(f"Detected deletion of '{filepath}'. Removing its entities.")
+            self._entity_manager.remove_by_source_file(filepath)
+            del self._file_mod_times[filepath]
 
 
     def get_complex_type_schema(self, complex_type_name: str) -> Optional[Dict[str, Any]]:
@@ -544,10 +625,25 @@ class EntityComponent(SystemComponent):
         instance_hy_lines = []
         for entity_instance in sorted(entities_to_save, key=lambda inst: inst.name):
             node_for_formatting = HyNode(type=f"def-{entity_type_key}", value=entity_instance.name)
-            attributes_for_formatting = entity_instance.get_all_attributes_typed().copy()
+
+            attributes_for_formatting = {}
+            for attr_name, attr_tv in entity_instance.get_all_attributes_typed().items():
+                if attr_tv.is_dynamic:
+                    # "Bake" the resolved value into a new, non-dynamic TypedValue for saving.
+                    baked_tv = TypedValue(
+                        value=attr_tv.value,
+                        field_type=attr_tv.field_type,
+                        item_type=attr_tv.item_type,
+                        item_schema_type=attr_tv.item_schema_type
+                    )
+                    attributes_for_formatting[attr_name] = baked_tv
+                else:
+                    attributes_for_formatting[attr_name] = attr_tv
+
 
             for attr_name, attr_tv in attributes_for_formatting.items():
                 # Process any list that has a defined schema (e.g., checklist, occurrences)
+
                 if attr_tv.field_type == FieldType.LIST and attr_tv.item_schema_type:
                     if isinstance(attr_tv.value, list):
                         
@@ -571,7 +667,7 @@ class EntityComponent(SystemComponent):
 
                             # Convert the legacy format to a proper Hy object
                             final_hy_objects.append(python_to_hy_model(py_dict))
-
+                        attr_tv.value = hy.models.List(final_hy_objects)
                         # Now, final_hy_objects contains a clean list of only hy.models.Object items.
                         final_hy_list_object = hy.models.List(final_hy_objects)
                         
@@ -779,35 +875,30 @@ class EntityComponent(SystemComponent):
         entity = self.get_entity(entity_type, category, name)
         if not entity:
             raise ValueError(f"Entity {entity_type}:{category}:{name} not found for update.")
-        existing_typed_value = entity.get_attribute_typed(attr_name)
         schema = self.get_sanitized_entity_schema(entity_type.lower()) or {}
         attr_schema_details = schema.get(attr_name, {})
-        field_type_for_new_tv: FieldType
+        
+        existing_typed_value = entity.get_attribute_typed(attr_name)
+        
+        # Determine the field type from the schema or existing value
         declared_type_str = attr_schema_details.get("type")
         if existing_typed_value:
             field_type_for_new_tv = existing_typed_value.field_type
         elif declared_type_str:
             field_type_for_new_tv = FieldType.from_string(declared_type_str)
         else:
-            field_type_for_new_tv = infer_type(new_raw_value_from_api)
+            field_type_for_new_tv = infer_type(new_raw_value)
+
+        # 2. Get the CRITICAL schema info that was missing before.
         item_type_str = attr_schema_details.get("item_type")
-        item_type_enum = (
-            FieldType.from_string(item_type_str)
-            if item_type_str
-            else (existing_typed_value.item_type if existing_typed_value else None)
-        )
+        item_type_enum = FieldType.from_string(item_type_str) if item_type_str else None
+        item_schema_type_from_schema = attr_schema_details.get("item_schema_type")
         enum_choices = attr_schema_details.get("enum_choices", [])
-        if not enum_choices and existing_typed_value and existing_typed_value.enum_choices:
-            enum_choices = existing_typed_value.enum_choices
-        value_to_store = new_raw_value_from_api
-        final_original_expr = None
         
-        if is_new_value_dynamic:
-            if not new_original_expression or not new_original_expression.strip().startswith("("):
-                 raise ValueError("Dynamic update requires a valid Hy s-expression for 'new_original_expression'.")
-            final_original_expr = new_original_expression
-            value_to_store = final_original_expr if field_type_for_new_tv == FieldType.CODE else None
+        value_to_store = new_raw_value
+        final_original_expr = new_original_expression if is_new_value_dynamic else None
         
+        # 3. Pass ALL the schema info to the TypedValue constructor.
         updated_typed_value = TypedValue(
             value=value_to_store,
             field_type=field_type_for_new_tv,
@@ -815,8 +906,8 @@ class EntityComponent(SystemComponent):
             original=final_original_expr,
             enum_choices=enum_choices,
             item_type=item_type_enum,
+            item_schema_type=item_schema_type_from_schema
         )
-
         entity.set_attribute_typed(attr_name, updated_typed_value)
         self._save_entities_in_category(entity_type, category)
         self.logger.info(

@@ -12,9 +12,11 @@ from utms.web.api.routes import (
     config_routes,
     daily_log_routes,
     entities_routes,
+    patterns_routes,
     resolve_routes,
     units_routes,
     variables_routes,
+    calendar_routes,
 )
 from utms.web.dependencies import get_config
 
@@ -46,6 +48,8 @@ templates = Jinja2Templates(directory="utms/web/templates")
 app.include_router(entities_routes.router)
 app.include_router(config_routes.router)
 app.include_router(variables_routes.router)
+app.include_router(patterns_routes.router)
+app.include_router(calendar_routes.router)
 app.include_router(anchors_routes.router)
 app.include_router(units_routes.router)
 app.include_router(clock_routes.router)

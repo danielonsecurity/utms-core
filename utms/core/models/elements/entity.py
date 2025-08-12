@@ -21,7 +21,7 @@ class Entity(ModelMixin):
 
     # Category defaults to "default", corresponds to filename (e.g., default.hy)
     category: str = field(default="default")
-
+    source_file: Optional[str] = field(default=None, repr=False) 
     attributes: Dict[str, TypedValue] = field(default_factory=dict)
 
     def __post_init__(self):
@@ -42,18 +42,28 @@ class Entity(ModelMixin):
                     f"Entity '{self.name}' attribute '{key}' was not initialized with a TypedValue. "
                     f"Received type: {type(val)}. This must be fixed in the loader/manager."
                 )
-                # Not attempting to fix it here, as it indicates a larger issue.
-                # An error should ideally be raised by the caller if this happens.
-                # For robustness in case it slips through, it might be converted, but it's a bad sign.
-                # For now, we assume the loader/manager correctly provides TypedValues.
-                # If this Entity is being directly instantiated elsewhere, that code needs to be updated.
                 pass
+        normalized_attributes = {}
+        for key, val in self.attributes.items():
+            canonical_key = self._normalize_key(key)
+            if canonical_key in normalized_attributes:
+                logger.warning(
+                    f"Duplicate attribute key after normalization for '{key}' (becomes '{canonical_key}') "
+                    f"on entity '{self.name}'. The last one provided will be used."
+                )
+            normalized_attributes[canonical_key] = val
+        self.attributes = normalized_attributes
+
+    def _normalize_key(self, key: str) -> str:
+        """Converts any key to the canonical kebab-case form."""
+        return str(key).replace('_', '-')
 
     def get_attribute_typed(self, attr_name: str) -> Optional[TypedValue]:
-        return self.attributes.get(attr_name)
+        canonical_name = self._normalize_key(attr_name)
+        return self.attributes.get(canonical_name)
 
     def get_attribute_value(self, attr_name: str, default: Any = None) -> Any:
-        typed_value = self.attributes.get(attr_name)
+        typed_value = self.get_attribute_typed(attr_name)
         return typed_value.value if typed_value else default
 
     def set_attribute_typed(self, attr_name: str, typed_value: TypedValue) -> None:
@@ -62,7 +72,18 @@ class Entity(ModelMixin):
                 f"Value for attribute '{attr_name}' of entity '{self.name}' "
                 f"must be a TypedValue instance. Got type: {type(typed_value)}"
             )
-        self.attributes[attr_name] = typed_value
+        canonical_name = self._normalize_key(attr_name)
+        self.attributes[canonical_name] = typed_value
+
+
+    def remove_attribute(self, attr_name: str) -> None:
+        canonical_name = self._normalize_key(attr_name)
+        if canonical_name in self.attributes:
+            del self.attributes[canonical_name]
+
+    def has_attribute(self, attr_name: str) -> bool:
+        canonical_name = self._normalize_key(attr_name)
+        return canonical_name in self.attributes
 
     def _set_attribute_from_loader(
         self,
@@ -82,13 +103,6 @@ class Entity(ModelMixin):
             enum_choices=enum_choices_from_schema,
             item_type=item_type_from_schema,
         )
-
-    def remove_attribute(self, attr_name: str) -> None:
-        if attr_name in self.attributes:
-            del self.attributes[attr_name]
-
-    def has_attribute(self, attr_name: str) -> bool:
-        return attr_name in self.attributes
 
     def is_attribute_dynamic(self, attr_name: str) -> bool:
         typed_value = self.attributes.get(attr_name)
@@ -123,6 +137,8 @@ class Entity(ModelMixin):
             return [] # Default to no claims if attribute is missing or its value is None
 
         value = claims_tv.value
+        if isinstance(value, list) and len(value) == 2 and value[0] == 'quote' and isinstance(value[1], list) and not value[1]:
+            return []
         
         if isinstance(value, list):
             # Ensure all items in the list are strings

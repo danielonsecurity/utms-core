@@ -83,13 +83,14 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
 
             attr_name_from_hy = str(attr_expr_in_hy[0])
             raw_hy_value_object = attr_expr_in_hy[1]
-            normalized_attr_name_for_schema_lookup = attr_name_from_hy.replace('_', '-')
-            self.logger.debug(f"  Attribute from Hy: '{attr_name_from_hy}' = {raw_hy_value_object}")
+            canonical_attr_name = attr_name_from_hy.replace('_', '-')
+            
+            self.logger.debug(f"  Attribute from Hy: '{attr_name_from_hy}' (canonical: '{canonical_attr_name}') = {raw_hy_value_object}")
 
-            attr_schema_details = self._attribute_schemas.get(normalized_attr_name_for_schema_lookup)
+            attr_schema_details = self._attribute_schemas.get(canonical_attr_name)
             if not attr_schema_details:
                 self.logger.warning(
-                    f"No schema definition found for attribute '{normalized_attr_name_for_schema_lookup}' "
+                    f"No schema definition found for attribute '{canonical_attr_name}' "
                     f"in entity type '{self._entity_type_str}' (instance: '{entity_instance_name}'). "
                     f"Will attempt to infer type, but this is not ideal."
                 )
@@ -103,7 +104,7 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
             else:
                 # Fallback if schema 'type' is missing (should be logged by schema parser ideally)
                 self.logger.warning(
-                    f"Missing schema 'type' for '{attr_name_from_hy}' in '{self._entity_type_str}'. "
+                    f"Missing schema 'type' for '{canonical_attr_name}' in '{self._entity_type_str}'. "
                     f"Inferring type from value: {raw_hy_value_object}"
                 )
                 field_type_enum = infer_type(raw_hy_value_object)
@@ -134,10 +135,10 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
                     referenced_entity_type=referenced_entity_type_str,
                     referenced_entity_category=referenced_entity_category_str,
                 )
-                parsed_attributes_typed[attr_name_from_hy] = typed_value_for_attr
+                parsed_attributes_typed[canonical_attr_name] = typed_value_for_attr
             except Exception as e_typed_value:
                 self.logger.error(
-                    f"Error creating TypedValue for attribute '{attr_name_from_hy}' "
+                    f"Error creating TypedValue for attribute '{canonical_attr_name}' "
                     f"of entity '{entity_instance_name}' ({self._entity_type_str}): {e_typed_value}",
                     exc_info=True,
                 )
@@ -174,8 +175,9 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
                 [(str(k).lstrip(':'), v) for k, v in attributes_typed_dict.items()]
             )
             for attr_name, typed_value_instance in sorted_attributes:
+                canonical_attr_name_for_file = str(attr_name).replace('_', '-')
                 value_str_for_hy_file = typed_value_instance.serialize_for_persistence()
-                lines.append(f"  ({attr_name} {value_str_for_hy_file})")
+                lines.append(f"  ({canonical_attr_name_for_file} {value_str_for_hy_file})")
 
         lines.append(")")
         return lines

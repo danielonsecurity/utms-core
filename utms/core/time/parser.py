@@ -119,8 +119,8 @@ class TimeExpressionParser:
 
     def create_evaluation_context(self) -> dict:
         """
-        Creates the context for Hy evaluation. This is the definitive version
-        that handles casing, plurals, and data types correctly.
+        Creates the context for Hy evaluation. This version correctly handles
+        case-sensitive labels and case-insensitive names.
         """
         if not self.units_provider:
             raise ValueError("Units provider not set in TimeExpressionParser.")
@@ -128,30 +128,46 @@ class TimeExpressionParser:
         context = {}
         for _, unit_obj in self.units_provider.items():
             time_length_val = DecimalTimeLength(unit_obj.value)
-            if unit_obj.label:
-                context[str(unit_obj.label)] = time_length_val
 
-            all_names_for_unit = set()
+            # --- DEFINITIVE FIX: Process labels and names separately ---
+
+            # 1. Process the LABEL (e.g., 'd', 'D'). This is CASE-SENSITIVE.
+            if unit_obj.label:
+                label = str(unit_obj.label)
+                context[label] = time_length_val
+
+            # 2. Process the full NAMES (e.g., "Day", "Decade"). This is CASE-INSENSITIVE.
+            full_names = set()
+            # The 'name' can be a list of strings or a single string
             if isinstance(unit_obj.name, list):
-                all_names_for_unit.update([str(n) for n in unit_obj.name])
-            elif unit_obj.name is not None:
-                all_names_for_unit.add(str(unit_obj.name))
-            
-            for name in all_names_for_unit:
+                full_names.update([str(n) for n in unit_obj.name])
+            elif unit_obj.name:
+                full_names.add(str(unit_obj.name))
+
+            for name in full_names:
+                # Add the original case (e.g., "Day")
                 context[name] = time_length_val
-                # Add a lowercase plural version for convenience (e.g., 'minutes')
-                if not name.lower().endswith('s'):
-                    context[name.lower() + 's'] = time_length_val
+
+                # Add the lowercase version for case-insensitivity (e.g., "day")
+                lower_name = name.lower()
+                if lower_name not in context: # Avoid overwriting a sensitive label
+                     context[lower_name] = time_length_val
+
+                # Add singular/plural variations of the lowercase name
+                if lower_name.endswith('s'):
+                    singular = lower_name[:-1]
+                    if singular not in context:
+                        context[singular] = time_length_val
+                # Add plural only for full words, not single-letter labels
+                elif len(lower_name) > 1:
+                    plural = lower_name + 's'
+                    if plural not in context:
+                        context[plural] = time_length_val
+
         # Add standard math functions.
-        context.update(
-            {
-                "math": math,
-                "sqrt": math.sqrt,
-                "abs": abs,
-                "pi": math.pi,
-                "e": math.e,
-            }
-        )
+        context.update({
+            "math": math, "sqrt": math.sqrt, "abs": abs, "pi": math.pi, "e": math.e,
+        })
         return context
 
     def evaluate(self, expression: str) -> DecimalTimeLength:

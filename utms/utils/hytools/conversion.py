@@ -159,3 +159,60 @@ def python_to_hy_model(value: Any) -> hy.models.Object:
         return hy.models.Symbol('None')
         
     return hy.models.String(str(value))
+def hy_model_to_python(data: Any) -> Any:
+    """
+    Recursively converts Hy model objects into pure Python native types.
+    This is a "deep" conversion that handles nested structures and special forms
+    like (datetime ...) that the basic `hy_to_python` might turn into lists.
+    """
+    if isinstance(data, hy.models.String):
+        return str(data)
+    if isinstance(data, hy.models.Symbol):
+        s = str(data)
+        if s == 'True': return True
+        if s == 'False': return False
+        if s == 'None': return None
+        return s
+    if isinstance(data, hy.models.Integer):
+        return int(data)
+    if isinstance(data, hy.models.Float):
+        return float(data)
+    if isinstance(data, hy.models.Keyword):
+        return str(data)[1:]
+
+    # Handle special (datetime ...) form. This must come BEFORE the generic list handler.
+    if isinstance(data, (hy.models.Expression, list)) and len(data) > 0:
+        # Check if the first element resolves to 'datetime'
+        first_el = hy_model_to_python(data[0])
+        if first_el == 'datetime':
+            try:
+                dt_args = [hy_model_to_python(arg) for arg in data[1:]]
+                return datetime(*dt_args)
+            except (TypeError, ValueError):
+                # If it's not a valid datetime expression, fall through to treat as a generic list
+                pass
+
+    # Handle generic lists/expressions
+    if isinstance(data, (hy.models.List, hy.models.Expression, list, tuple)):
+        return [hy_model_to_python(item) for item in data]
+
+    # Handle Dictionaries - THIS IS THE CRITICAL FIX
+    if isinstance(data, hy.models.Dict):
+        py_dict = {}
+        # A hy.models.Dict is a flat list [key1, val1, key2, val2, ...]
+        it = iter(data)
+        try:
+            while True:
+                key = next(it)
+                value = next(it)
+                py_dict[hy_model_to_python(key)] = hy_model_to_python(value)
+        except StopIteration:
+            pass
+        return py_dict
+
+    if isinstance(data, dict):
+        # Handle regular python dicts that might be nested
+        return {hy_model_to_python(k): hy_model_to_python(v) for k, v in data.items()}
+
+    # If it's none of the above, it's likely already a Python native type
+    return data

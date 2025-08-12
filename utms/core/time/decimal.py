@@ -1,7 +1,7 @@
 import re
 import time
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import TYPE_CHECKING, Optional, Protocol, Union
 
@@ -22,7 +22,7 @@ class DecimalTimeStamp(TimeStamp):
 
     def to_gregorian(self) -> Optional[datetime]:
         try:
-            return datetime.fromtimestamp(float(self._value))
+            return datetime.fromtimestamp(float(self._value), tz=timezone.utc)
         except (ValueError, OSError, OverflowError):
             return None
 
@@ -273,6 +273,10 @@ class DecimalTimeLength:
     def copy(self) -> "DecimalTimeLength":
         """Create a new instance with the same value."""
         return DecimalTimeLength(self._seconds)
+
+    def to_timedelta(self) -> timedelta:
+        """Converts the internal Decimal seconds value to a datetime.timedelta object."""
+        return timedelta(seconds=float(self._seconds))
 
     def __float__(self) -> float:
         return float(self._seconds)

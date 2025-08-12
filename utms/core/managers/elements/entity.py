@@ -28,6 +28,7 @@ class EntityManager(BaseManager[Entity], EntityManagerProtocol):  # Renamed
         entity_type: str,
         attributes: Optional[Dict[str, TypedValue]] = None,
         category: str = "default",
+        source_file: Optional[str] = None,
     ) -> Entity:
         entity_type_key = entity_type.lower().strip()
         category_key = category.strip().lower() if category and category.strip() else "default"
@@ -52,11 +53,28 @@ class EntityManager(BaseManager[Entity], EntityManagerProtocol):  # Renamed
             entity_type=entity_type_key,
             category=category_key,
             attributes=attributes or {},
+            source_file=source_file,
         )
 
         self.add(generated_key, entity)  # BaseManager.add takes key, item
         self.logger.debug(f"Created/Replaced Entity '{generated_key}': {repr(entity)}")
         return entity
+
+    def remove_by_source_file(self, source_filepath: str):
+        """Removes all entities that originated from a specific file."""
+        keys_to_remove = [
+            key for key, entity in self._items.items()
+            if entity.source_file == source_filepath
+        ]
+        if not keys_to_remove:
+            return
+
+        self.logger.debug(f"Removing {len(keys_to_remove)} entities from source file: {source_filepath}")
+        for key in keys_to_remove:
+            entity_to_remove = self.get(key)
+            if entity_to_remove:
+                self.release_claims(entity_to_remove)
+                self.remove(key)
 
     def get_all_entities(self) -> List[Entity]:
         """Returns a flat list of all managed entity instances."""

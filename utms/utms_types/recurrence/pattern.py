@@ -1,19 +1,24 @@
-from datetime import datetime, time, timedelta  # Add time to imports
-from typing import Any, List, Optional, Union
+# utms/utms_types/recurrence/pattern.py
 
+from datetime import datetime, time, timedelta, timezone
+from typing import Any, List, Optional, Union
+import pytz
+
+from utms.core.config.constants import (
+    SECONDS_IN_DAY,
+    SECONDS_IN_HOUR,
+    SECONDS_IN_MINUTE,
+    SECONDS_IN_WEEK,
+)
 from utms.core.time import DecimalTimeLength, DecimalTimeStamp, TimeExpressionParser
 from utms.utms_types import HyNode, UnitManagerProtocol
-
+from utms.utils import hy_to_python
 from .base import (
     Constraint,
     ConstraintFunc,
     FrequencyType,
-    Modifier,
-    ModifierFunc,
-    RecurrencePatternProtocol,
     RecurrenceSpec,
 )
-from .builders import RecurrenceBuilder
 
 
 class RecurrencePattern:
@@ -21,292 +26,216 @@ class RecurrencePattern:
         self.name = None
         self.label = None
         self.spec = RecurrenceSpec()
-        self.modifiers: List[Modifier] = []
         self.constraints: List[Constraint] = []
         self.groups = []
         self.parser = TimeExpressionParser(units_provider=units_provider)
+        self.frequency_type: Optional[FrequencyType] = None
+        self._original_interval: Optional[str] = None
 
     @classmethod
-    def every(cls, interval: Union[str, DecimalTimeLength]) -> "RecurrencePattern":
-        pattern = cls()
+    def every(cls, interval: Union[str, DecimalTimeLength], units_provider: Optional[UnitManagerProtocol] = None) -> "RecurrencePattern":
+        pattern = cls(units_provider=units_provider)
         if isinstance(interval, str):
             pattern._original_interval = interval
             pattern.spec.interval = pattern.parser.evaluate(interval)
+            
+            interval_seconds = pattern.spec.interval._seconds
+
+            if interval_seconds == SECONDS_IN_HOUR:
+                pattern.frequency_type = FrequencyType.HOURLY
+            elif interval_seconds == SECONDS_IN_DAY:
+                pattern.frequency_type = FrequencyType.DAILY
+            elif interval_seconds == SECONDS_IN_WEEK:
+                pattern.frequency_type = FrequencyType.WEEKLY
+            elif interval_seconds == SECONDS_IN_MINUTE:
+                pattern.frequency_type = FrequencyType.MINUTELY
+            else:
+                pattern.frequency_type = FrequencyType.CUSTOM
         else:
             pattern.spec.interval = interval
+            pattern.frequency_type = FrequencyType.CUSTOM
         return pattern
 
     def on(self, *days: str) -> "RecurrencePattern":
         day_mapping = {
-            "monday": 0,
-            "tuesday": 1,
-            "wednesday": 2,
-            "thursday": 3,
-            "friday": 4,
-            "saturday": 5,
-            "sunday": 6,
+            "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3,
+            "friday": 4, "saturday": 5, "sunday": 6,
         }
         weekdays = {day_mapping[day.lower()] for day in days}
-
         self.spec.weekdays = weekdays
-
-        def weekday_constraint(ts: DecimalTimeStamp) -> bool:
-            dt = ts.to_gregorian()
-            if dt is None:
-                return False
+        
+        def weekday_constraint(dt: datetime) -> bool:
             return dt.weekday() in weekdays
-
+        
         self.add_constraint(weekday_constraint, f"On days: {', '.join(days)}")
         return self
 
     def at(self, *times: str) -> "RecurrencePattern":
-        """Set specific times"""
-        # Store times in spec
-        self.spec.times = set(times)
+        if not hasattr(self.spec, 'times') or self.spec.times is None:
+            self.spec.times = []
 
-        time_objs = []
-        for time_str in times:
-            try:
-                hour, minute = map(int, time_str.split(":"))
-                time_objs.append(time(hour, minute))
-            except ValueError:
-                raise ValueError(f"Invalid time format: {time_str}. Use HH:MM format.")
+        for t in times:
+            value_to_process = hy_to_python(t)
+            if isinstance(value_to_process, list):
+                self.spec.times.extend(value_to_process)
+            else:
+                self.spec.times.append(str(value_to_process))
 
-        def time_constraint(ts: DecimalTimeStamp) -> bool:
-            dt = ts.to_gregorian()
-            if dt is None:
-                return False
-            current_time = dt.time().replace(second=0, microsecond=0)
-            return any(current_time == t for t in time_objs)
-
-        self.add_constraint(time_constraint, f"At times: {', '.join(times)}")
+        self.spec.times = sorted(list(set(self.spec.times)))
+        return self
+    
+    def at_minute(self, minute: int) -> "RecurrencePattern":
+        if not hasattr(self.spec, 'at_args') or self.spec.at_args is None:
+            self.spec.at_args = []
+        self.spec.at_args.append(('minute', minute))
         return self
 
     def between(self, start: str, end: str) -> "RecurrencePattern":
-        """Set time range"""
         self.spec.start_time = start
         self.spec.end_time = end
+        
+        try:
+            start_parts = list(map(int, start.split(':')))
+            end_parts = list(map(int, end.split(':')))
+            start_time_obj = time(start_parts[0], start_parts[1])
+            end_time_obj = time(end_parts[0], end_parts[1])
+        except (ValueError, IndexError):
+            raise ValueError(f"Invalid time format in between clause: '{start}' or '{end}'")
 
-        # Parse time strings
-        start_hour, start_minute = map(int, start.split(":"))
-        end_hour, end_minute = map(int, end.split(":"))
-        start_time = time(start_hour, start_minute)
-        end_time = time(end_hour, end_minute)
-
-        def range_constraint(ts: DecimalTimeStamp) -> bool:
-            dt = ts.to_gregorian()
-            if dt is None:
-                return False
+        def range_constraint(dt: datetime) -> bool:
+            if dt is None: return False
             current_time = dt.time().replace(second=0, microsecond=0)
-            return start_time <= current_time < end_time
-
+            return start_time_obj <= current_time < end_time_obj
+        
         self.add_constraint(range_constraint, f"Between {start} and {end}")
         return self
 
-    def next_occurrence(self, from_time: DecimalTimeStamp) -> DecimalTimeStamp:
-        candidate = from_time + self.spec.interval
-        max_iterations = 1000
-        iterations = 0
 
-        while iterations < max_iterations:
-            iterations += 1
-            dt = candidate.to_gregorian()
-            if dt:
-                current_time = dt.time()
+    def next_occurrence(self, from_time: DecimalTimeStamp, local_tz: pytz.BaseTzInfo = pytz.utc) -> DecimalTimeStamp:
+        gregorian_time = from_time.to_gregorian()
+        if gregorian_time is None:
+            raise ValueError(f"Cannot convert from_time '{from_time}' to a valid datetime object.")
 
-                # Handle specific times
-                if self.spec.times:
-                    target_times = sorted(
-                        [
-                            time(hour, minute)
-                            for time_str in self.spec.times
-                            for hour, minute in [map(int, time_str.split(":"))]
-                        ]
-                    )
+        start_dt_local = gregorian_time.astimezone(local_tz)
 
-                    # Try today's target times
-                    next_time = None
-                    for target in target_times:
-                        candidate_time = DecimalTimeStamp(
-                            dt.replace(hour=target.hour, minute=target.minute, second=0).timestamp()
-                        )
-                        if candidate_time > from_time:
-                            next_time = target
-                            break
+        at_times = []
+        if hasattr(self.spec, 'times') and self.spec.times:
+            parsed_times = []
+            for t_str in self.spec.times:
+                try:
+                    parts = list(map(int, str(t_str).split(':')))
+                    hour, minute = parts[0], parts[1]
+                    second = parts[2] if len(parts) > 2 else 0
+                    parsed_times.append(time(hour, minute, second))
+                except (ValueError, IndexError):
+                    continue
+            at_times = sorted(parsed_times)
 
-                    if next_time:
-                        candidate = DecimalTimeStamp(
-                            dt.replace(
-                                hour=next_time.hour, minute=next_time.minute, second=0
-                            ).timestamp()
-                        )
-                    else:
-                        # Go to first time tomorrow
-                        tomorrow = dt.replace(hour=0, minute=0, second=0) + timedelta(days=1)
-                        candidate = DecimalTimeStamp(
-                            tomorrow.replace(
-                                hour=target_times[0].hour, minute=target_times[0].minute, second=0
-                            ).timestamp()
-                        )
+        # --- Logic for patterns WITHOUT 'at' clauses ---
+        if not at_times:
+            candidate_dt_local = start_dt_local
 
-                # Handle time range
-                elif hasattr(self.spec, "start_time") and self.spec.start_time is not None:
-                    start_hour, start_minute = map(int, self.spec.start_time.split(":"))
-                    end_hour, end_minute = map(int, self.spec.end_time.split(":"))
-                    start_time = time(start_hour, start_minute)
-                    end_time = time(end_hour, end_minute)
+            # For sub-day intervals (like '30m' or '2h 15m')
+            if self.spec.interval.to_timedelta() < timedelta(days=1):
+                for _ in range(10000): # Safety break
+                    candidate_dt_local += self.spec.interval.to_timedelta()
+                    if all(constraint.func(candidate_dt_local) for constraint in self.constraints):
+                        return DecimalTimeStamp(candidate_dt_local)
+                raise RuntimeError(f"Could not find next valid sub-day interval for '{self.label}'")
 
-                    if current_time < start_time:
-                        # Align to interval within range
-                        base = dt.replace(hour=start_hour, minute=start_minute, second=0)
-                        candidate = DecimalTimeStamp(base.timestamp())
-                    elif current_time >= end_time:
-                        # Go to start time tomorrow
-                        tomorrow = dt.replace(hour=0, minute=0, second=0) + timedelta(days=1)
-                        candidate = DecimalTimeStamp(
-                            tomorrow.replace(
-                                hour=start_hour, minute=start_minute, second=0
-                            ).timestamp()
-                        )
-                    else:
-                        # We're within the range, align to interval
-                        seconds_since_midnight = current_time.hour * 3600 + current_time.minute * 60
-                        interval_seconds = float(self.spec.interval._seconds)
-                        next_interval = (
-                            (seconds_since_midnight // interval_seconds) + 1
-                        ) * interval_seconds
+            # For day-or-longer intervals (like '1d' for LUNCH-BREAK)
+            else:
+                search_date = start_dt_local.date()
+                # If the potential start of the window today is already in the past, start searching from tomorrow
+                if self.spec.start_time:
+                    start_time_obj = time.fromisoformat(self.spec.start_time)
+                    today_candidate = local_tz.localize(datetime.combine(search_date, start_time_obj))
+                    if today_candidate <= start_dt_local:
+                        search_date += timedelta(days=1)
 
-                        # Create timestamp for next interval
-                        base = dt.replace(hour=0, minute=0, second=0)
-                        candidate = DecimalTimeStamp(base.timestamp() + next_interval)
+                for _ in range(366): # Search up to a year
+                    # Construct the first possible candidate for this day (e.g., 12:00)
+                    if self.spec.start_time:
+                        start_time_obj = time.fromisoformat(self.spec.start_time)
+                        candidate_dt = local_tz.localize(datetime.combine(search_date, start_time_obj))
 
-                # Check all constraints
-                if all(constraint.func(candidate) for constraint in self.constraints):
-                    return candidate
+                        # Check if this single candidate is valid
+                        if candidate_dt > start_dt_local and all(constraint.func(candidate_dt) for constraint in self.constraints):
+                            return DecimalTimeStamp(candidate_dt)
 
-            # If constraints not met or no special handling needed
-            candidate += self.spec.interval
+                    # If no valid start time or it failed, move to the next day
+                    search_date += timedelta(days=1)
 
-        raise RuntimeError(f"Could not find next occurrence after {max_iterations} iterations")
+            raise RuntimeError(f"Could not find next valid interval for '{self.label}'")
+
+        # --- Logic for patterns WITH 'at' times (This part works well) ---
+        current_date_local = start_dt_local.date()
+        if all(local_tz.localize(datetime.combine(current_date_local, t)) <= start_dt_local for t in at_times):
+            current_date_local += timedelta(days=1)
+
+        for _ in range(366):
+            for t_local in at_times:
+                naive_dt = datetime.combine(current_date_local, t_local)
+                aware_dt_local = local_tz.localize(naive_dt, is_dst=None)
+
+                if aware_dt_local > start_dt_local:
+                    if all(constraint.func(aware_dt_local) for constraint in self.constraints):
+                        return DecimalTimeStamp(aware_dt_local)
+
+            current_date_local += timedelta(days=1)
+
+        raise RuntimeError(f"Could not find next 'at' occurrence for '{self.label}' within a year.")
 
     def except_between(self, start: str, end: str) -> "RecurrencePattern":
-        """Exclude a time range"""
-        # Store in spec
-        if self.spec.except_times is None:
-            self.spec.except_times = []
-        self.spec.except_times.append((start, end))
-
-        # Parse time strings
-        start_hour, start_minute = map(int, start.split(":"))
-        end_hour, end_minute = map(int, end.split(":"))
-        except_start = time(start_hour, start_minute)
-        except_end = time(end_hour, end_minute)
-
-        def exclude_range_constraint(ts: DecimalTimeStamp) -> bool:
-            dt = ts.to_gregorian()
-            if dt is None:
-                return True  # If we can't convert to gregorian, don't exclude
-            current_time = dt.time().replace(second=0, microsecond=0)
-            # Return True if time is OUTSIDE the excluded range
-            return not (except_start <= current_time < except_end)
-
+        try:
+            start_parts = list(map(int, start.split(':')))
+            end_parts = list(map(int, end.split(':')))
+            except_start = time(start_parts[0], start_parts[1])
+            except_end = time(end_parts[0], end_parts[1])
+        except (ValueError, IndexError):
+            raise ValueError(f"Invalid time format in except_between clause: '{start}' or '{end}'")
+        
+        def exclude_range_constraint(dt: datetime) -> bool:
+            if dt is None: return True
+            return not (except_start <= dt.time().replace(second=0, microsecond=0) < except_end)
+        
         self.add_constraint(exclude_range_constraint, f"Except between {start} and {end}")
         return self
-
-    def add_modifier(self, func: ModifierFunc, description: str) -> None:
-        self.modifiers.append(Modifier(func, description))
 
     def add_constraint(self, func: ConstraintFunc, description: str) -> None:
         self.constraints.append(Constraint(func, description))
 
     def to_hy(self) -> HyNode:
-        """Convert pattern to AST node."""
-
         def make_property(name: str, value: Any, original: str = None) -> HyNode:
-            """Create a property node with given name and value."""
             return HyNode(
-                type="property",
-                value=name,
-                children=[
-                    HyNode(type="value", value=value, original=original, is_dynamic=bool(original))
-                ],
+                type="property", value=name,
+                children=[HyNode(type="value", value=value, original=original, is_dynamic=bool(original))]
             )
-
         properties = []
+        if self.name: properties.append(make_property("name", self.name))
+        if self._original_interval: properties.append(make_property("every", self._original_interval))
+        elif self.spec.interval: properties.append(make_property("every", str(self.spec.interval)))
+        
+        if hasattr(self.spec, 'at_args') and self.spec.at_args:
+            for arg in self.spec.at_args:
+                if isinstance(arg, tuple) and len(arg) == 2 and arg[0] == 'minute':
+                    properties.append(make_property("at", [f":{arg[0]}", arg[1]]))
+        elif hasattr(self.spec, 'times') and self.spec.times:
+             properties.append(make_property("at", self.spec.times))
 
-        # Simple string properties
-        if self.name:
-            properties.append(make_property("name", self.name))
-
-        # Time interval (with original expression preservation)
-        if hasattr(self, "_original_interval"):
-            properties.append(make_property("every", self._original_interval))
-        elif self.spec.interval:
-            properties.append(make_property("every", str(self.spec.interval)))
-
-        # Time specifications
-        if self.spec.times:
-            times = list(self.spec.times)
-            properties.append(make_property("at", times[0] if len(times) == 1 else times))
-
-        if self.spec.start_time and self.spec.end_time:
-            properties.append(make_property("between", [self.spec.start_time, self.spec.end_time]))
-
-        # Day specifications
+        if self.spec.start_time and self.spec.end_time: properties.append(make_property("between", [self.spec.start_time, self.spec.end_time]))
         if self.spec.weekdays:
-            weekday_names = {
-                0: "monday",
-                1: "tuesday",
-                2: "wednesday",
-                3: "thursday",
-                4: "friday",
-                5: "saturday",
-                6: "sunday",
-            }
+            weekday_names = {0: "monday", 1: "tuesday", 2: "wednesday", 3: "thursday", 4: "friday", 5: "saturday", 6: "sunday"}
             days = [weekday_names[day] for day in sorted(self.spec.weekdays)]
             properties.append(make_property("on", days))
-
-        # Exception times
-        if self.spec.except_times:
+        if hasattr(self.spec, 'except_times') and self.spec.except_times:
             for start, end in self.spec.except_times:
                 properties.append(make_property("except-between", [start, end]))
-
-        # Lists and collections
-        if hasattr(self, "groups") and self.groups:
-            properties.append(make_property("groups", self.groups))
-
-        # Add any additional attributes that should be included
-        for attr_name in self.spec.__annotations__:
-            if attr_name not in [
-                "interval",
-                "times",
-                "start_time",
-                "end_time",
-                "weekdays",
-                "except_times",
-            ] and hasattr(self.spec, attr_name):
-                value = getattr(self.spec, attr_name)
-                if value is not None:
-                    properties.append(make_property(attr_name, value))
-
-        # Custom attributes
-        custom_attrs = [
-            "description",
-            "priority",
-            "tags",
-            "location",
-            "notification_time",
-            "completion_criteria",
-        ]
-        for attr in custom_attrs:
-            if hasattr(self, attr) and getattr(self, attr) is not None:
-                properties.append(make_property(attr, getattr(self, attr)))
+        if hasattr(self, "groups") and self.groups: properties.append(make_property("groups", self.groups))
 
         return HyNode(type="def-pattern", value=self.label, children=properties)
 
     def add_to_groups(self, *groups: str) -> "RecurrencePattern":
-        """Add pattern to groups"""
-        if not hasattr(self, "groups"):
-            self.groups = []
+        if not hasattr(self, "groups"): self.groups = []
         self.groups.extend(groups)
         return self

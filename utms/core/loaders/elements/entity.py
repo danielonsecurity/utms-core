@@ -161,7 +161,6 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
                         f"Missing required attribute '{schema_attr_name}' for '{definition_processing_key}' and no default provided."
                     )
                 continue
-                
             declared_field_type_str = hy_to_python(get_from_hy_dict(attr_schema_details, "type", "string"))
             declared_field_type = FieldType.from_string(declared_field_type_str)
 
@@ -212,16 +211,9 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
 
             # Determine final field type for TypedValue, preferring schema's declared type for static defaults
             final_field_type_for_default = declared_field_type
-            if (
-                is_default_expr_dynamic
-            ):  # If default was an S-expr, re-infer from its resolved value
-                final_field_type_for_default = infer_type(resolved_default_python_value)
-                # Keep declared type if it's a special case like DATETIME/ENTITY_REF and value is None
-                if (
-                    declared_field_type in (FieldType.DATETIME, FieldType.ENTITY_REFERENCE)
-                    and resolved_default_python_value is None
-                ):
-                    final_field_type_for_default = declared_field_type
+            self.logger.debug(
+                f"  For default attribute '{schema_attr_name}', using DECLARED schema type: '{final_field_type_for_default}'"
+            )
 
             item_type_hy_obj = get_from_hy_dict(attr_schema_details, "item_type")
             item_type_str = hy_to_python(item_type_hy_obj) # This will be None if item_type wasn't found
@@ -243,6 +235,7 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
             self.logger.debug(
                 f"  Applied default for '{schema_attr_name}'. Final TypedValue: {repr(final_attributes_for_model[schema_attr_name])}"
             )
+        source_filepath = getattr(self.context, 'source_file', None)
 
         existing_entity = self._manager.get_by_name_type_category(
             name=entity_instance_name,
@@ -255,6 +248,7 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
             self.logger.debug(f"Entity '{definition_processing_key}' exists, updating attributes.")
             for attr_name, typed_value in final_attributes_for_model.items():
                 existing_entity.set_attribute_typed(attr_name, typed_value)
+            existing_entity.source_file = source_filepath
             return existing_entity
         else:
             # If it does not exist, create it as before.
@@ -264,6 +258,7 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
                 entity_type=entity_type_name_str,
                 category=category_name_str,
                 attributes=final_attributes_for_model,
+                source_file=source_filepath,
             )
 
     def process(self, nodes: List[HyNode], context: LoaderContext) -> Dict[str, Entity]:

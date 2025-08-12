@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import Callable, List, Optional, Protocol, Set, Union
 
@@ -30,7 +30,7 @@ class RecurrenceSpec:
     start_time: Optional[str] = None
     end_time: Optional[str] = None
     except_times: Optional[List[tuple[str, str]]] = None
-
+    at_args: Optional[List[tuple]] = field(default_factory=list)
 
 @dataclass
 class Modifier:

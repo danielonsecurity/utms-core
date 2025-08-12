@@ -29,7 +29,7 @@ class LoaderContext:
     current_category: Optional[str] = None  # e.g., "work", "default" (lowercase string)
     current_entity_schema: Optional[Dict[str, Any]] = None  # Stores the attributes_schema dict
     known_complex_type_schemas: Optional[Dict[str, Any]] = None  # Stores all complex type schemas
-
+    source_file: Optional[str] = None
 
 class ComponentLoader(
     ABC, Generic[T, M], LoaderMixin

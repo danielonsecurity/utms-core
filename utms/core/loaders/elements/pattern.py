@@ -33,9 +33,14 @@ class PatternLoader(ComponentLoader[RecurrencePattern, PatternManager]):
                 if prop.type == "property":
                     prop_name = prop.value
                     if prop.children:
-                        prop_value = prop.children[0].value
+                        # This logic correctly handles both single and multiple values.
+                        all_values = [child.value for child in prop.children]
+
+                        # If the list has only one item, unpack it. Otherwise, keep the list.
+                        prop_value = all_values[0] if len(all_values) == 1 else all_values
+
                         pattern_kwargs[prop_name] = prop_value
-                        self.logger.debug(f"Added property {prop_name}: {prop_value}")
+                        self.logger.debug(f"Added property {prop_name}: {repr(prop_value)}")
 
             patterns[pattern_label] = {"label": pattern_label, "kwargs": pattern_kwargs}
             self.logger.info(f"Added pattern {pattern_label}")
@@ -43,26 +48,32 @@ class PatternLoader(ComponentLoader[RecurrencePattern, PatternManager]):
         return patterns
 
     def create_object(self, label: str, properties: Dict[str, Any]) -> RecurrencePattern:
-        """Create a Pattern from properties."""
         kwargs = properties["kwargs"]
-        units_provider = None
-        if self.context and self.context.dependencies:
-            units_provider = self.context.dependencies.get("units_provider")        
-        pattern = RecurrencePattern(units_provider=units_provider)
+        units_provider = self.context.dependencies.get("units_provider") if self.context and self.context.dependencies else None
+        
+        # We must create the base pattern from the 'every' clause first
         interval_str = hy_to_python(kwargs.get("every"))
-        if interval_str:
-            pattern.spec.interval = pattern.parser.evaluate(interval_str)
-            pattern._original_interval = interval_str
+        if not interval_str:
+            raise ValueError(f"Pattern '{label}' must have an 'every' clause.")
+        
+        pattern = RecurrencePattern.every(interval_str, units_provider=units_provider)
+        pattern.parser.units_provider = units_provider # Ensure parser has units
 
         pattern.label = label
         pattern.name = hy_to_python(kwargs.get("name", label))
 
-        # Apply additional properties
         if "at" in kwargs:
-            times = hy_to_python(kwargs["at"])
-            if not isinstance(times, list):
-                times = [times]
-            pattern.at(*times)
+            at_args = hy_to_python(kwargs["at"])
+            
+            # Check for special :minute format
+            if isinstance(at_args, list) and len(at_args) == 2 and str(at_args[0]) == "minute":
+                pattern.at_minute(int(at_args[1]))
+            # Handle a single time string
+            elif isinstance(at_args, str):
+                pattern.at(at_args)
+            # Handle a list of time strings
+            elif isinstance(at_args, list):
+                pattern.at(*at_args)
 
         if "between" in kwargs:
             between_times = hy_to_python(kwargs["between"])
