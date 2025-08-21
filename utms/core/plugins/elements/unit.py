@@ -2,10 +2,11 @@ from typing import Any, Dict, List
 
 import hy
 
-from utms.core.hy.utils import hy_obj_to_string, is_dynamic_content
+from utms.core.hy.utils import is_dynamic_content
 from utms.core.logger import get_logger
 from utms.core.plugins import NodePlugin
 from utms.utms_types import HyNode
+from utms.core.hy.converter import converter
 
 logger = get_logger()
 
@@ -83,10 +84,9 @@ class UnitNodePlugin(NodePlugin):
                     if value_node.is_dynamic and value_node.original:
                         value = value_node.original
                     else:
-                        value = hy_obj_to_string(value_node.value)
+                        value = converter.model_to_string(value_node.value)
                     lines.append(f"{indent}({prop.value} {value})")
 
-        # Add closing parenthesis to the last line
         if lines:
             lines[-1] = lines[-1] + ")"
         else:

@@ -2,13 +2,12 @@ from typing import Any, Dict, List, Optional, Type
 
 import hy
 
-from utms.core.hy.utils import hy_obj_to_string, is_dynamic_content, get_from_hy_dict, python_to_hy_string
+from utms.core.hy.utils import is_dynamic_content, get_from_hy_dict
 from utms.core.mixins.base import LoggerMixin
 from utms.core.plugins import NodePlugin
 from utms.utms_types import HyNode
-# Import TypedValue and FieldType related items
 from utms.utms_types.field.types import FieldType, TypedValue, infer_type
-from utms.utils import hy_to_python
+from utms.core.hy.converter import converter
 
 
 class DynamicEntityPlugin(NodePlugin, LoggerMixin):
@@ -18,7 +17,7 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
     An instance of a generated subclass (e.g., TaskInstanceParserPlugin) is created for each defined entity type.
     """
 
-    __discoverable__ = False  # This base class itself is not discovered.
+    __discoverable__ = False
 
     def __init__(self, entity_type_str: str, attribute_schemas: Dict[str, Dict[str, Any]]):
         """
@@ -96,7 +95,7 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
                 )
                 attr_schema_details = hy.models.Dict()
 
-            declared_type_str = hy_to_python(get_from_hy_dict(attr_schema_details, "type"))
+            declared_type_str = converter.model_to_py(get_from_hy_dict(attr_schema_details, "type"), raw=True)
 
             field_type_enum: FieldType
             if declared_type_str:
@@ -109,19 +108,19 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
                 )
                 field_type_enum = infer_type(raw_hy_value_object)
 
-            item_type_str = hy_to_python(get_from_hy_dict(attr_schema_details, "item_type"))
+            item_type_str = converter.model_to_py(get_from_hy_dict(attr_schema_details, "item_type"), raw=True)
             item_type_enum = FieldType.from_string(item_type_str) if item_type_str else None
-            enum_choices_from_schema = hy_to_python(get_from_hy_dict(attr_schema_details, "enum_choices", default=[]))
+            enum_choices_from_schema = converter.model_to_py(get_from_hy_dict(attr_schema_details, "enum_choices", default=[]), raw=True)
 
-            item_schema_type_str = hy_to_python(get_from_hy_dict(attr_schema_details, "item_schema_type"))
-            ref_type_from_schema = hy_to_python(get_from_hy_dict(attr_schema_details, "ref-type"))            
+            item_schema_type_str = converter.model_to_py(get_from_hy_dict(attr_schema_details, "item_schema_type"), raw=True)
+            ref_type_from_schema = converter.model_to_py(get_from_hy_dict(attr_schema_details, "ref-type"), raw=True)
             referenced_entity_type_str = ref_type_from_schema
-            referenced_entity_category_str = hy_to_python(get_from_hy_dict(attr_schema_details, "referenced_entity_category"))
+            referenced_entity_category_str = converter.model_to_py(get_from_hy_dict(attr_schema_details, "referenced_entity_category"), raw=True)
 
             is_dynamic_attr = is_dynamic_content(raw_hy_value_object)
             original_expr_str_for_typed_value = None
             if is_dynamic_attr:
-                original_expr_str_for_typed_value = hy_obj_to_string(raw_hy_value_object)
+                original_expr_str_for_typed_value = converter.model_to_string(raw_hy_value_object)
 
             try:
                 typed_value_for_attr = TypedValue(
@@ -145,7 +144,7 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
                 continue
 
         node = HyNode(
-            type=self.node_type, value=entity_instance_name, original=hy_obj_to_string(expr), children=[]
+            type=self.node_type, value=entity_instance_name, original=converter.model_to_string(expr), children=[]
         )
         setattr(node, "attributes_typed", parsed_attributes_typed)
         setattr(node, "entity_type_name_str", self._entity_type_str)  # e.g., "task"
@@ -160,9 +159,9 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
         """Format entity instance definition (HyNode with 'attributes_typed') back to Hy code."""
         value = node.value
         if isinstance(value, hy.models.Object):
-            entity_instance_name_str = hy_obj_to_string(value)
+            entity_instance_name_str = converter.model_to_string(value)
         else:
-            entity_instance_name_str = python_to_hy_string(value)
+            entity_instance_name_str = converter.py_to_string(value)
 
         lines = [f"({node.type} {entity_instance_name_str}"]
 
@@ -212,8 +211,8 @@ class DynamicEntityPluginGenerator(LoggerMixin):
         def generated_plugin_constructor(self_of_generated_plugin):
             DynamicEntityPlugin.__init__(
                 self_of_generated_plugin,
-                entity_type_str=entity_type_name_str,  # Pass the specific entity type string
-                attribute_schemas=attributes_schema_for_type,  # Pass its specific schema
+                entity_type_str=entity_type_name_str,
+                attribute_schemas=attributes_schema_for_type,  
             )
 
         GeneratedPluginClass = type(
@@ -225,12 +224,11 @@ class DynamicEntityPluginGenerator(LoggerMixin):
         )
 
         self.registered_plugins[entity_type_name_str] = GeneratedPluginClass
-        self.logger.info(  # Changed to INFO for successful generation
+        self.logger.info(
             f"Successfully created and registered instance parser plugin class: "
             f"'{GeneratedPluginClass.__name__}' for node_type 'def-{entity_type_name_str.lower()}'."
         )
         return GeneratedPluginClass
 
 
-# Singleton instance of the generator
 plugin_generator = DynamicEntityPluginGenerator()

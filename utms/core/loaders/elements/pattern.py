@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 from utms.core.hy.resolvers import PatternResolver
 from utms.core.loaders.base import ComponentLoader, LoaderContext
 from utms.core.managers.elements.pattern import PatternManager
-from utms.utils import hy_to_python
+from utms.core.hy.converter import converter
 from utms.utms_types import HyNode
 from utms.utms_types.recurrence.pattern import RecurrencePattern
 
@@ -51,8 +51,7 @@ class PatternLoader(ComponentLoader[RecurrencePattern, PatternManager]):
         kwargs = properties["kwargs"]
         units_provider = self.context.dependencies.get("units_provider") if self.context and self.context.dependencies else None
         
-        # We must create the base pattern from the 'every' clause first
-        interval_str = hy_to_python(kwargs.get("every"))
+        interval_str = converter.model_to_py(kwargs.get("every"), raw=True)
         if not interval_str:
             raise ValueError(f"Pattern '{label}' must have an 'every' clause.")
         
@@ -60,10 +59,10 @@ class PatternLoader(ComponentLoader[RecurrencePattern, PatternManager]):
         pattern.parser.units_provider = units_provider # Ensure parser has units
 
         pattern.label = label
-        pattern.name = hy_to_python(kwargs.get("name", label))
+        pattern.name = converter.model_to_py(kwargs.get("name", label), raw=True)
 
         if "at" in kwargs:
-            at_args = hy_to_python(kwargs["at"])
+            at_args = converter.model_to_py(kwargs["at"], raw=True)
             
             # Check for special :minute format
             if isinstance(at_args, list) and len(at_args) == 2 and str(at_args[0]) == "minute":
@@ -76,23 +75,23 @@ class PatternLoader(ComponentLoader[RecurrencePattern, PatternManager]):
                 pattern.at(*at_args)
 
         if "between" in kwargs:
-            between_times = hy_to_python(kwargs["between"])
+            between_times = converter.model_to_py(kwargs["between"], raw=True)
             if isinstance(between_times, (list, tuple)) and len(between_times) == 2:
                 pattern.between(between_times[0], between_times[1])
 
         if "on" in kwargs:
-            days = hy_to_python(kwargs["on"])
+            days = converter.model_to_py(kwargs["on"], raw=True)
             if not isinstance(days, list):
                 days = [days]
             pattern.on(*days)
 
         if "except-between" in kwargs:
-            except_times = hy_to_python(kwargs["except-between"])
+            except_times = converter.model_to_py(kwargs["except-between"], raw=True)
             if isinstance(except_times, (list, tuple)) and len(except_times) == 2:
                 pattern.except_between(except_times[0], except_times[1])
 
         if "groups" in kwargs:
-            groups = hy_to_python(kwargs["groups"])
+            groups = converter.model_to_py(kwargs["groups"], raw=True)
             if isinstance(groups, list):
                 pattern.add_to_groups(*groups)
             else:

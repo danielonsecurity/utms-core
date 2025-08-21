@@ -2,9 +2,8 @@ from typing import Any, Dict, List
 
 import hy
 
-from utms.core.hy.utils import hy_obj_to_string, is_dynamic_content
+from utms.core.hy.utils import is_dynamic_content
 from utms.core.plugins import NodePlugin
-from utms.utils import hy_to_python
 from utms.utms_types import HyNode
 from utms.utms_types.field.types import FieldType, TypedValue, infer_type
 
@@ -31,14 +30,12 @@ class ConfigNodePlugin(NodePlugin):
             type=self.node_type, value=None, original=hy.repr(expr).strip("'"), children=[]
         )
 
-        # Skip the first element (custom-set-config)
         for setting in expr[1:]:
             if isinstance(setting, (list, hy.models.List, hy.models.Expression)):
                 key = str(setting[0])
                 value = setting[1]
                 is_dynamic = is_dynamic_content(value)
 
-                # Check if there's type information (third element in the setting)
                 field_type = None
                 if len(setting) > 2:
                     type_str = str(setting[2])
@@ -46,7 +43,6 @@ class ConfigNodePlugin(NodePlugin):
                 else:
                     field_type = infer_type(value)
 
-                # Create typed value
                 typed_value = TypedValue(
                     value=value,
                     field_type=field_type,
@@ -60,10 +56,10 @@ class ConfigNodePlugin(NodePlugin):
                     children=[
                         HyNode(
                             type="value",
-                            value=typed_value,  # Store the TypedValue here
+                            value=typed_value,
                             original=hy.repr(value).strip("'") if is_dynamic else None,
                             is_dynamic=is_dynamic,
-                            field_name="value",  # Add field name to track which field this is
+                            field_name="value",
                         )
                     ],
                 )

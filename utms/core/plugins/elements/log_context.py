@@ -2,11 +2,12 @@ from typing import Any, Dict, List, Optional
 
 import hy
 
-from utms.core.hy.utils import hy_obj_to_string, is_dynamic_content, python_to_hy_string
+from utms.core.hy.utils import is_dynamic_content
 from utms.core.mixins.base import LoggerMixin
 from utms.core.plugins.base import NodePlugin
 from utms.utms_types import HyNode
 from utms.utms_types.field.types import FieldType, TypedValue, infer_type
+from utms.core.hy.converter import converter
 
 
 class LogContextNodePlugin(NodePlugin, LoggerMixin):
@@ -40,24 +41,18 @@ class LogContextNodePlugin(NodePlugin, LoggerMixin):
             self.logger.warning(f"Invalid log-context expression: {expr}")
             return None
 
-        # The main value of the node is the context name, e.g., "Work"
         context_name = str(expr[1])
-
-        # The rest of the expression are keyword arguments
-        # e.g., :start_time (datetime ...), :color "#FF6B6B"
         attributes_typed = {}
         kwargs_exprs = expr[2:]
 
-        # Simple keyword argument parsing
         it = iter(kwargs_exprs)
         try:
             while True:
                 key_keyword = next(it)
                 val_object = next(it)
                 attr_name = str(key_keyword).lstrip(":")
-                original_str = hy_obj_to_string(val_object)
+                original_str = converter.model_to_string(val_object)
 
-                # Create a TypedValue for each piece of data
                 attributes_typed[attr_name] = TypedValue(
                     value=val_object,
                     field_type=infer_type(val_object),
@@ -67,7 +62,7 @@ class LogContextNodePlugin(NodePlugin, LoggerMixin):
         except StopIteration:
             pass
 
-        node = HyNode(type=self.node_type, value=context_name, original=hy_obj_to_string(expr))
+        node = HyNode(type=self.node_type, value=context_name, original=converter.model_to_string(expr))
         setattr(node, "attributes_typed", attributes_typed)
         return node
 
@@ -75,9 +70,9 @@ class LogContextNodePlugin(NodePlugin, LoggerMixin):
         """Formats a log-context HyNode back into a Hy s-expression."""
         value = node.value
         if isinstance(value, hy.models.Object):
-            context_name_str = hy_obj_to_string(value)
+            context_name_str = converter.model_to_string(value)
         else:
-            context_name_str = python_to_hy_string(value)
+            context_name_str = converter.py_to_string(value)
 
         parts = [f"({self.node_type} {context_name_str}"]
 
@@ -88,6 +83,5 @@ class LogContextNodePlugin(NodePlugin, LoggerMixin):
                 value_str = typed_value.serialize_for_persistence()
                 parts.append(f"  :{attr_name} {value_str}")
 
-        # Join all parts on one line for a compact representation
         line = " ".join(parts) + ")"
         return [line]

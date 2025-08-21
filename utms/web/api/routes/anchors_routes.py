@@ -7,8 +7,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from utms.core.config import UTMSConfig as Config
 from utms.core.formats import TimeUncertainty
 from utms.core.models import FormatSpec
-from utms.utils import hy_to_python
-from utms.web.api import templates
+from utms.core.hy.converter import converter
 from utms.web.dependencies import get_config
 
 router = APIRouter()
@@ -27,15 +26,15 @@ async def get_anchors(config: Config = Depends(get_config)):
             }
 
         anchors_data[label] = {
-            "name": hy_to_python(anchor.name),
+            "name": converter.model_to_py(anchor.name, raw=True),
             "name_original": anchor.name_original,
-            "value": str(hy_to_python(anchor.value)),
+            "value": str(converter.model_to_py(anchor.value, raw=True)),
             "value_original": anchor.value_original,
             "formats": [
-                {k: hy_to_python(v) for k, v in format_spec.__dict__.items()}
+                {k: converter.model_to_py(v, raw=True) for k, v in format_spec.__dict__.items()}
                 for format_spec in anchor.formats
             ],
-            "groups": hy_to_python(anchor.groups),
+            "groups": converter.model_to_py(anchor.groups, raw=True),
             "uncertainty": uncertainty_data,
         }
     return anchors_data

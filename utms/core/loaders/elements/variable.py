@@ -1,16 +1,17 @@
 from typing import Any, Dict, List, Optional
 
 import hy
-from hy.models import Expression, Symbol  # Import for type checking Hy objects
+from hy.models import Expression, Symbol
 
 from utms.core.hy.resolvers.elements.variable import VariableResolver
 from utms.core.loaders.base import ComponentLoader, LoaderContext
 from utms.core.managers.elements.variable import VariableManager
 from utms.core.models import Variable
 from utms.core.services.dynamic import DynamicResolutionService
-from utms.utils import hy_to_python
+from utms.core.hy.converter import converter
 from utms.utms_types import HyNode
 from utms.utms_types.field.types import FieldType, TypedValue, infer_type
+from utms.core.hy.converter import converter
 
 
 class VariableLoader(ComponentLoader[Variable, VariableManager]):
@@ -64,20 +65,25 @@ class VariableLoader(ComponentLoader[Variable, VariableManager]):
         )
 
         self.logger.debug(
-            f"Variable '{key}' value will be resolved. Original Hy string: '{initial_typed_value_from_plugin.original}', Raw value from plugin: {initial_typed_value_from_plugin._raw_value}"
+            f"Variable '{key}' value will be resolved. Original Hy string: '{initial_typed_value_from_plugin.original}'"
         )
 
         evaluation_context_for_resolver = properties["evaluation_context_for_resolver"]
+
+        expression_to_evaluate = None
+        if initial_typed_value_from_plugin.is_dynamic and initial_typed_value_from_plugin.original:
+            expression_to_evaluate = converter.string_to_model(initial_typed_value_from_plugin.original)
+        else:
+            expression_to_evaluate = initial_typed_value_from_plugin.value
 
         resolved_val_raw, dynamic_info_from_eval = self._dynamic_service.evaluate(
             component_type="variable_load",
             component_label=key,
             attribute="value_load",
-            expression=initial_typed_value_from_plugin._raw_value,
+            expression=expression_to_evaluate,
             context=evaluation_context_for_resolver,
         )
-
-        resolved_value_for_model = hy_to_python(resolved_val_raw)
+        resolved_value_for_model = converter.model_to_py(resolved_val_raw, raw=True)
         self.logger.debug(
             f"Variable '{key}' resolved during load to: {resolved_value_for_model} (type: {type(resolved_value_for_model)})"
         )

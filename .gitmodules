@@ -1,0 +1,15 @@
+[submodule "android"]
+	path = android
+	url = git@github.com:danielonsecurity/utms-android.git
+[submodule "executor"]
+	path = executor
+	url = git@github.com:danielonsecurity/utms-executor.git
+[submodule "docker"]
+	path = docker
+	url = git@github.com:danielonsecurity/utms-docker.git
+[submodule "frontend"]
+	path = frontend
+	url = git@github.com:danielonsecurity/utms-frontend.git
+[submodule "utms-rfc"]
+	path = utms-rfc
+	url = git@github.com:danielonsecurity/utms-rfc.git

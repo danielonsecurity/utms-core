@@ -12,7 +12,7 @@ from utms.core.config.constants import (
 )
 from utms.core.time import DecimalTimeLength, DecimalTimeStamp, TimeExpressionParser
 from utms.utms_types import HyNode, UnitManagerProtocol
-from utms.utils import hy_to_python
+from utms.core.hy.converter import converter
 from .base import (
     Constraint,
     ConstraintFunc,
@@ -75,7 +75,7 @@ class RecurrencePattern:
             self.spec.times = []
 
         for t in times:
-            value_to_process = hy_to_python(t)
+            value_to_process = converter.model_to_py(t, raw=True)
             if isinstance(value_to_process, list):
                 self.spec.times.extend(value_to_process)
             else:
@@ -118,73 +118,94 @@ class RecurrencePattern:
 
         start_dt_local = gregorian_time.astimezone(local_tz)
 
+        # Extract at rules and times once
+        at_rules = dict(self.spec.at_args) if hasattr(self.spec, 'at_args') and self.spec.at_args else {}
         at_times = []
         if hasattr(self.spec, 'times') and self.spec.times:
-            parsed_times = []
             for t_str in self.spec.times:
-                try:
-                    parts = list(map(int, str(t_str).split(':')))
-                    hour, minute = parts[0], parts[1]
-                    second = parts[2] if len(parts) > 2 else 0
-                    parsed_times.append(time(hour, minute, second))
-                except (ValueError, IndexError):
-                    continue
-            at_times = sorted(parsed_times)
+                try: at_times.append(time.fromisoformat(str(t_str)))
+                except ValueError: continue
 
-        # --- Logic for patterns WITHOUT 'at' clauses ---
-        if not at_times:
-            candidate_dt_local = start_dt_local
+        # Get interval in seconds as a float
+        interval_seconds = float(self.spec.interval._seconds) if self.spec.interval else None
 
-            # For sub-day intervals (like '30m' or '2h 15m')
-            if self.spec.interval.to_timedelta() < timedelta(days=1):
-                for _ in range(10000): # Safety break
-                    candidate_dt_local += self.spec.interval.to_timedelta()
-                    if all(constraint.func(candidate_dt_local) for constraint in self.constraints):
-                        return DecimalTimeStamp(candidate_dt_local)
-                raise RuntimeError(f"Could not find next valid sub-day interval for '{self.label}'")
+        # Fast path for simple interval patterns with no constraints
+        if not self.constraints and not at_times and not at_rules and interval_seconds:
+            # Just add the interval
+            next_dt = start_dt_local + timedelta(seconds=interval_seconds)
+            return DecimalTimeStamp(next_dt)
 
-            # For day-or-longer intervals (like '1d' for LUNCH-BREAK)
+        # For patterns with specific times or constraints, use smarter jumping
+        candidate_dt = start_dt_local
+
+        # Safety limit - but now we'll jump more efficiently
+        max_days = 365
+        end_search = start_dt_local + timedelta(days=max_days)
+
+        # Track when we started for interval calculations
+        search_start = start_dt_local
+
+        while candidate_dt < end_search:
+            # Jump to next minute initially
+            candidate_dt = candidate_dt.replace(second=0, microsecond=0) + timedelta(minutes=1)
+
+            # Smart jumping based on constraints
+            if at_times and not interval_seconds:
+                # Jump to the next valid time on the same day or next day
+                current_time = candidate_dt.time().replace(second=0, microsecond=0)
+                next_time = None
+
+                # Find next time today
+                for t in sorted(at_times):
+                    if t > current_time:
+                        next_time = t
+                        break
+
+                if next_time:
+                    # Jump to that time today
+                    candidate_dt = candidate_dt.replace(hour=next_time.hour, minute=next_time.minute, second=0, microsecond=0)
+                else:
+                    # No more times today, jump to first time tomorrow
+                    candidate_dt = (candidate_dt + timedelta(days=1)).replace(
+                        hour=min(at_times).hour, 
+                        minute=min(at_times).minute, 
+                        second=0, 
+                        microsecond=0
+                    )
+
+            # Check constraints
+            if not all(constraint.func(candidate_dt) for constraint in self.constraints):
+                continue
+
+            # Check if this is a trigger time
+            is_trigger_time = False
+
+            if at_times:
+                candidate_time_simple = candidate_dt.time().replace(second=0, microsecond=0)
+                if candidate_time_simple in at_times:
+                    is_trigger_time = True
+            elif at_rules:
+                if all(getattr(candidate_dt, key) == value for key, value in at_rules.items()):
+                    is_trigger_time = True
+            elif interval_seconds:
+                # For interval patterns with constraints
+                # We need to check if we've passed the interval since last run
+                time_since_last = (candidate_dt - search_start).total_seconds()
+                if time_since_last >= interval_seconds:
+                    is_trigger_time = True
             else:
-                search_date = start_dt_local.date()
-                # If the potential start of the window today is already in the past, start searching from tomorrow
-                if self.spec.start_time:
-                    start_time_obj = time.fromisoformat(self.spec.start_time)
-                    today_candidate = local_tz.localize(datetime.combine(search_date, start_time_obj))
-                    if today_candidate <= start_dt_local:
-                        search_date += timedelta(days=1)
+                # No specific timing rules, any valid time is a trigger
+                is_trigger_time = True
 
-                for _ in range(366): # Search up to a year
-                    # Construct the first possible candidate for this day (e.g., 12:00)
-                    if self.spec.start_time:
-                        start_time_obj = time.fromisoformat(self.spec.start_time)
-                        candidate_dt = local_tz.localize(datetime.combine(search_date, start_time_obj))
+            if is_trigger_time:
+                # Ensure proper timezone
+                if candidate_dt.tzinfo is None:
+                    candidate_dt = local_tz.localize(candidate_dt)
+                elif candidate_dt.tzinfo != local_tz:
+                    candidate_dt = candidate_dt.astimezone(local_tz)
+                return DecimalTimeStamp(candidate_dt)
 
-                        # Check if this single candidate is valid
-                        if candidate_dt > start_dt_local and all(constraint.func(candidate_dt) for constraint in self.constraints):
-                            return DecimalTimeStamp(candidate_dt)
-
-                    # If no valid start time or it failed, move to the next day
-                    search_date += timedelta(days=1)
-
-            raise RuntimeError(f"Could not find next valid interval for '{self.label}'")
-
-        # --- Logic for patterns WITH 'at' times (This part works well) ---
-        current_date_local = start_dt_local.date()
-        if all(local_tz.localize(datetime.combine(current_date_local, t)) <= start_dt_local for t in at_times):
-            current_date_local += timedelta(days=1)
-
-        for _ in range(366):
-            for t_local in at_times:
-                naive_dt = datetime.combine(current_date_local, t_local)
-                aware_dt_local = local_tz.localize(naive_dt, is_dst=None)
-
-                if aware_dt_local > start_dt_local:
-                    if all(constraint.func(aware_dt_local) for constraint in self.constraints):
-                        return DecimalTimeStamp(aware_dt_local)
-
-            current_date_local += timedelta(days=1)
-
-        raise RuntimeError(f"Could not find next 'at' occurrence for '{self.label}' within a year.")
+        raise RuntimeError(f"Could not find a matching next occurrence for pattern '{self.label}' from {start_dt_local}")
 
     def except_between(self, start: str, end: str) -> "RecurrencePattern":
         try:

@@ -2,7 +2,6 @@ from decimal import Decimal
 from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from utms.core.hy.resolvers.base import HyResolver
-from utms.utils import hy_to_python
 if TYPE_CHECKING:
     from utms.utms_types import (
         Context,

@@ -159,6 +159,7 @@ def python_to_hy_model(value: Any) -> hy.models.Object:
         return hy.models.Symbol('None')
         
     return hy.models.String(str(value))
+
 def hy_model_to_python(data: Any) -> Any:
     """
     Recursively converts Hy model objects into pure Python native types.

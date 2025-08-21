@@ -60,7 +60,7 @@ except PackageNotFoundError:
     VERSION = "0.0.0"
 
 APP_NAME = "utms"
-COMPANY_NAME = "DigeeX"
+COMPANY_NAME = "utms"
 
 # Set precision for Decimal calculations
 getcontext().prec = 200

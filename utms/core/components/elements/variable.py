@@ -10,7 +10,6 @@ from utms.core.loaders.elements.variable import VariableLoader
 from utms.core.managers.elements.variable import VariableManager
 from utms.core.models import Variable
 from utms.core.plugins import plugin_registry
-from utms.utils import hy_to_python
 from utms.utms_types import HyNode
 from utms.utms_types.field.types import FieldType, TypedValue, infer_type
 

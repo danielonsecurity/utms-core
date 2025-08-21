@@ -1,5 +1,3 @@
-# utms/core/agent/agent.py
-
 import hy
 import time
 from datetime import datetime, timedelta, timezone
@@ -13,7 +11,8 @@ from utms.utms_types.field.types import FieldType, TypedValue
 from utms.core.time import DecimalTimeStamp
 from utms.core.services.dynamic import dynamic_resolution_service as resolution_service
 from utms.core.logger import get_logger
-from utms.utils.hytools.conversion import hy_to_python, python_to_hy_model, list_to_dict
+from utms.core.hy.converter import converter
+from utms.utils.hytools.conversion import list_to_dict
 from utms.core.hy.utils import get_from_hy_dict
 
 
@@ -145,135 +144,6 @@ class SchedulerAgent:
                     next_timer_finish_time = end_time_utc
         return next_timer_finish_time
 
-    def _process_datetime_trigger(self, entity: Entity, trigger_name: str, trigger_value: TypedValue, hook_name: str, now_utc: datetime) -> Optional[datetime]:
-        trigger_dt = trigger_value.value
-        if not isinstance(trigger_dt, datetime): return None
-        trigger_dt_utc = trigger_dt.astimezone(timezone.utc) if trigger_dt.tzinfo else trigger_dt.replace(tzinfo=timezone.utc)
-    
-        if now_utc >= trigger_dt_utc:
-            # --- START ROBUST PARSING BLOCK ---
-            agent_state_plist = hy_to_python(entity.get_attribute_value("agent-state")) or []
-            state_plist = agent_state_plist[0] if agent_state_plist else []
-            state_dict = list_to_dict(state_plist)
-            cursors_plist = state_dict.get("cursors", [])
-            cursors_dict_with_list_datetime = list_to_dict(cursors_plist)
-            cursors = {}
-            for key, value in cursors_dict_with_list_datetime.items():
-                if isinstance(value, list) and len(value) > 1 and value[0] == 'datetime':
-                    try:
-                        cursors[key] = datetime(*value[1:])
-                    except (TypeError, ValueError):
-                        cursors[key] = value 
-                else:
-                    cursors[key] = value
-            # --- END ROBUST PARSING BLOCK ---
-
-            # The key for the cursor map is the name of the trigger attribute itself.
-            cursor_key = trigger_name 
-            
-            # Try to get from agent-state first, then fall back to dedicated cursor attribute.
-            raw_cursor_value = cursors.get(cursor_key)
-            if raw_cursor_value is None:
-                dedicated_cursor_attr_name = f"{trigger_name}-cursor"
-                raw_cursor_value = entity.get_attribute_value(dedicated_cursor_attr_name)
-
-            cursor_dt_utc: Optional[datetime] = None
-            if isinstance(raw_cursor_value, datetime):
-                cursor_dt_utc = raw_cursor_value.astimezone(timezone.utc) if raw_cursor_value.tzinfo else raw_cursor_value.replace(tzinfo=timezone.utc)
-
-            if cursor_dt_utc is None or cursor_dt_utc < trigger_dt_utc:
-                self.logger.info(f"        !!!! TRIGGERING '{hook_name}' on '{entity.get_identifier()}' !!!!")
-                self._execute_hook(entity, hook_name, "datetime trigger")
-
-                cursors[cursor_key] = now_utc
-                
-                # Create a fresh, correctly typed TypedValue for the agent state.
-                new_state_py_dict = {'cursors': cursors} 
-                new_state_hy_model = python_to_hy_model(new_state_py_dict)
-                new_agent_state_tv = TypedValue(
-                    value=[new_state_hy_model],
-                    field_type=FieldType.LIST,
-                    item_schema_type="AGENT_STATE"
-                )
-                entity.set_attribute_typed("agent-state", new_agent_state_tv)
-                self.entity_component._save_entities_in_category(entity.entity_type, entity.category)
-            
-            return None
-        else:
-            return trigger_dt_utc
-
-    def _process_recurring_trigger(self, entity: Entity, trigger_name: str, trigger_value: TypedValue, hook_name: str, now_utc: datetime) -> Optional[datetime]:
-
-        pattern_label = trigger_value.value
-        if not isinstance(pattern_label, str): return None
-
-        simple_label = pattern_label.split(':')[-1]
-        pattern = self.pattern_component.get_pattern(simple_label)
-        if not pattern: return None
-
-        # --- START ROBUST PARSING BLOCK ---
-        agent_state_plist = hy_to_python(entity.get_attribute_value("agent-state")) or []
-        state_plist = agent_state_plist[0] if agent_state_plist else []
-        state_dict = list_to_dict(state_plist)
-        cursors_plist = state_dict.get("cursors", [])
-        cursors_dict_with_list_datetime = list_to_dict(cursors_plist)
-        cursors = {}
-        for key, value in cursors_dict_with_list_datetime.items():
-            if isinstance(value, list) and len(value) > 1 and value[0] == 'datetime':
-                try:
-                    cursors[key] = datetime(*value[1:])
-                except (TypeError, ValueError):
-                    cursors[key] = value
-            else:
-                cursors[key] = value
-        # --- END ROBUST PARSING BLOCK ---
-
-        cursor_key = trigger_name
-        raw_cursor_value = cursors.get(cursor_key)
-        if raw_cursor_value is None:
-            dedicated_cursor_attr_name = f"{trigger_name}-cursor"
-            raw_cursor_value = entity.get_attribute_value(dedicated_cursor_attr_name)
-
-        last_processed_time = None
-        if isinstance(raw_cursor_value, datetime):
-            last_processed_time = raw_cursor_value.astimezone(timezone.utc) if raw_cursor_value.tzinfo else raw_cursor_value.replace(tzinfo=timezone.utc)
-        else:
-            interval_delta = pattern.spec.interval.to_timedelta() if pattern.spec.interval else timedelta(minutes=1)
-            last_processed_time = now_utc - interval_delta
-            self.logger.debug(f"No cursor found for '{entity.get_identifier()}'. Starting check from a past point: {last_processed_time}")
-
-        next_scheduled_dt = pattern.next_occurrence(from_time=DecimalTimeStamp(last_processed_time)).to_gregorian().replace(tzinfo=timezone.utc)
-        if next_scheduled_dt > now_utc:
-            return next_scheduled_dt
-
-        # --- CATCH-UP LOGIC: "RUN ONCE, THEN ALIGN TO THE FUTURE" ---
-        self.logger.info(f"        !!!! CATCH-UP TRIGGERING '{hook_name}' on '{entity.get_identifier()}' for missed event at {next_scheduled_dt} !!!!")
-        self._execute_hook(entity, hook_name, "pattern trigger catch-up")
-
-        # **THE CRITICAL FIX IS HERE**
-        # The new cursor must be the current time to signify we are caught up.
-        new_cursor_target = now_utc
-        self.logger.info(f"        -> Catch-up complete. Aligning cursor for '{entity.get_identifier()}' to current time: {new_cursor_target}")
-
-        cursors[cursor_key] = new_cursor_target
-
-        new_state_py_dict = {'cursors': cursors}
-        new_state_hy_model = python_to_hy_model(new_state_py_dict)
-        new_agent_state_tv = TypedValue(
-            value=[new_state_hy_model],
-            field_type=FieldType.LIST,
-            item_schema_type="AGENT_STATE"
-        )
-        entity.set_attribute_typed("agent-state", new_agent_state_tv)
-        self.entity_component._save_entities_in_category(entity.entity_type, entity.category)
-
-        # Calculate the *next* event starting from our newly aligned cursor.
-        # This will GUARANTEE a time in the future.
-        final_next_event_dt = pattern.next_occurrence(from_time=DecimalTimeStamp(new_cursor_target)).to_gregorian().replace(tzinfo=timezone.utc)
-        self.logger.info(f"        -> Next future event for '{entity.get_identifier()}' scheduled for: {final_next_event_dt}")
-
-        return final_next_event_dt
-    
     def _execute_hook(self, entity: Entity, hook_name: str, event_type: str):
         hook_tv = entity.get_attribute_typed(hook_name)
         if not (hook_tv and hook_tv.value and isinstance(hook_tv.value, hy.models.Expression)):
@@ -297,3 +167,118 @@ class SchedulerAgent:
             self.logger.info(f"Successfully executed hook for '{entity.get_identifier()}'.")
         except Exception as e:
             self.logger.error(f"Error executing hook for '{entity.get_identifier()}': {e}", exc_info=True)
+
+
+    def _process_datetime_trigger(self, entity: Entity, trigger_name: str, trigger_value: TypedValue, hook_name: str, now_utc: datetime) -> Optional[datetime]:
+        trigger_dt = trigger_value.value
+        if not isinstance(trigger_dt, datetime): return None
+        trigger_dt_utc = trigger_dt.astimezone(timezone.utc) if trigger_dt.tzinfo else trigger_dt.replace(tzinfo=timezone.utc)
+
+        if now_utc >= trigger_dt_utc:
+            agent_state_list = converter.model_to_py(entity.get_attribute_value("agent-state"), raw=True) or []
+            state_dict = agent_state_list[0] if agent_state_list else {}
+
+            raw_cursors_data = state_dict.get("cursors", [])
+            cursors = {}
+            if isinstance(raw_cursors_data, dict):
+                cursors = raw_cursors_data
+            elif isinstance(raw_cursors_data, list):
+                cursors = list_to_dict(raw_cursors_data)
+
+            for key, value in cursors.items():
+                if isinstance(value, list) and len(value) > 1 and value[0] == 'datetime':
+                    try:
+                        cursors[key] = datetime(*value[1:])
+                    except (TypeError, ValueError):
+                        pass
+
+            cursor_key = trigger_name
+            raw_cursor_value = cursors.get(cursor_key)
+
+            cursor_dt_utc: Optional[datetime] = None
+            if isinstance(raw_cursor_value, datetime):
+                cursor_dt_utc = raw_cursor_value.astimezone(timezone.utc) if raw_cursor_value.tzinfo else raw_cursor_value.replace(tzinfo=timezone.utc)
+
+            if cursor_dt_utc is None or cursor_dt_utc < trigger_dt_utc:
+                self.logger.info(f"        !!!! TRIGGERING '{hook_name}' on '{entity.get_identifier()}' !!!!")
+                self._execute_hook(entity, hook_name, "datetime trigger")
+
+                cursors[cursor_key] = now_utc
+
+                py_structure_to_save = [{'cursors': cursors}]
+                hy_model_to_save = converter.py_to_model(py_structure_to_save)
+                new_agent_state_tv = TypedValue(
+                    value=hy_model_to_save,
+                    field_type=FieldType.LIST,
+                    item_schema_type="AGENT_STATE"
+                )
+                entity.set_attribute_typed("agent-state", new_agent_state_tv)
+                self.entity_component._save_entities_in_category(entity.entity_type, entity.category)
+
+            return None
+        else:
+            return trigger_dt_utc
+
+    def _process_recurring_trigger(self, entity: Entity, trigger_name: str, trigger_value: TypedValue, hook_name: str, now_utc: datetime) -> Optional[datetime]:
+        pattern_label = trigger_value.value
+        if not isinstance(pattern_label, str): return None
+
+        simple_label = pattern_label.split(':')[-1]
+        pattern = self.pattern_component.get_pattern(simple_label)
+        if not pattern: return None
+
+        agent_state_list = converter.model_to_py(entity.get_attribute_value("agent-state"), raw=True) or []
+        state_dict = agent_state_list[0] if agent_state_list else {}
+
+        raw_cursors_data = state_dict.get("cursors", [])
+        cursors = {}
+        if isinstance(raw_cursors_data, dict):
+            cursors = raw_cursors_data
+        elif isinstance(raw_cursors_data, list):
+            cursors = list_to_dict(raw_cursors_data)
+
+        for key, value in cursors.items():
+            if isinstance(value, list) and len(value) > 1 and value[0] == 'datetime':
+                try:
+                    cursors[key] = datetime(*value[1:])
+                except (TypeError, ValueError):
+                    pass
+
+        cursor_key = trigger_name
+        raw_cursor_value = cursors.get(cursor_key)
+        
+        last_processed_time = None
+        if isinstance(raw_cursor_value, datetime):
+            last_processed_time = raw_cursor_value.astimezone(timezone.utc) if raw_cursor_value.tzinfo else raw_cursor_value.replace(tzinfo=timezone.utc)
+        else:
+            interval_delta = pattern.spec.interval.to_timedelta() if pattern.spec.interval else timedelta(minutes=1)
+            last_processed_time = now_utc - interval_delta
+            self.logger.debug(f"No cursor found for '{entity.get_identifier()}'. Starting check from a past point: {last_processed_time}")
+
+        next_scheduled_dt = pattern.next_occurrence(from_time=DecimalTimeStamp(last_processed_time)).to_gregorian().replace(tzinfo=timezone.utc)
+        if next_scheduled_dt > now_utc:
+            return next_scheduled_dt
+
+        self.logger.info(f"        !!!! CATCH-UP TRIGGERING '{hook_name}' on '{entity.get_identifier()}' for missed event at {next_scheduled_dt} !!!!")
+        self._execute_hook(entity, hook_name, "pattern trigger catch-up")
+
+        new_cursor_target = now_utc
+        self.logger.info(f"        -> Catch-up complete. Aligning cursor for '{entity.get_identifier()}' to current time: {new_cursor_target}")
+
+        cursors[cursor_key] = new_cursor_target
+
+        py_structure_to_save = [{'cursors': cursors}]
+
+        hy_model_to_save = converter.py_to_model(py_structure_to_save)
+        new_agent_state_tv = TypedValue(
+            value=hy_model_to_save,
+            field_type=FieldType.LIST,
+            item_schema_type="AGENT_STATE"
+        )
+        entity.set_attribute_typed("agent-state", new_agent_state_tv)
+        self.entity_component._save_entities_in_category(entity.entity_type, entity.category)
+
+        final_next_event_dt = pattern.next_occurrence(from_time=DecimalTimeStamp(new_cursor_target)).to_gregorian().replace(tzinfo=timezone.utc)
+        self.logger.info(f"        -> Next future event for '{entity.get_identifier()}' scheduled for: {final_next_event_dt}")
+
+        return final_next_event_dt

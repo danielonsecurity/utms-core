@@ -8,7 +8,7 @@ from hy.models import Expression, Symbol
 from utms.core.config import UTMSConfig as Config
 from utms.core.hy import evaluate_hy_expression
 from utms.core.services.dynamic import dynamic_resolution_service
-from utms.utils import hy_to_python
+from utms.core.hy.converter import converter
 from utms.utms_types.field.types import FieldType, TypedValue, infer_type
 from utms.web.api.models.variables import (
     SerializedTypedValue,
@@ -68,7 +68,7 @@ async def get_variables(config: Config = Depends(get_config)):
                     expression=expr_to_eval_for_api,
                     context=evaluation_context_for_api_display,
                 )
-                display_value_for_api = hy_to_python(resolved_value_for_api)
+                display_value_for_api = converter.model_to_py(resolved_value_for_api, raw=True)
             except Exception as e:
                 display_value_for_api = f"ERROR: Could not resolve for API: {str(e)}"
                 config.logger.error(

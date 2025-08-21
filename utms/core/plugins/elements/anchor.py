@@ -2,10 +2,11 @@ from typing import Any, Dict, List
 
 import hy
 
-from utms.core.hy.utils import hy_obj_to_string, is_dynamic_content
+from utms.core.hy.utils import is_dynamic_content
 from utms.core.logger import get_logger
 from utms.core.plugins import NodePlugin
 from utms.utms_types import HyNode
+from utms.core.hy.converter import converter
 
 logger = get_logger()
 
@@ -81,7 +82,7 @@ class AnchorNodePlugin(NodePlugin):
                 if value_node.is_dynamic and value_node.original:
                     value_str = value_node.original
                 else:
-                    value_str = hy_obj_to_string(value_node.value)
+                    value_str = converter.model_to_string(value_node.value)
 
                 lines.append(f"  ({prop.value} {value_str})")
 

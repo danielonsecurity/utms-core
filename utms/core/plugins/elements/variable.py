@@ -3,9 +3,8 @@ from typing import Any, Dict, List, Optional
 import hy
 from hy.models import Expression, Symbol
 
-from utms.core.hy.utils import hy_obj_to_string, is_dynamic_content
+from utms.core.hy.utils import is_dynamic_content
 from utms.core.plugins import NodePlugin
-from utms.utils import hy_to_python
 from utms.utms_types import HyNode
 from utms.utms_types.field.types import FieldType, TypedValue, infer_type
 
@@ -36,11 +35,10 @@ class VariableNodePlugin(NodePlugin):
             return None
 
         var_name = str(expr[1])
-        raw_hy_value_object = expr[2]  # This is the raw Hy object or literal
+        raw_hy_value_object = expr[2]
 
         self.logger.debug(f"Parsing variable: '{var_name}' with raw value: {raw_hy_value_object}")
 
-        # Determine if the value is dynamic
         is_dynamic = is_dynamic_content(raw_hy_value_object)
         original_expr_str: Optional[str] = None
 
@@ -49,11 +47,10 @@ class VariableNodePlugin(NodePlugin):
         elif raw_hy_value_object is not None:
             original_expr_str = hy.repr(raw_hy_value_object)
 
-        # Infer FieldType or specify if schema allowed it (not for variables, so infer)
         field_type_enum = infer_type(raw_hy_value_object)
 
         typed_value_for_variable = TypedValue(
-            value=raw_hy_value_object,  # Store the raw Hy expression/object
+            value=raw_hy_value_object,
             field_type=field_type_enum,
             is_dynamic=is_dynamic,
             original=original_expr_str,
@@ -87,4 +84,4 @@ class VariableNodePlugin(NodePlugin):
 
         value_str = typed_value_instance.serialize_for_persistence()
 
-        return [f"({node.type} {hy_obj_to_string(var_name)} {value_str})"]
+        return [f"({node.type} {converter.model_to_string(var_name)} {value_str})"]

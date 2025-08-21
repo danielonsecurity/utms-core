@@ -7,7 +7,7 @@ from icalendar import Calendar
 
 from utms.core.events.event import Event, EventConfig
 from utms.core.events.manager import EventManager
-from utms.utils import python_to_hy
+from utms.core.hy.converter import converter
 
 
 def import_ics_calendar(ics_url: str, event_manager: EventManager) -> None:
@@ -61,11 +61,11 @@ def event_to_hy(event: Event) -> str:
 
     # Basic properties
     if event.name:
-        lines.append(f"  (name {python_to_hy(event.name)})")
+        lines.append(f"  (name {converter.py_to_string(event.name)})")
     if event.state:
-        lines.append(f"  (state {python_to_hy(event.state)})")
+        lines.append(f"  (state {converter.py_to_string(event.state)})")
     if event.tags:
-        lines.append(f"  (tags {python_to_hy(event.tags)})")
+        lines.append(f"  (tags {converter.py_to_string(event.tags)})")
 
     # Time specifications
     if event._config.schedule:
@@ -75,11 +75,11 @@ def event_to_hy(event: Event) -> str:
     if event._config.timestamp:
         lines.append(f"  (timestamp {event._config.timestamp})")
     if event._config.timerange:
-        lines.append(f"  (timerange {python_to_hy(event._config.timerange)})")
+        lines.append(f"  (timerange {converter.py_to_string(event._config.timerange)})")
 
     # Clock entries
     if event._clock_entries:
-        clock_entries = python_to_hy([[start, end] for start, end in event._clock_entries])
+        clock_entries = converter.py_to_string([[start, end] for start, end in event._clock_entries])
         lines.append(f"  (clock-entries {clock_entries})")
 
     # Properties
@@ -94,7 +94,7 @@ def event_to_hy(event: Event) -> str:
         properties["source"] = event._config.source
 
     if properties:
-        lines.append(f"  (properties {python_to_hy(properties)})")
+        lines.append(f"  (properties {converter.py_to_string(properties)})")
 
     lines.append(")")
     return "\n".join(lines)

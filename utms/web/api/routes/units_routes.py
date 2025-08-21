@@ -5,7 +5,6 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from utms.core.config import UTMSConfig as Config
-from utms.web.api import templates
 from utms.web.api.utils import format_scientific
 from utms.web.dependencies import get_config
 

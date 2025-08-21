@@ -1,6 +1,6 @@
 import time
 from datetime import datetime, timedelta
-from types import FunctionType, ModuleType  # pylint: disable=no-name-in-module
+from types import FunctionType, ModuleType
 from typing import Any, Set, Tuple, TYPE_CHECKING
 
 import hy
@@ -9,7 +9,7 @@ from hy.compiler import hy_eval
 from utms.core.hy import evaluate_hy_expression
 from utms.core.hy.utils import is_dynamic_content
 from utms.core.mixins import ResolverMixin
-from utms.utils import hy_to_python
+from utms.core.hy.converter import converter
 
 if TYPE_CHECKING:
     from utms.utms_types import (
@@ -231,7 +231,7 @@ class HyResolver(ResolverMixin):
         """
         self.logger.debug(f"HyResolver._resolve_argument_to_native: arg_expr='{arg_expr}'")
         resolved_arg = self._resolve_value(arg_expr, context, current_scope_locals)
-        final_py_arg = hy_to_python(resolved_arg)
+        final_py_arg = converter.model_to_py(resolved_arg, raw=True)
         self.logger.debug(
             f"HyResolver._resolve_argument_to_native: resolved_arg='{resolved_arg}', final_py_arg='{final_py_arg}' (type: {type(final_py_arg)})"
         )
@@ -271,29 +271,29 @@ class HyResolver(ResolverMixin):
         first_element_expr = expr[0]
 
         if isinstance(first_element_expr, HySymbol) and str(first_element_expr) == ".":
-            if len(expr) < 3:  # Needs at least (. obj attr)
+            if len(expr) < 3:
                 raise ValueError(f"Invalid dot operator expression: {expr}")
 
             obj_expr_to_resolve = expr[1]
             resolved_obj_intermediate = self._resolve_value(
                 obj_expr_to_resolve, context, local_names
             )
-            py_obj = hy_to_python(
-                resolved_obj_intermediate
-            )  # Ensure it's Python native for getattr
+            py_obj = converter.model_to_py(
+                resolved_obj_intermediate,
+                raw=True
+            )  
 
             prop_name = str(
                 expr[2]
-            )  # Attribute or method name (must be a Symbol, hy.eval enforces this)
+            )
             if (
                 isinstance(py_obj, dict)
                 and isinstance(obj_expr_to_resolve, HySymbol)
                 and str(obj_expr_to_resolve) == "self"
             ):
                 if prop_name in py_obj:
-                    method_or_attr = py_obj[prop_name]  # Dictionary access
+                    method_or_attr = py_obj[prop_name]
                 else:
-                    # Try with underscores if original prop_name had hyphens (common in Hy symbols)
                     prop_name_underscore = prop_name.replace("-", "_")
                     if prop_name_underscore in py_obj:
                         method_or_attr = py_obj[prop_name_underscore]
@@ -302,7 +302,7 @@ class HyResolver(ResolverMixin):
                             f"AttributeError on self (dict): Key '{prop_name}' or '{prop_name_underscore}' not found in self context {py_obj}"
                         )
                         raise AttributeError(f"Key '{prop_name}' not found in self context.")
-            else:  # Original getattr logic for other objects
+            else:
                 try:
                     method_or_attr = getattr(py_obj, prop_name)
                 except AttributeError:
@@ -312,7 +312,7 @@ class HyResolver(ResolverMixin):
                     raise
 
             if callable(method_or_attr):
-                if len(expr) > 3:  # Method call with arguments: (. obj method arg1 arg2)
+                if len(expr) > 3:
                     raw_method_args_exprs = expr[3:]
                     python_method_args = [
                         self._resolve_argument_to_native(arg_e, context, current_scope_locals)
@@ -322,41 +322,41 @@ class HyResolver(ResolverMixin):
                         f"HyResolver: Calling dot-op method: {prop_name} on {py_obj} with args: {python_method_args}"
                     )
                     return method_or_attr(*python_method_args)
-                else:  # Method call without arguments: (. obj method)
+                else:  
                     self.logger.debug(
                         f"HyResolver: Calling dot-op method: {prop_name} on {py_obj} (no args)"
                     )
                     return method_or_attr()
-            else:  # Attribute access: (. obj attribute)
+            else:  
                 self.logger.debug(
                     f"HyResolver: Accessing dot-op attribute: {prop_name} on {py_obj}"
                 )
                 return method_or_attr
         callable_candidate = self._resolve_value(first_element_expr, context, local_names)
 
-        py_callable = hy_to_python(callable_candidate)
+        py_callable = converter.model_to_py(callable_candidate, raw=True)
 
         if callable(py_callable):
             python_pos_args = []
             python_kw_args = {}
 
-            arg_exprs_iter = expr[1:]  # Iterator for arguments
+            arg_exprs_iter = expr[1:] 
             idx = 0
             while idx < len(arg_exprs_iter):
                 current_arg_expr = arg_exprs_iter[idx]
                 if isinstance(current_arg_expr, HyKeyword):
                     if idx + 1 < len(arg_exprs_iter):
-                        key_name = str(current_arg_expr)[1:]  # Remove leading ':'
+                        key_name = str(current_arg_expr)[1:] 
                         val_expr = arg_exprs_iter[idx + 1]
                         python_kw_args[key_name] = self._resolve_argument_to_native(
                             val_expr, context, current_scope_locals
                         )
-                        idx += 1  # Consumed value as well
+                        idx += 1
                     else:
                         raise ValueError(
                             f"Keyword argument {current_arg_expr} is missing a value in expression: {expr}"
                         )
-                else:  # Positional argument
+                else: 
                     python_pos_args.append(
                         self._resolve_argument_to_native(
                             current_arg_expr, context, current_scope_locals

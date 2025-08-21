@@ -5,7 +5,7 @@ from utms.core.loaders.base import ComponentLoader
 from utms.core.managers.elements.unit import UnitManager
 from utms.core.models import Unit
 from utms.utms_types import HyNode, HyProperty, UnitConfig
-from utms.utils import hy_to_python
+from utms.core.hy.converter import converter
 
 
 class UnitLoader(ComponentLoader[Unit, UnitManager]):
@@ -36,9 +36,9 @@ class UnitLoader(ComponentLoader[Unit, UnitManager]):
         """Create a Unit from properties, ensuring conversion from Hy types."""
         kwargs = properties["kwargs"]
 
-        resolved_name = hy_to_python(kwargs.get("name"))
-        resolved_value = hy_to_python(kwargs.get("value"))
-        resolved_groups = hy_to_python(kwargs.get("groups", []))
+        resolved_name = converter.model_to_py(kwargs.get("name"), raw=True)
+        resolved_value = converter.model_to_py(kwargs.get("value"), raw=True)
+        resolved_groups = converter.model_to_py(kwargs.get("groups", []), raw=True)
 
         if not isinstance(resolved_value, Decimal):
             resolved_value = Decimal(str(resolved_value))
@@ -47,7 +47,7 @@ class UnitLoader(ComponentLoader[Unit, UnitManager]):
             resolved_groups = [resolved_groups]
 
         unit = Unit(
-            label=hy_to_python(label), # Also convert the label just in case
+            label=converter.model_to_py(label, raw=True),
             name=resolved_name,
             value=resolved_value,
             groups=resolved_groups

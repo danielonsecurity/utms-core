@@ -4,18 +4,15 @@ from datetime import datetime, timedelta, time
 from typing import List
 import pytz
 
-# Core application imports
 from utms.core.config import UTMSConfig
 from utms.core.time import DecimalTimeStamp
-from utms.utils import hy_to_python
+from utms.core.hy.converter import converter
 
-# API-specific imports
 from utms.web.api.models.patterns import PatternPayload, OccurrenceEvent
 from utms.web.dependencies import get_config
 
 router = APIRouter()
 
-# No separate component getters are needed. We get everything from UTMSConfig.
 
 @router.get("/api/patterns", response_model=List[PatternPayload], summary="Get all recurrence patterns")
 async def get_all_patterns(utms_config: UTMSConfig = Depends(get_config)):
@@ -30,8 +27,7 @@ async def get_all_patterns(utms_config: UTMSConfig = Depends(get_config)):
     for p in patterns:
         at_value = None
         if hasattr(p.spec, 'at_args') and p.spec.at_args:
-            # Convert Hy models (like [:minute 25]) to Python natives for JSON
-            at_value = hy_to_python(p.spec.at_args)
+            at_value = converter.model_to_py(p.spec.at_args, raw=True)
         elif hasattr(p.spec, 'times') and p.spec.times:
              at_value = p.spec.times
 

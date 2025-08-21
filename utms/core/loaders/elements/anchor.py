@@ -10,7 +10,7 @@ from utms.core.loaders.base import ComponentLoader, LoaderContext
 from utms.core.managers.elements.anchor import AnchorManager
 from utms.core.models import Anchor, FormatSpec
 from utms.core.services.dynamic import DynamicResolutionService
-from utms.utils import hy_to_python
+from utms.core.hy.converter import converter
 from utms.utms_types import HyNode
 
 
@@ -80,16 +80,14 @@ class AnchorLoader(ComponentLoader[Anchor, AnchorManager]):
                 "original": original,
             }
 
-        # Convert specific types as needed
         if isinstance(resolved_props["value"]["value"], datetime):
             resolved_props["value"]["value"] = resolved_props["value"]["value"].timestamp()
 
-        # Create anchor with resolved properties
         anchor = Anchor(
             label=label,
             name=str(resolved_props["name"]["value"]),
             name_original=resolved_props["name"].get("original"),
-            value=Decimal(hy_to_python(resolved_props["value"]["value"])),
+            value=Decimal(converter.model_to_py(resolved_props["value"]["value"], raw=True)),
             value_original=resolved_props["value"].get("original"),
             formats=[
                 FormatSpec(

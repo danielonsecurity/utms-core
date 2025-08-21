@@ -11,21 +11,6 @@ from utms import UTMSConfig as Config
 from utms.core.logger import get_logger
 
 
-def _parse_flat_list_to_tuples(flat_list: List[Any]) -> List[Tuple[str, str]]:
-    """
-    Parses a flat list of [key, value, key, value, ...] into a list of tuples.
-    Used for loading the VID/PID pairs.
-    """
-    if not isinstance(flat_list, list):
-        return []
-
-    tuples = []
-    for i in range(0, len(flat_list), 2):
-        if i + 1 < len(flat_list):
-            tuples.append((str(flat_list[i]), str(flat_list[i+1])))
-    return tuples
-
-
 def find_arduino_port(valid_ids: List[Tuple[str, str]], logger) -> Optional[str]:
     """
     Scans available serial ports and identifies the Arduino using a list of
@@ -60,11 +45,10 @@ if __name__ == "__main__":
         notification_executable = config.config.get_config('notification-executable').value.value
 
         # Complex mappings
-        key_map_list = config.config.get_config('arduino-key-mapping').value.value['value']
-        key_to_entity_map = list_to_dict(key_map_list)
+        key_map_list = config.config.get_config('arduino-key-mapping').value.value
 
-        ids_list = config.config.get_config('arduino-ids').value.value['value']
-        valid_hw_ids = _parse_flat_list_to_tuples(ids_list)
+        ids_list = config.config.get_config('arduino-ids').value.value
+        valid_hw_ids = list(ids_list.items())
 
         presence_away_confirmation_threshold_sec = config.config.get_config('arduino-presence-away-threshold').value.value
         logger.info(f"Server-side 'AWAY' confirmation threshold: {presence_away_confirmation_threshold_sec} seconds.")
@@ -72,7 +56,7 @@ if __name__ == "__main__":
         presence_present_confirmation_threshold_sec = config.config.get_config('arduino-presence-present-threshold').value.value
         logger.info(f"Server-side 'PRESENT' confirmation threshold: {presence_present_confirmation_threshold_sec} seconds.")
 
-        logger.info(f"Loaded {len(key_to_entity_map)} key mappings.")
+        logger.info(f"Loaded {len(key_map_list)} key mappings.")
         logger.info(f"Loaded {len(valid_hw_ids)} hardware IDs for scanning.")
         logger.info(f"Baud Rate: {baud_rate}, API URL: {api_base_url}, Notifier: '{notification_executable}'")
 
@@ -227,7 +211,7 @@ if __name__ == "__main__":
                     if line.startswith("KEY_COMMAND"):
                         command_sequence = line.replace("KEY_COMMAND_", "").strip() 
                         logger.info(f"Received command sequence: '{command_sequence}'")
-                        entity_id = key_to_entity_map.get(command_sequence)
+                        entity_id = key_map_list.get(command_sequence)
                         if entity_id:
                             handle_activity_toggle(entity_id)
                         else:

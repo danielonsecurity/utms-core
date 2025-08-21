@@ -1,15 +1,10 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 
-from utms.web.api import templates
 from utms.web.api.models import config
 
 router = APIRouter()
 
-
-@router.get("/clock", response_class=HTMLResponse)
-async def clock_page(request: Request):
-    return templates.TemplateResponse("clock.html", {"request": request, "active_page": "clock"})
 
 
 @router.get("/")

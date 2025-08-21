@@ -7,7 +7,7 @@ from utms.core.loaders.base import ComponentLoader, LoaderContext
 from utms.core.managers.elements.config import ConfigManager
 from utms.core.models import Config
 from utms.core.services.dynamic import DynamicResolutionService
-from utms.utils import hy_to_python
+from utms.core.hy.converter import converter
 from utms.utms_types import FieldType, HyNode, TypedValue, infer_type
 
 
@@ -66,10 +66,8 @@ class ConfigLoader(ComponentLoader[Config, ConfigManager]):
         self.logger.debug(f"Creating config {key} with value: {typed_value.value}")
         self.logger.debug(f"Type: {typed_value.field_type}, Dynamic: {typed_value.is_dynamic}")
 
-        # Resolve dynamic expressions
         if typed_value.is_dynamic:
             value = typed_value.value
-            # Only resolve if it's an expression
             if isinstance(value, (hy.models.Expression, hy.models.Symbol)):
                 resolved_value, dynamic_info = self._dynamic_service.evaluate(
                     component_type="config",
@@ -80,8 +78,7 @@ class ConfigLoader(ComponentLoader[Config, ConfigManager]):
                 )
                 self.logger.debug(f"Resolved dynamic value for {key}: {resolved_value}")
 
-                # Create a new TypedValue with the resolved value but keep type info
-                python_value = hy_to_python(resolved_value)
+                python_value = converter.model_to_py(resolved_value, raw=True)
                 typed_value = TypedValue(
                     value=python_value,
                     field_type=typed_value.field_type,
@@ -90,9 +87,7 @@ class ConfigLoader(ComponentLoader[Config, ConfigManager]):
                 )
             else:
                 self.logger.debug(f"Using static value for {key}: {value}")
-                # Convert to Python value but keep type info
-                python_value = hy_to_python(value)
+                python_value = converter.model_to_py(value, raw=True)
                 typed_value.value = python_value
 
-        # Create config object
         return self._manager.create(key=key, value=typed_value)

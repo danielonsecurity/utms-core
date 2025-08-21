@@ -6,7 +6,8 @@ from utms.core.formats.config import TimeUncertainty
 from utms.core.hy import evaluate_hy_expression, evaluate_hy_file
 from utms.core.hy.resolvers.base import HyResolver
 from utms.core.mixins import ResolverMixin
-from utms.utils import get_ntp_date, hy_to_python
+from utms.utils import get_ntp_date
+from utms.core.hy.converter import converter
 if TYPE_CHECKING:
     from utms.utms_types import (
         Context,
@@ -72,11 +73,11 @@ class AnchorResolver(HyResolver):
 
     def _create_uncertainty(self, resolved_value: dict) -> TimeUncertainty:
         from utms.utms_types import is_dict
-        absolute = Decimal("1")  # default
-        relative = Decimal("0")  # default
+        absolute = Decimal("1")
+        relative = Decimal("0")
         confidence_95 = None
 
-        py_resolved_value = hy_to_python(resolved_value)
+        py_resolved_value = converter.model_to_py(resolved_value, raw=True)
 
         if is_dict(resolved_value):
             if "absolute" in py_resolved_value:

@@ -10,7 +10,8 @@ from utms.core.loaders.base import ComponentLoader, LoaderContext
 from utms.core.managers.elements.entity import EntityManager
 from utms.core.models.elements.entity import Entity
 from utms.core.services.dynamic import DynamicResolutionService, dynamic_resolution_service
-from utms.utils import hy_to_python, py_list_to_hy_expression
+from utms.utils import py_list_to_hy_expression, list_to_dict
+from utms.core.hy.converter import converter
 from utms.utms_types import HyNode
 from utms.utms_types.field.types import FieldType, TypedValue, infer_type
 
@@ -118,18 +119,58 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
 
         for raw_attr_name, initial_typed_value in initial_attributes_typed.items():
             attr_name = str(raw_attr_name).replace('-', '_')
+
+            is_complex_list = (
+                initial_typed_value.field_type == FieldType.LIST and
+                initial_typed_value.item_schema_type and
+                isinstance(initial_typed_value.value, list)
+            )
+
+            if is_complex_list:
+                self.logger.debug(f"  Processing complex list attribute '{attr_name}'...")
+                evaluated_list_items = []
+                for item in initial_typed_value.value:
+                    if not isinstance(item, hy.models.Object):
+                        evaluated_list_items.append(item)
+                        continue
+
+                    item_plist = converter.model_to_py(item, raw=True)
+                    item_dict = list_to_dict(item_plist)
+
+                    evaluated_item_dict = {}
+                    for key, val in item_dict.items():
+                        is_evaluatable = isinstance(val, list) and len(val) > 0 and val[0] in ['datetime', 'current-time']
+
+                        if is_evaluatable:
+
+                            hy_expr_to_eval = py_list_to_hy_expression(val)
+                            resolved_val, _ = self._dynamic_service.evaluate(
+                                expression=hy_expr_to_eval,
+                                context={"self": self_object_for_eval, **global_variables_for_evaluation},
+                                component_type=entity_type_name_str,       
+                                component_label=definition_processing_key, 
+                                attribute=f"{attr_name}.{key}"             
+                            )
+                            evaluated_item_dict[key] = resolved_val
+                        else:
+                            evaluated_item_dict[key] = val
+
+                    evaluated_list_items.append(evaluated_item_dict)
+
+                final_attributes_for_model[attr_name] = TypedValue(
+                    value=evaluated_list_items,
+                    field_type=initial_typed_value.field_type,
+                    item_schema_type=initial_typed_value.item_schema_type
+                )
+                attributes_processed_from_instance.add(attr_name)
+                continue
             original_str = (initial_typed_value.original or "").strip()
             is_quoted = original_str.startswith("'") or original_str.startswith("(quote")
 
             if is_quoted:
                 self.logger.debug(f"  Preserving quoted attribute '{attr_name}' as-is: {original_str}")
-                final_tv_props = initial_typed_value.serialize()
-                try:
-                    final_tv_props['value'] = hy.read(original_str)
-                except Exception as e:
-                    self.logger.error(f"Failed to parse quoted expression for '{attr_name}': {e}. Storing as is.")
-                    final_tv_props['value'] = initial_typed_value.value
-                final_attributes_for_model[attr_name] = TypedValue.deserialize(final_tv_props)
+                final_attributes_for_model[attr_name] = initial_typed_value
+
             elif initial_typed_value.is_dynamic:
                 self.logger.debug(f"  Evaluating dynamic attribute '{attr_name}': {original_str}")
                 resolved_python_value, _ = self._dynamic_service.evaluate(
@@ -142,9 +183,12 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
                 final_tv_props = initial_typed_value.serialize()
                 final_tv_props['value'] = resolved_python_value
                 final_attributes_for_model[attr_name] = TypedValue.deserialize(final_tv_props)
+
             else:
                 final_attributes_for_model[attr_name] = initial_typed_value
+
             attributes_processed_from_instance.add(attr_name)
+
 
         for raw_schema_attr_name, attr_schema_details in entity_schema.items():
             schema_attr_name = str(raw_schema_attr_name).replace('-','_')
@@ -152,22 +196,22 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
                 continue
 
             default_value_from_schema_hy_obj = get_from_hy_dict(attr_schema_details, "default_value")
-            default_value_from_schema = hy_to_python(default_value_from_schema_hy_obj)
+            default_value_from_schema = converter.model_to_py(default_value_from_schema_hy_obj, raw=True)
 
             if get_from_hy_dict(attr_schema_details, "default_value") is None:
                 required_hy_obj = get_from_hy_dict(attr_schema_details, "required")
-                if hy_to_python(required_hy_obj) == True: # Check the python value
+                if converter.model_to_py(required_hy_obj, raw=True) == True:
                     self.logger.error(
                         f"Missing required attribute '{schema_attr_name}' for '{definition_processing_key}' and no default provided."
                     )
                 continue
-            declared_field_type_str = hy_to_python(get_from_hy_dict(attr_schema_details, "type", "string"))
+            declared_field_type_str = converter.model_to_py(get_from_hy_dict(attr_schema_details, "type", "string"), raw=True)
             declared_field_type = FieldType.from_string(declared_field_type_str)
 
             parsed_default_for_tv: Any
             is_default_expr_dynamic = False
 
-            original_for_default_tv: Optional[str] = None # Initialize the variable
+            original_for_default_tv: Optional[str] = None
 
             if isinstance(
                 default_value_from_schema, str
@@ -176,15 +220,12 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
                 is_default_expr_dynamic = is_dynamic_content(parsed_default_for_tv)
             elif isinstance(default_value_from_schema, list):
                 try:
-                    # Rehydrate list back to a HyExpression to check if it's dynamic
                     potential_hy_expr = py_list_to_hy_expression(default_value_from_schema)
                     if is_dynamic_content(potential_hy_expr):
                         parsed_default_for_tv = potential_hy_expr
                         is_default_expr_dynamic = True
-                        # Update original string to reflect the rehydrated expression
                         original_for_default_tv = hy.repr(parsed_default_for_tv)
                     else:
-                        # It's a list, but not dynamic, so treat as a static list value
                         parsed_default_for_tv = default_value_from_schema
                         is_default_expr_dynamic = False
                 except Exception as e_rebuild:
@@ -193,7 +234,7 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
                     )
                     parsed_default_for_tv = default_value_from_schema
                     is_default_expr_dynamic = False
-            else:  # Python native literal (int, str, bool, None, list, dict)
+            else:
                 parsed_default_for_tv = default_value_from_schema
                 is_default_expr_dynamic = False
 
@@ -209,25 +250,24 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
             ):
                 resolved_default_python_value = None
 
-            # Determine final field type for TypedValue, preferring schema's declared type for static defaults
             final_field_type_for_default = declared_field_type
             self.logger.debug(
                 f"  For default attribute '{schema_attr_name}', using DECLARED schema type: '{final_field_type_for_default}'"
             )
 
             item_type_hy_obj = get_from_hy_dict(attr_schema_details, "item_type")
-            item_type_str = hy_to_python(item_type_hy_obj) # This will be None if item_type wasn't found
+            item_type_str = converter.model_to_py(item_type_hy_obj, raw=True)
 
             final_attributes_for_model[schema_attr_name] = TypedValue(
                 value=resolved_default_python_value,
                 field_type=final_field_type_for_default,
                 is_dynamic=is_default_expr_dynamic,
                 original=original_for_default_tv,
-                item_type=(FieldType.from_string(item_type_str) if item_type_str else None), # Use the safe value
-                enum_choices=hy_to_python(get_from_hy_dict(attr_schema_details, "enum_choices")),
-                item_schema_type=hy_to_python(get_from_hy_dict(attr_schema_details, "item_schema_type")),
-                referenced_entity_type=hy_to_python(get_from_hy_dict(attr_schema_details, "referenced_entity_type")),
-                referenced_entity_category=hy_to_python(get_from_hy_dict(attr_schema_details, "referenced_entity_category")),
+                item_type=(FieldType.from_string(item_type_str) if item_type_str else None),
+                enum_choices=converter.model_to_py(get_from_hy_dict(attr_schema_details, "enum_choices"), raw=True),
+                item_schema_type=converter.model_to_py(get_from_hy_dict(attr_schema_details, "item_schema_type"), raw=True),
+                referenced_entity_type=converter.model_to_py(get_from_hy_dict(attr_schema_details, "referenced_entity_type"), raw=True),
+                referenced_entity_category=converter.model_to_py(get_from_hy_dict(attr_schema_details, "referenced_entity_category"), raw=True),
             )
 
             current_entity_py_attributes_for_self[schema_attr_name] = resolved_default_python_value

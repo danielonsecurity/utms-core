@@ -1,15 +1,18 @@
 import subprocess
 import requests
+import json
+import paho.mqtt.publish as publish
+
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Union, TYPE_CHECKING
 
 from utms.core.hy.resolvers.base import HyResolver
 from utms.core.managers.elements.entity import EntityManager
 from utms.core.models.elements.entity import Entity
-from utms.core.services.dynamic import (  # For resolving attributes from get-attr
+from utms.core.services.dynamic import (
     dynamic_resolution_service,
 )
-from utms.utils import hy_to_python  # For converting resolved values
+from utms.core.hy.converter import converter
 from utms.utils import get_ntp_date, get_timezone_from_seconds
 from utms.utms_types import (
     Context,
@@ -43,6 +46,9 @@ class EntityResolver(HyResolver):
             "end-occurrence": lambda type, cat, name, **kwargs: self.component.end_occurrence(type, cat, name, **kwargs),
             "create-entity": lambda type, cat, name, **kwargs: self.component.create_entity(name, type, category=cat, attributes_raw=kwargs.get("attributes", {})),
             "update-entity-attribute": lambda type, cat, name, attr, val: self.component.update_entity_attribute(type, cat, name, attr, val),
+            "execute-on": self._hy_execute_on,
+            "notify": self._hy_notify,
+            "speak": self._hy_speak,
         }
         
         # Populate default_globals with both kebab-case and snake_case versions
@@ -225,8 +231,7 @@ class EntityResolver(HyResolver):
                 f"get-attr: Attribute '{attribute_name_str}' of '{actual_entity_object.name}' is dynamic ('{typed_value_attr.original}'). Resolving..."
             )
             resolved_attr_val_raw, _ = dynamic_resolution_service.evaluate(
-                expression=typed_value_attr._raw_value,  # The HyObject of the attribute
-                # Pass the actual entity object as the 'self' context for its own attribute's resolution
+                expression=typed_value_attr._raw_value,
                 context={
                     "self": SimpleNamespace(
                         **{k: v.value for k, v in actual_entity_object.attributes.items()}
@@ -236,11 +241,11 @@ class EntityResolver(HyResolver):
                 component_label=f"{actual_entity_object.category}:{actual_entity_object.name}",
                 attribute=attribute_name_str,
             )
-            return hy_to_python(resolved_attr_val_raw)
+            return converter.model_to_py(resolved_attr_val_raw, raw=True)
         else:
-            return typed_value_attr.value  # Already resolved Python value
+            return typed_value_attr.value
 
-    def _hy_shell(self, command_string: str, bg: bool = False): # Add the bg keyword argument
+    def _hy_shell(self, command_string: str, bg: bool = False):
         """
         Implementation for the (shell "...") Hy function.
         Executes the given string as a shell command.
@@ -255,7 +260,7 @@ class EntityResolver(HyResolver):
         if bg:
             self.logger.info(f"Executing shell command in background: {command_string}")
             subprocess.Popen(command_string, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            return "Started background process." # Return a useful string instead of None
+            return "Started background process."
         else:
             self.logger.info(f"Executing shell command: {command_string}")
             try:
@@ -278,3 +283,91 @@ class EntityResolver(HyResolver):
                 self.logger.error(f"Shell command failed with exit code {e.returncode}: {command_string}")
                 self.logger.error(f"Stderr: {e.stderr.strip()}")
                 raise e
+
+    def _hy_execute_on(self, target_executor_id: str, command_string: str):
+        """
+        Implementation for (execute-on "executor-id" "command-string")
+        This is called AFTER both arguments have been resolved to Python strings.
+        """
+        self.logger.info(f"Executing remote command on '{target_executor_id}': {command_string}")
+
+        if not isinstance(target_executor_id, str) or not isinstance(command_string, str):
+            raise TypeError("(execute-on) requires two string arguments.")
+            
+        command_payload = {
+            "command": command_string
+        }
+        topic = f"utms/command/{target_executor_id}/shell"
+        try:
+            config_component = self.component.get_component("config")
+            broker = config_component.get_config("mqtt-broker").value.value
+            port = config_component.get_config("mqtt-port").value.value
+            
+            payload_json = json.dumps(command_payload)
+
+            self.logger.info(f"Publishing to MQTT -> Topic: {topic}, Payload: {payload_json}")
+            publish.single(topic, payload=payload_json, hostname=broker, port=port)
+            
+            return f"Published command to {target_executor_id}"
+        except Exception as e:
+            self.logger.error(f"Failed to publish MQTT command for (execute-on): {e}", exc_info=True)
+            raise
+
+    def _hy_notify(self, target_executor_id: str, message: str, title: str = "UTMS Notification"):
+        """
+        Implementation for (notify "executor-id" "message" <optional_title>)
+        Publishes a structured notification command to an executor via MQTT.
+        """
+        self.logger.info(f"Sending notification to '{target_executor_id}': '{title}' - '{message}'")
+
+        if not all(isinstance(arg, str) for arg in [target_executor_id, message, title]):
+            raise TypeError("(notify) requires string arguments.")
+            
+        command_payload = {
+            "title": title,
+            "message": message
+        }
+        
+        topic = f"utms/command/{target_executor_id}/notify"
+
+        try:
+            config_component = self.component.get_component("config")
+            broker = config_component.get_config("mqtt-broker").value.value
+            port = config_component.get_config("mqtt-port").value.value
+            
+            payload_json = json.dumps(command_payload)
+
+            self.logger.info(f"Publishing to MQTT -> Topic: {topic}, Payload: {payload_json}")
+            publish.single(topic, payload=payload_json, hostname=broker, port=port)
+            
+            return f"Sent notification to {target_executor_id}"
+        except Exception as e:
+            self.logger.error(f"Failed to publish MQTT notification: {e}", exc_info=True)
+            raise        
+
+    def _hy_speak(self, target_executor_id: str, message: str):
+        self.logger.info(f"Speak to '{target_executor_id}':  - '{message}'")
+
+        if not all(isinstance(arg, str) for arg in [target_executor_id, message]):
+            raise TypeError("(speak requires string arguments.")
+            
+        command_payload = {
+            "message": message
+        }
+        
+        topic = f"utms/command/{target_executor_id}/speak"
+
+        try:
+            config_component = self.component.get_component("config")
+            broker = config_component.get_config("mqtt-broker").value.value
+            port = config_component.get_config("mqtt-port").value.value
+            
+            payload_json = json.dumps(command_payload)
+
+            self.logger.info(f"Publishing to MQTT -> Topic: {topic}, Payload: {payload_json}")
+            publish.single(topic, payload=payload_json, hostname=broker, port=port)
+            
+            return f"Sent message to {target_executor_id}"
+        except Exception as e:
+            self.logger.error(f"Failed to publish MQTT message: {e}", exc_info=True)
+            raise        

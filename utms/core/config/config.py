@@ -31,7 +31,12 @@ class UTMSConfig(ConfigProtocol, LoggerMixin):
     def __init__(self) -> None:
         if not self._initialized:
             self.logger.debug("Initializing configuration")
-            self._utms_dir = appdirs.user_config_dir(constants.APP_NAME, constants.COMPANY_NAME)
+            config_env_path = os.environ.get("UTMS_CONFIG_DIR")
+            if config_env_path:
+                self._utms_dir = config_env_path
+                self.logger.info(f"Using config directory from environment variable: {self._utms_dir}")
+            else:
+                self._utms_dir = appdirs.user_config_dir(constants.APP_NAME, constants.COMPANY_NAME)
             os.makedirs(self.utms_dir, exist_ok=True)
             discover_plugins()
             initialize_plugins()

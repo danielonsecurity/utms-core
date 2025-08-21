@@ -7,10 +7,10 @@ from typing import Any, Dict, List, Optional, Union
 import hy
 from hy.models import Expression, Symbol
 
-from utms.core.hy.utils import python_to_hy_string, hy_obj_to_string
+from utms.core.hy.converter import converter
 from utms.core.logger import get_logger
 from utms.core.time.decimal import DecimalTimeLength, DecimalTimeRange, DecimalTimeStamp
-from utms.utils import hy_to_python
+from utms.core.hy.converter import converter, py_list_to_hy_expression
 
 logger = get_logger()
 
@@ -42,7 +42,7 @@ class FieldType(Enum):
             logger.warning(
                 f"Unknown FieldType string '{type_str}' encountered. Defaulting to STRING."
             )
-            return cls.STRING  # Default to string for unknown types
+            return cls.STRING  
 
     def __str__(self) -> str:
         """Return the string representation of the field type."""
@@ -54,41 +54,94 @@ class TypedValue:
         self,
         value: Any,
         field_type: Union[FieldType, str],
-        # Existing parameters
         item_type: Optional[Union[FieldType, str]] = None,
         is_dynamic: bool = False,
         original: Optional[str] = None,
         enum_choices: Optional[List[Any]] = None,
-        # New parameters for complex types and references
-        item_schema_type: Optional[str] = None,  # For LIST of complex objects
-        # item_schema: Optional[Dict[str, Any]] = None, # Deferred: for inline complex object schemas
-        referenced_entity_type: Optional[str] = None,  # For ENTITY_REFERENCE
-        referenced_entity_category: Optional[
-            str
-        ] = None,  # For ENTITY_REFERENCE (optional constraint)
+        item_schema_type: Optional[str] = None,
+        referenced_entity_type: Optional[str] = None,
+        referenced_entity_category: Optional[str] = None,
     ):
-        if isinstance(field_type, str):
-            field_type = FieldType.from_string(field_type)
+        """
+        Initializes a TypedValue, enforcing a clean two-step process:
+        1. Normalize the input from any format into a rich Python object.
+        2. Coerce that Python object into the specified FieldType.
+        """
+        if isinstance(field_type, str): self.field_type = FieldType.from_string(field_type)
+        else: self.field_type = field_type
 
-        if item_type and isinstance(
-            item_type, str
-        ):  # Check item_type is not None before isinstance
-            item_type = FieldType.from_string(item_type)
+        if item_type and isinstance(item_type, str): self.item_type = FieldType.from_string(item_type)
+        else: self.item_type = item_type
 
-        self.field_type: FieldType = field_type
-        self.item_type: Optional[FieldType] = item_type  # Type hint corrected
         self.is_dynamic = is_dynamic
-        self.original = original
         self.enum_choices = enum_choices or []
-
-        # Store new schema-related attributes
         self.item_schema_type = item_schema_type
-        # self.item_schema = item_schema # Deferred
         self.referenced_entity_type = referenced_entity_type
         self.referenced_entity_category = referenced_entity_category
 
-        self._raw_value = value
-        self._value = self._convert_value(value)  # self._value will be set by _convert_value
+        if self.field_type in (FieldType.CODE, FieldType.ACTION):
+            self._value = value
+        else:
+            py_value = converter.model_to_py(value)
+            self._value = self._coerce(py_value)
+
+        if original is not None: self.original = original
+        else: self.original = self._get_original_string_from_input(value)
+
+    def _get_original_string_from_input(self, original_input: Any) -> Optional[str]:
+        """Determines the 'original' string representation for dynamic values."""
+        if self.is_dynamic:
+            if isinstance(original_input, hy.models.Object):
+                return converter.model_to_string(original_input)
+            if isinstance(original_input, str):
+                return original_input
+        return None
+    
+    def _coerce(self, py_value: Any) -> Any:
+        """
+        Takes a clean Python object and coerces it to the specific FieldType.
+        This method is the dedicated "Type Enforcer".
+        """
+        if self.is_dynamic:
+            return py_value # Dynamic values are not coerced until evaluation.
+
+        if py_value is None:
+            return None
+
+        try:
+            if self.field_type == FieldType.STRING: return str(py_value)
+            elif self.field_type == FieldType.INTEGER: return int(py_value)
+            elif self.field_type == FieldType.DECIMAL: return Decimal(str(py_value))
+            elif self.field_type == FieldType.BOOLEAN:
+                if isinstance(py_value, str): return py_value.lower() in ("true", "yes", "1", "t", "y")
+                return bool(py_value)
+            elif self.field_type == FieldType.TIMESTAMP: return DecimalTimeStamp(py_value)
+            elif self.field_type == FieldType.TIMELENGTH: return DecimalTimeLength(py_value)
+            elif self.field_type == FieldType.TIMERANGE:
+                if isinstance(py_value, dict): return DecimalTimeRange(py_value['start'], py_value['duration'])
+                return DecimalTimeRange(py_value)
+            elif self.field_type == FieldType.DATETIME:
+                if isinstance(py_value, datetime): return py_value
+                if isinstance(py_value, str): return datetime.fromisoformat(py_value.replace("Z", "+00:00"))
+                raise TypeError(f"Cannot coerce {type(py_value)} to datetime")
+            elif self.field_type == FieldType.LIST:
+                if isinstance(py_value, list): return py_value
+                return [py_value]
+            elif self.field_type == FieldType.DICT:
+                if isinstance(py_value, dict): return py_value
+                return {'value': py_value}
+            elif self.field_type == FieldType.ENUM:
+                if self.enum_choices and py_value in self.enum_choices: return py_value
+                return self.enum_choices[0] if self.enum_choices else None
+            elif self.field_type in [FieldType.CODE, FieldType.ACTION, FieldType.ENTITY_REFERENCE]:
+                return py_value
+            else:
+                logger.warning(f"Unhandled FieldType '{self.field_type}' in _coerce. Returning value as is.")
+                return py_value
+
+        except (ValueError, TypeError, KeyError) as e:
+            logger.error(f"Could not coerce value '{py_value}' (type: {type(py_value)}) to {self.field_type}: {e}")
+            return None
 
     @property
     def value(self) -> Any:
@@ -96,209 +149,14 @@ class TypedValue:
 
     @value.setter
     def value(self, new_value: Any) -> None:
-        self._raw_value = new_value
-        self._value = self._convert_value(new_value)  # Ensure conversion on set
-
-    def _convert_value(self, value: Any) -> Any:
-        """Convert a value to the correct type."""
-        if isinstance(value, hy.models.Symbol) and str(value) == "None":
-            return None
-        if value is None or value == "None":
-            return None
-        if self.field_type == FieldType.LIST and self.item_schema_type:
-            if isinstance(value, (hy.models.List, list)):
-                return [item if isinstance(item, hy.models.Object) else item for item in value]
-            logger.warning(
-                f"LIST with item_schema_type '{self.item_schema_type}' received non-list value: {type(value)}. Value: {value}"
-            )
-            return hy_to_python(value)  # Attempt conversion
-
-        if isinstance(value, hy.models.Expression):
-            if self.field_type == FieldType.DATETIME:
-                logger.debug(
-                    f"DATETIME field receives HyExpression '{value}'. Storing as HyExpression for loader evaluation."
-                )
-                return value  # Store the HyExpression directly
-            if self.field_type == FieldType.ENTITY_REFERENCE:
-                logger.debug(
-                    f"ENTITY_REFERENCE field receives HyExpression '{value}'. Storing as HyExpression for loader evaluation."
-                )
-                return value  # Store the HyExpression directly
-            if self.field_type == FieldType.CODE:
-                logger.debug(
-                    f"CODE field receives HyExpression '{value}'. Storing as HyExpression."
-                )
-                return value  # Store the HyExpression directly for CODE type
-
-            if self.field_type == FieldType.ACTION:
-                logger.debug(
-                    f"ACTION field receives HyExpression '{value}'. Storing as HyExpression."
-                )
-                return value
-
-        if self.field_type == FieldType.ENTITY_REFERENCE:
-            if isinstance(value, str):
-                return None if value == "None" else value
-            if isinstance(value, (hy.models.String, hy.models.Symbol)):
-                return hy_to_python(value)
-            if isinstance(value, dict):
-                return value
-            logger.warning(
-                f"ENTITY_REFERENCE field received unexpected value type {type(value)}: '{value}'. Storing as is."
-            )
-            return value
-
-        if self.field_type == FieldType.DATETIME:
-            if value is None or value == "None":
-                return None
-            if isinstance(value, (datetime, DecimalTimeStamp)):
-                return value
-            if isinstance(value, str):
-                try:
-                    return datetime.fromisoformat(value.replace("Z", "+00:00"))
-                except (ValueError, TypeError):
-                    logger.warning(
-                        f"Could not parse string '{value}' as a datetime. Storing as is."
-                    )
-                    return value # Fallback to old behavior if parsing fails
-            if isinstance(value, hy.models.Expression):
-                return value
-            
-            logger.warning(
-                f"DATETIME field received unexpected value type {type(value)}: '{value}'. Storing as is."
-            )
-            return hy_to_python(value)
-
-        py_value = hy_to_python(value)
-        try:
-            if self.field_type == FieldType.STRING:
-                return str(py_value)
-
-            elif self.field_type == FieldType.INTEGER:
-                if isinstance(py_value, bool):  # Handle boolean special case
-                    return 1 if py_value else 0
-                return int(py_value)
-
-            elif self.field_type == FieldType.DECIMAL:
-                if isinstance(py_value, Decimal):
-                    return py_value
-                return Decimal(str(py_value))
-
-            elif self.field_type == FieldType.BOOLEAN:
-                if isinstance(py_value, str):
-                    return py_value.lower() in ("true", "yes", "1", "t", "y")
-                return bool(py_value)
-
-            elif self.field_type == FieldType.TIMESTAMP:
-                if isinstance(py_value, DecimalTimeStamp):
-                    return py_value
-                return DecimalTimeStamp(py_value)
-
-            elif self.field_type == FieldType.TIMELENGTH:
-                if isinstance(py_value, DecimalTimeLength):
-                    return py_value
-                return DecimalTimeLength(py_value)
-
-            elif self.field_type == FieldType.TIMERANGE:
-                if isinstance(py_value, DecimalTimeRange):
-                    return py_value
-
-                if isinstance(py_value, dict) and "start" in py_value and "duration" in py_value:
-                    start = py_value["start"]
-                    if not isinstance(start, DecimalTimeStamp):
-                        start = DecimalTimeStamp(start)
-
-                    duration = py_value["duration"]
-                    if not isinstance(duration, DecimalTimeLength):
-                        duration = DecimalTimeLength(duration)
-
-                    return DecimalTimeRange(start, duration)
-
-                # Default empty range
-                return DecimalTimeRange(DecimalTimeStamp(0), DecimalTimeLength(0))
-
-            elif self.field_type == FieldType.ENUM:
-                # Handle enum type
-                if not self.enum_choices:
-                    return None
-
-                # Convert py_value to string for comparison
-                py_value_str = str(py_value).lower() if py_value is not None else ""
-
-                # Try to find an exact match first
-                for choice in self.enum_choices:
-                    if str(choice).lower() == py_value_str:
-                        return choice
-
-                # If no exact match, return the first choice
-                return self.enum_choices[0]
-
-            elif self.field_type == FieldType.LIST:
-                current_list_val = py_value
-                if not isinstance(current_list_val, list):
-                    if isinstance(current_list_val, str):
-                        try:
-                            loaded_json = json.loads(current_list_val)
-                            if isinstance(loaded_json, list):
-                                current_list_val = loaded_json
-                            else:
-                                current_list_val = [loaded_json]  # Wrap non-list JSON into a list
-                        except json.JSONDecodeError:
-                            current_list_val = [current_list_val]  # Treat as a single-item list
-                    else:
-                        current_list_val = [
-                            current_list_val
-                        ]  # Wrap non-list, non-string into a list
-
-                if self.item_type and current_list_val:  # Ensure current_list_val is not empty
-                    return current_list_val
-                return current_list_val  # Return list of Python natives
-
-            elif self.field_type == FieldType.DICT:
-                current_dict_val = py_value
-                if not isinstance(current_dict_val, dict):
-                    if isinstance(current_dict_val, str):
-                        try:
-                            loaded_json = json.loads(current_dict_val)
-                            if isinstance(loaded_json, dict):
-                                current_dict_val = loaded_json
-                            else:
-                                current_dict_val = {"value": loaded_json}
-                        except json.JSONDecodeError:
-                            current_dict_val = {"value": current_dict_val}  # Wrap into a dict
-                    else:
-                        current_dict_val = {
-                            "value": current_dict_val
-                        }  # Wrap non-dict, non-string into a dict
-
-                if self.item_type and current_dict_val:
-                    return {
-                        k: TypedValue(v, self.item_type).value for k, v in current_dict_val.items()
-                    }
-                return current_dict_val  # Return dict of Python natives
-
-            elif self.field_type == FieldType.CODE:
-                return py_value
-
-            elif self.field_type == FieldType.ACTION:
-                return py_value
-
-            else:
-                logger.warning(
-                    f"Unknown FieldType '{self.field_type}' encountered for value '{value}'. "
-                    f"Storing hy_to_python converted value: '{py_value}'."
-                )
-                return py_value
-
-        except Exception as e:
-            # Log the error and return None for conversion errors
-            logger.error(f"Error converting value {py_value} to type {self.field_type}: {e}")
-            return None
+        """Setter that enforces the clean conversion pipeline when the value is changed."""
+        py_value = converter.model_to_py(new_value)
+        self._value = self._coerce(py_value)
 
     def serialize(self) -> Dict[str, Any]:
         result = {
             "type": str(self.field_type),
-            "value": self._serialize_value(),  # self._value is already converted
+            "value": self._serialize_value(),
         }
 
         if self.item_type:
@@ -310,7 +168,7 @@ class TypedValue:
         if self.field_type == FieldType.ENUM and self.enum_choices:
             result["enum_choices"] = self.enum_choices
 
-        # Add new schema info for API
+        
         if self.item_schema_type:
             result["item_schema_type"] = self.item_schema_type
         if self.referenced_entity_type:
@@ -331,10 +189,16 @@ class TypedValue:
         if value is None:
             return "None"
 
-        if isinstance(value, hy.models.Object):
-            return hy_obj_to_string(value)
-
-        return python_to_hy_string(value)
+        if self.field_type in (FieldType.CODE, FieldType.ACTION):
+            if isinstance(self.value, hy.models.Object):
+                return converter.model_to_string(self.value)
+            if isinstance(self.value, list):
+                try:
+                    hy_expr = py_list_to_hy_expression(self.value)
+                    return converter.model_to_string(hy_expr)
+                except Exception as e:
+                    logger.error(f"Failed to convert CODE list to expression: {e}. Falling back.")
+        return converter.py_to_string(self.value)
 
     def _serialize_value(self) -> Any:
         """Convert the value to a serializable format."""
@@ -344,26 +208,22 @@ class TypedValue:
             return None
 
         if self.field_type in (FieldType.CODE, FieldType.ACTION) and isinstance(val_to_serialize, (Expression, Symbol)):
-            return hy_obj_to_string(val_to_serialize)
+            return converter.model_to_string(val_to_serialize)
 
         if self.field_type == FieldType.LIST and self.item_schema_type:
             if not isinstance(val_to_serialize, list):
-                return val_to_serialize # Fallback if not a list
+                return val_to_serialize 
             def deep_serialize_hy(data: Any) -> Any:
                 if isinstance(data, (Expression, Symbol)):
-                    return hy_obj_to_string(data)
+                    return converter.model_to_string(data)
                 if isinstance(data, list):
                     return [deep_serialize_hy(item) for item in data]
                 if isinstance(data, dict):
                     return {str(k): deep_serialize_hy(v) for k, v in data.items()}
-                # This handles hy.models.Dict, hy.models.List, etc., by converting them first.
                 if isinstance(data, hy.models.Object):
-                    python_equivalent = hy_to_python(data)
+                    python_equivalent = converter.model_to_py(data, raw=True)
                     return deep_serialize_hy(python_equivalent)
-                
-                # It's already a primitive (str, int, bool, None)
                 return data
-
             return deep_serialize_hy(val_to_serialize)
 
         if self.field_type == FieldType.DATETIME:
@@ -400,19 +260,19 @@ class TypedValue:
                 str(val_to_serialize) if isinstance(val_to_serialize, Decimal) else val_to_serialize
             )
 
-        elif self.field_type == FieldType.LIST:  # Primitives
+        elif self.field_type == FieldType.LIST:  
             if isinstance(val_to_serialize, list):
-                # Assuming items are already Python natives due to recursive TypedValue in _convert_value
+                
                 return val_to_serialize
             return val_to_serialize
 
-        elif self.field_type == FieldType.DICT:  # Primitives in values
+        elif self.field_type == FieldType.DICT:  
             if isinstance(val_to_serialize, dict):
-                # Assuming values are already Python natives
+                
                 return val_to_serialize
             return val_to_serialize
 
-        else:  # For STRING, INTEGER, BOOLEAN, CODE (if Python string), ENUM etc.
+        else:  
             return val_to_serialize
 
     @classmethod
@@ -424,14 +284,14 @@ class TypedValue:
             )
             return cls(data, FieldType.STRING)
 
-        field_type_str = data.get("type", FieldType.STRING.value)  # Ensure .value for comparison
+        field_type_str = data.get("type", FieldType.STRING.value)  
         value = data.get("value")
         item_type_str = data.get("item_type")
         is_dynamic = data.get("is_dynamic", False)
         original = data.get("original")
         enum_choices = data.get("enum_choices", [])
 
-        # New schema fields from serialized data
+        
         item_schema_type = data.get("item_schema_type")
         referenced_entity_type = data.get("referenced_entity_type")
         referenced_entity_category = data.get("referenced_entity_category")
@@ -458,7 +318,7 @@ class TypedValue:
             for item_str in value:
                 if isinstance(item_str, str) and item_str.strip().startswith("("):
                     try:
-                        # Assuming each item_str is a single, complete S-expression
+                        
                         parsed_item = next(iter(hy.read_many(item_str)), None)
                         if parsed_item is not None:
                             processed_value_list.append(parsed_item)
@@ -466,14 +326,14 @@ class TypedValue:
                             logger.warning(
                                 f"Failed to parse list item S-expression string: '{item_str}'. Appending as string."
                             )
-                            processed_value_list.append(item_str)  # Fallback
+                            processed_value_list.append(item_str)  
                     except Exception as e:
                         logger.error(
                             f"Error hy.read_many on list item '{item_str}': {e}. Appending as string."
                         )
-                        processed_value_list.append(item_str)  # Fallback
+                        processed_value_list.append(item_str)  
                 else:
-                    processed_value_list.append(item_str)  # Not an S-expression string
+                    processed_value_list.append(item_str)  
             value = processed_value_list
 
         if (
@@ -485,7 +345,7 @@ class TypedValue:
             try:
                 parsed_value = next(iter(hy.read_many(value)), None)
                 if parsed_value is not None:
-                    value = parsed_value  # Convert S-expression string to HyExpression
+                    value = parsed_value  
                 else:
                     logger.warning(
                         f"Failed to parse entity_reference S-expression string: '{value}'. Using as string."
@@ -495,9 +355,9 @@ class TypedValue:
                     f"Error hy.read_many on entity_reference value '{value}': {e}. Using as string."
                 )
 
-        # The constructor's _convert_value will handle further processing based on type
+        
         return cls(
-            value=value,  # Pass potentially HyExpression objects
+            value=value,  
             field_type=field_type_enum,
             item_type=item_type_enum,
             is_dynamic=is_dynamic,
@@ -511,7 +371,7 @@ class TypedValue:
     def validate(self) -> bool:
         """Validate that the value matches the expected type."""
         if self.value is None:
-            return True  # None is valid for any type
+            return True  
 
         try:
             if self.field_type == FieldType.STRING:
@@ -621,9 +481,9 @@ def infer_type(value: Any) -> FieldType:
     if isinstance(value, float) or isinstance(value, Decimal):
         return FieldType.DECIMAL
     if isinstance(value, list) or isinstance(value, hy.models.List):
-        return FieldType.LIST  # Includes HyList
+        return FieldType.LIST  
     if isinstance(value, dict) or isinstance(value, hy.models.Dict):
-        return FieldType.DICT  # Includes HyDict
+        return FieldType.DICT  
 
     if isinstance(value, Expression):
         return FieldType.CODE
@@ -634,9 +494,9 @@ def infer_type(value: Any) -> FieldType:
             if isinstance(parsed_hy, (Expression, Symbol)):
                 return FieldType.CODE
         except Exception:
-            pass  # Not a valid Hy expression, treat as plain string
+            pass  
 
-    # Default to string
+    
     return FieldType.STRING
 
 
@@ -645,13 +505,12 @@ def infer_item_type(values: List[Any]) -> Optional[FieldType]:
     if not values:
         return None
 
-    # Get the type of the first item
+    
     first_type = infer_type(values[0])
 
-    # Check if all items have the same type
+    
     for value in values[1:]:
         if infer_type(value) != first_type:
-            # If mixed types, return None
             return None
 
     return first_type

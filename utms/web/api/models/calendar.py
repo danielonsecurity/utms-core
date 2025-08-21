@@ -7,11 +7,14 @@ class CalendarEvent(BaseModel):
     title: str
     start: str  # ISO 8601 string
     end: Optional[str] = None
+
     allDay: bool = False
-    color: Optional[str] = None # Allow custom colors
+    borderColor: Optional[str] = None
+    backgroundColor: Optional[str] = None
+    textColor: Optional[str] = None
+
     extendedProps: Dict[str, Any] = Field(default_factory=dict)
 
-class CalendarSource(BaseModel):
+class CalendarSourceRequest(BaseModel):
     entityType: str
     category: str
-    attribute: str    

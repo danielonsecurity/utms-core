@@ -2,7 +2,7 @@ import hy
 from typing import Any, Dict, List, Optional, Union
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query  # Added Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 
 from utms.core.components.elements.entity import EntityComponent
@@ -19,12 +19,12 @@ from utms.web.api.models.entities import (
     SetStepStatusPayload,
 )
 from utms.web.dependencies import get_config
+from utms.core.hy.converter import converter
 
 router = APIRouter()
 logger = get_logger()
 
 
-# Helper to get EntityComponent (remains the same)
 def get_entities_component(main_config: UTMSConfig = Depends(get_config)) -> EntityComponent:
     entities_component = main_config.get_component("entities")
     if not isinstance(entities_component, EntityComponent):
@@ -82,10 +82,6 @@ async def get_entities_api(  # Renamed for clarity
             )
             logger.info(f"entities_component.get_by_type returned {len(entities_list)} entities.")
         elif category:
-            # If only category is specified, get all entities from that category across all types
-            # This might require a new component method or iteration here.
-            # For now, let's assume if category is given, entity_type must also be given.
-            # Or, to implement "all entities in a category":
             all_types = entities_component.get_entity_types()
             for et_key in all_types:
                 entities_list.extend(entities_component.get_by_type(et_key, category.lower()))
@@ -93,12 +89,11 @@ async def get_entities_api(  # Renamed for clarity
                 f"Fetched all entities for category '{category}' across {len(all_types)} types."
             )
         else:
-            # Get all entities of all types from all categories
             all_defined_types = entities_component.get_entity_types()
             for et_key in all_defined_types:
                 entities_list.extend(
                     entities_component.get_by_type(et_key, None)
-                )  # Get all categories for this type
+                ) 
 
         api_response_list = []
         for entity_model_instance in entities_list:
@@ -164,7 +159,6 @@ async def get_single_entity_api(
     entities_component: EntityComponent = Depends(get_entities_component),
 ):
     try:
-        # Component's get_entity assumes name is unique per type. If not, it needs category.
         entity_model_instance = entities_component.get_entity(
             entity_type.lower(), category.lower(), name
         )
@@ -216,7 +210,6 @@ async def create_new_entity_api(
             duration_expr = attributes_raw.get("duration_expression")
             if duration_expr:
                 try:
-                    # Assumes your config has a 'units' component accessible
                     units_provider = get_config().get_component("units").get_all_units()
                     parser = TimeExpressionParser(units_provider=units_provider)
                     
@@ -228,10 +221,8 @@ async def create_new_entity_api(
                     
                 except Exception as e:
                     logger.error(f"Failed to parse duration_expression '{duration_expr}': {e}", exc_info=True)
-                    # Fail the request if the expression is invalid
                     raise HTTPException(status_code=400, detail=f"Invalid duration_expression: {e}")
 
-        # Component's create_entity now accepts category
         created_entity_model = entities_component.create_entity(
             name=name,
             entity_type=entity_type.lower(),
@@ -245,10 +236,9 @@ async def create_new_entity_api(
         return {
             "name": created_entity_model.name,
             "entity_type": created_entity_model.entity_type,
-            "category": created_entity_model.category,  # Include category
+            "category": created_entity_model.category,
             "attributes": serialized_attrs,
         }
-    # ... (exception handling same as response #13) ...
     except HTTPException:
         raise
     except ValueError as ve:
@@ -264,7 +254,8 @@ async def create_new_entity_api(
     response_class=JSONResponse,
     summary="Update an entity attribute",
 )
-async def update_entity_attribute_api(  # Renamed for clarity
+
+async def update_entity_attribute_api(
     entity_type: str,
     category: str,
     name: str,
@@ -362,7 +353,6 @@ async def move_entity_category_api(
             entity_type.lower(), name, new_category.lower()
         )
         if not success:
-            # More specific error might have been raised by component, or just generic failure
             raise HTTPException(
                 status_code=400,
                 detail="Failed to move entity to new category. Entity may not exist or new category is invalid.",
@@ -393,13 +383,12 @@ async def move_entity_category_api(
 @router.delete(
     "/api/entities/{entity_type}/{category}/{name}", status_code=204, summary="Delete an entity"
 )
-async def delete_entity_api(  # Renamed
+async def delete_entity_api(
     entity_type: str,
     category: str,
     name: str,
     entities_component: EntityComponent = Depends(get_entities_component),
 ):
-    # ... (remains same as response #13) ...
     try:
         if not entities_component.get_entity(entity_type.lower(), category.lower(), name):
             raise HTTPException(
@@ -526,8 +515,8 @@ async def create_entity_category_api(
     summary="Rename a category for an entity type",
 )
 async def rename_entity_category_api(
-    entity_type_key: str,  # lowercase
-    category_name: str,  # current category name (lowercase, sanitized form from URL)
+    entity_type_key: str, 
+    category_name: str, 
     new_category_name: str = Body(..., embed=True, description="New name for the category"),
     entities_component: EntityComponent = Depends(get_entities_component),
 ):
@@ -569,8 +558,8 @@ async def rename_entity_category_api(
     summary="Delete a category for an entity type",
 )
 async def delete_entity_category_api(
-    entity_type_key: str,  # lowercase
-    category_name: str,  # category name to delete (lowercase, sanitized form from URL)
+    entity_type_key: str, 
+    category_name: str,  
     move_entities_to_default: bool = Query(
         True, description="Move entities to 'default' category instead of deleting them."
     ),
@@ -590,8 +579,7 @@ async def delete_entity_category_api(
         success = entities_component.delete_category(
             entity_type_key.lower(), category_name, move_entities_to_default
         )
-        if not success:  # Could be "not found" or other failure
-            # Check if it was "not found" vs actual error
+        if not success:
             current_categories = entities_component.get_categories(entity_type_key.lower())
             if sanitize_filename(category_name.lower()) not in current_categories:
                 raise HTTPException(
@@ -634,14 +622,13 @@ async def start_entity_occurrence_api(
         )
         return updated_entity.serialize()
     except (ValueError, TypeError) as e:
-        # 404 if entity not found, 409 if already started, 400 for other value errors
         detail_str = str(e).lower()
         if "not found" in detail_str:
             status_code = 404
         elif "already in progress" in detail_str:
-            status_code = 409  # Conflict
+            status_code = 409
         else:
-            status_code = 400  # Bad Request
+            status_code = 400
         raise HTTPException(status_code=status_code, detail=str(e))
     except Exception as e:
         logger.error(f"Error starting occurrence for {entity_type}:{name}: {e}", exc_info=True)
@@ -701,11 +688,7 @@ async def get_active_entities_api(
     set, indicating they are currently being tracked.
     """
     try:
-        # Use the safe, public method on the component that we created.
-        # This ensures all entities are loaded before the check is performed.
         active_entities_list = entities_component.get_all_active_entities()
-
-        # Serialize the results for the API response, just like the main GET endpoint.
         api_response_list = []
         for entity_model_instance in active_entities_list:
             serialized_attributes = {
@@ -751,7 +734,6 @@ async def log_metric_entry_api(
             timestamp=payload.timestamp,
         )
         
-        # Serialize the entire updated entity for the response
         serialized_attributes = {
             k: tv.serialize() for k, tv in updated_entity.get_all_attributes_typed().items()
         }
@@ -763,12 +745,10 @@ async def log_metric_entry_api(
         }
 
     except ValueError as e:
-        # Catches both "Metric not found" and "Invalid value" errors
         detail_str = str(e).lower()
         status_code = 404 if "not found" in detail_str else 400
         raise HTTPException(status_code=status_code, detail=str(e))
     except TypeError as e:
-        # Catches schema errors like missing 'metric_type'
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         logger.error(f"Error logging metric for {category}:{name}: {e}", exc_info=True)
@@ -797,7 +777,6 @@ async def remove_metric_entry_api(
             timestamp_iso=timestamp,
         )
         
-        # Serialize the entire updated entity for the response
         serialized_attributes = {
             k: tv.serialize() for k, tv in updated_entity.get_all_attributes_typed().items()
         }
@@ -809,7 +788,6 @@ async def remove_metric_entry_api(
         }
 
     except ValueError as e:
-        # Catches "Metric not found", "No entry found", and "Invalid timestamp" errors
         detail_str = str(e).lower()
         status_code = 404 if "not found" in detail_str else 400
         raise HTTPException(status_code=status_code, detail=str(e))
@@ -829,9 +807,8 @@ async def start_timer_api(
 ):
     try:
         updated_entity = entities_component.start_timer(category=category, name=name)
-        return updated_entity.serialize() # Assumes your entities have a serialize method
+        return updated_entity.serialize()
     except (ValueError, TypeError) as e:
-        # Handle errors like "timer not found" or "timer already running"
         detail = str(e).lower()
         status_code = 404 if "not found" in detail else 409 if "already running" in detail else 400
         raise HTTPException(status_code=status_code, detail=str(e))
@@ -882,7 +859,7 @@ async def reset_timer_api(
         raise HTTPException(status_code=500, detail="An internal server error occurred.")    
 
 @router.post(
-    "/api/actions/execute",  # A more generic path, since it could be from any entity type in the future
+    "/api/actions/execute",
     response_class=JSONResponse,
     summary="Execute a provided Hy s-expression (e.g., from a checklist action)",
 )
@@ -905,7 +882,6 @@ async def execute_action_api(
 
     try:
         context = {}
-        # If the frontend provides the parent routine, we can inject it into the context as 'self'
         if entity_identifier:
             try:
                 entity_type, category, name = entity_identifier.split(":", 2)
@@ -915,22 +891,18 @@ async def execute_action_api(
                     logger.debug(f"Injected parent entity '{entity_identifier}' into action context as 'self'.")
             except Exception as e:
                 logger.warning(f"Could not parse or find parent entity from identifier '{entity_identifier}': {e}")
-        
-        # Use the existing dynamic_resolution_service, which is accessed via the loader
         evaluation_service = entities_component._loader._dynamic_service
         
         resolved_value, _ = evaluation_service.evaluate(
             component_type="adhoc_action",
             component_label=entity_identifier or "ui_action",
             attribute="default_action",
-            expression=hy.read(action_code), # Read the string into a Hy model
+            expression=hy.read(action_code),
             context=context,
         )
         
-        # Try to serialize the result for a clean JSON response
-        from utms.utils import hy_to_python # Local import is fine here
         try:
-            api_result = hy_to_python(resolved_value)
+            api_result = converter.model_to_py(resolved_value, raw=True)
         except Exception:
             api_result = repr(resolved_value)
 
@@ -959,7 +931,6 @@ async def set_entity_step_status_api(
     This is entity-type agnostic.
     """
     try:
-        # This calls the new method we just created in EntityComponent
         updated_entity = entities_component.toggle_checklist_step(
             entity_type=entity_type, 
             category=category, 
@@ -967,16 +938,15 @@ async def set_entity_step_status_api(
             step_name=step_name, 
             new_status=payload.completed
         )
-        # Return the entire updated entity so the frontend can sync its state
         return updated_entity.serialize()
     except (ValueError, TypeError) as e:
         detail_str = str(e).lower()
         if "not found" in detail_str: 
             status_code = 404
         elif "not in progress" in detail_str or "no active occurrence" in detail_str: 
-            status_code = 409  # Conflict
+            status_code = 409
         else: 
-            status_code = 400  # Bad Request
+            status_code = 400
         raise HTTPException(status_code=status_code, detail=str(e))
     except Exception as e:
         logger.error(f"Error setting step status for {entity_type}:{name}: {e}", exc_info=True)

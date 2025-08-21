@@ -10,7 +10,6 @@ from utms.core.loaders.elements.config import ConfigLoader
 from utms.core.managers.elements.config import ConfigManager
 from utms.core.models import Config
 from utms.core.plugins import plugin_registry
-from utms.utils import hy_to_python
 from utms.utms_types import FieldType, HyNode, TypedValue, infer_type
 
 
