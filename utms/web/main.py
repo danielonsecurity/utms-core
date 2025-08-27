@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 
+import time
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +20,7 @@ from utms.web.api.routes import (
     calendar_routes,
 )
 from utms.web.dependencies import get_config
+
 
 
 @asynccontextmanager

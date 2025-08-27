@@ -14,7 +14,7 @@ from utms.core.managers.elements.unit import UnitManager
 from utms.core.models import Unit
 from utms.core.plugins import plugin_registry
 from utms.utms_types import HyNode
-
+from utms.utms_types.field.types import TypedValue
 
 class UnitComponent(SystemComponent):
     """Component managing units."""
@@ -24,90 +24,71 @@ class UnitComponent(SystemComponent):
         self._ast_manager = HyAST()
         self._unit_manager = UnitManager()
         self._loader = UnitLoader(self._unit_manager)
-        self._units_dir = os.path.join(self._config_dir, "units")
+        self._global_units_dir = os.path.join(self._config_dir, "global", "units")
+        config_component = self.get_component("config")
+        if not config_component.is_loaded(): config_component.load()
+        active_user_config = config_component.get_config("active-user")
+        self._user_units_dir = None
+        if active_user_config and (active_user := active_user_config.get_value()):
+            user_root = os.path.join(self._config_dir, "users", active_user)
+            self._user_units_dir = os.path.join(user_root, "units")
+        else:
+            self.logger.warning("No active user; only global units will be loaded.")
 
     def load(self) -> None:
-        """Load units from all Hy files in the units directory"""
+        """Load units from global and then user directories"""
         if self._loaded:
             return
 
-        # Create units directory if it doesn't exist
-        if not os.path.exists(self._units_dir):
-            os.makedirs(self._units_dir)
-
-        # Check if there are any files in the directory
-        unit_files = [f for f in os.listdir(self._units_dir) if f.endswith(".hy")]
-
-        # If no files in the units directory, check for the old units.hy file
-        old_units_file = Path(self._config_dir) / "units.hy"
-        if not unit_files and old_units_file.exists():
-            unit_files = [str(old_units_file)]
-            is_old_format = True
-        else:
-            is_old_format = False
-
-        if not unit_files:
-            self._loaded = True
-            return
-
-        try:
-            # Create context
-            context = LoaderContext(
-                config_dir=self._config_dir, variables=self._items  # Pass existing items if any
-            )
-
-            # Process all unit files
-            all_items = {}
-
-            for filename in unit_files:
-                file_path = (
-                    os.path.join(self._units_dir, filename) if not is_old_format else filename
-                )
-                self.logger.debug(f"Loading units from {file_path}")
-
+        def _process_dir(path, context):
+            if not (path and os.path.isdir(path)):
+                return
+            os.makedirs(path, exist_ok=True)
+            for filename in os.listdir(path):
+                if not filename.endswith(".hy"): continue
+                file_path = os.path.join(path, filename)
                 try:
-                    # Parse file into nodes
                     nodes = self._ast_manager.parse_file(str(file_path))
-
-                    # Process nodes using loader
-                    items = self._loader.process(nodes, context)
-
-                    # Add to all items
-                    all_items.update(items)
-
+                    self._items.update(self._loader.process(nodes, context))
                 except Exception as e:
                     self.logger.error(f"Error loading units from {file_path}: {e}")
-                    # Continue with other files even if one fails
 
-            self._items = all_items
+        self._unit_manager.clear()
 
-            # Update manager's items
-            self._unit_manager._items = self._items
+        self._items = self._unit_manager.get_all()
 
-            self._loaded = True
+        variables_component = self.get_component("variables")
+        variables = {}
+        if variables_component:
+            for name, var_model in variables_component.items():
+                if hasattr(var_model, 'value') and isinstance(var_model.value, TypedValue):
+                    py_value = var_model.value.value
+                    variables[name] = py_value
+                    if '-' in name:
+                        variables[name.replace('-', '_')] = py_value
+        context = LoaderContext(config_dir=self._config_dir, variables=variables)
 
-        except Exception as e:
-            self.logger.error(f"Error loading units: {e}")
-            raise
+        _process_dir(self._global_units_dir, context) 
+        _process_dir(self._user_units_dir, context)   
+
+        self._loaded = True
 
     def save(self) -> None:
         """Save units to appropriate files in the units directory"""
-        # Ensure units directory exists
-        if not os.path.exists(self._units_dir):
-            os.makedirs(self._units_dir)
+        if not self._user_units_dir:
+            self.logger.error("Cannot save units: No active user directory is configured.")
+            return
 
-        # Get the unit plugin
+        os.makedirs(self._user_units_dir, exist_ok=True)
+
         plugin = plugin_registry.get_node_plugin("def-unit")
         if not plugin:
             raise ValueError("Unit plugin not found")
 
-        # Group units by category
         units_by_category = {}
         for key, unit in self._items.items():
-            # Get category from unit or use default
             category = getattr(unit, "category", None)
             if not category:
-                # Try to determine category from groups
                 if unit.groups and "fixed" in unit.groups:
                     category = "fixed_units"
                 elif unit.groups and "calendar" in unit.groups:
@@ -119,25 +100,17 @@ class UnitComponent(SystemComponent):
                 units_by_category[category] = []
             units_by_category[category].append(unit)
 
-        # Save each category to its own file
         for category, units in units_by_category.items():
-            file_path = os.path.join(self._units_dir, f"{category}.hy")
-
-            # Create nodes for each unit of this category
+            file_path = os.path.join(self._user_units_dir, f"{category}.hy")
             nodes = []
             for unit in sorted(units, key=lambda u: u.name):
-                # Create expression parts
                 expr_parts = [hy.models.Symbol("def-unit"), hy.models.Symbol(unit.label)]
-
-                # Add properties
                 properties = [
                     hy.models.Expression([hy.models.Symbol("name"), hy.models.String(unit.name)]),
                     hy.models.Expression(
                         [hy.models.Symbol("value"), hy.models.Float(float(unit.value))]
                     ),
                 ]
-
-                # Add groups if they exist
                 if unit.groups:
                     properties.append(
                         hy.models.Expression(
@@ -147,17 +120,9 @@ class UnitComponent(SystemComponent):
                             ]
                         )
                     )
-
-                # Add properties to expression
                 expr_parts.extend(properties)
-
-                # Create the full expression
                 expr = hy.models.Expression(expr_parts)
-
-                # Use the plugin to parse the expression
                 nodes.append(plugin.parse(expr))
-
-            # Convert to Hy code and save
             content = self._ast_manager.to_hy(nodes)
             with open(file_path, "w") as f:
                 f.write(content)

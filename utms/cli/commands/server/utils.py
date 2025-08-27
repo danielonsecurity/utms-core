@@ -16,7 +16,7 @@ logger = get_logger()
 
 SERVICES: Dict[str, Dict[str, Any]] = {
     "api": {
-        "cmd": ["uvicorn", "utms.web.main:app", "--host", "127.0.0.1", "--port", "8000"],
+        "cmd": ["uvicorn", "utms.web.main:app", "--host", "0.0.0.0", "--port", "8000"],
         "cwd": str(PROJECT_ROOT),
         "log_file": "api.log",
     },

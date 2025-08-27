@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from utms.core.mixins import ServiceMixin
+from utms.core.components.base import ComponentManager
 
 
 class ResourceService(ServiceMixin):
@@ -24,13 +25,19 @@ class ResourceService(ServiceMixin):
         "variables.hy",
     ]
 
-    def __init__(self, config_dir: str):
-        self._config_dir = Path(config_dir)
+    def __init__(self, config_dir: str, component_manager: ComponentManager):
+        self._root_config_dir = Path(config_dir)
+        self._component_manager = component_manager
         self._resource_status: Dict[str, bool] = {}
+        config_component = self._component_manager.get("config")
+        active_user_config = config_component.get_config("active-user")
+        active_user = active_user_config.get_value()
+        self._user_config_dir = self._root_config_dir / "users" / active_user
+
 
     def init_resources(self, force: bool = False) -> None:
         """Initialize all default resources in the config directory."""
-        self.logger.debug("Initializing resources in %s", self._config_dir)
+        self.logger.debug("Initializing resources in %s", self._user_config_dir)
 
         for resource in self.DEFAULT_RESOURCES:
             self.deploy_resource(resource, force)
@@ -45,12 +52,10 @@ class ResourceService(ServiceMixin):
         Returns:
             bool: True if resource was deployed, False if already exists
         """
-        destination = self._config_dir / resource_name.rstrip("/")
+        destination = self._user_config_dir / resource_name.rstrip("/")
 
-        # Check if it's a directory (ends with /)
         is_directory = resource_name.endswith("/")
 
-        # If destination exists and we're not forcing, skip deployment
         if destination.exists() and not force:
             self.logger.debug("Resource %s already exists", resource_name)
             self._resource_status[resource_name] = True
@@ -61,11 +66,9 @@ class ResourceService(ServiceMixin):
             source = source_base / resource_name.rstrip("/")
 
             if is_directory:
-                # Handle directory deployment
                 if not destination.exists():
                     destination.mkdir(parents=True, exist_ok=True)
 
-                # Copy all files from the source directory to the destination
                 if source.exists() and source.is_dir():
                     for item in source.iterdir():
                         if item.is_file():
@@ -76,7 +79,6 @@ class ResourceService(ServiceMixin):
 
                 self.logger.info("Deployed directory %s to %s", resource_name, destination)
             else:
-                # Handle file deployment
                 shutil.copy(str(source), str(destination))
                 self.logger.info("Deployed file %s to %s", resource_name, destination)
 

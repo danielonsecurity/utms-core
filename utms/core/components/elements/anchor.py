@@ -10,7 +10,8 @@ from utms.core.loaders.elements.anchor import AnchorLoader
 from utms.core.managers.elements.anchor import AnchorManager
 from utms.core.models import Anchor, FormatSpec
 from utms.core.hy.converter import converter
-
+from utms.core.loaders.base import LoaderContext
+from utms.utms_types.field.types import TypedValue
 
 class AnchorComponent(SystemComponent):
     """Component managing anchors."""
@@ -20,60 +21,66 @@ class AnchorComponent(SystemComponent):
         self._ast_manager = HyAST()
         self._anchor_manager = AnchorManager()
         self._loader = AnchorLoader(self._anchor_manager)
-        self._anchors_dir = os.path.join(self._config_dir, "anchors")
+
+        self._global_anchors_dir = os.path.join(self._config_dir, "global", "anchors")
+        
+        config_component = self.get_component("config")
+        if not config_component.is_loaded(): config_component.load()
+        active_user_config = config_component.get_config("active-user")
+
+        self._user_anchors_dir = None
+        if active_user_config and (active_user := active_user_config.get_value()):
+            user_root = os.path.join(self._config_dir, "users", active_user)
+            self._user_anchors_dir = os.path.join(user_root, "anchors")
+        else:
+            self.logger.warning("No active user; only global anchors will be loaded.")
 
     def load(self) -> None:
-        """Load anchors from all Hy files in the anchors directory"""
+        """Load anchors from global and then user directories."""
         if self._loaded:
             return
-
-        if not os.path.exists(self._anchors_dir):
-            os.makedirs(self._anchors_dir)
-        try:
-            variables_component = self.get_component("variables")
-
-            variables = {}
-            if variables_component:
-                for name, var in variables_component.items():
-                    try:
-                        variables[name] = converter.model_to_py(var.value, raw=True)
-                        variables[name.replace("-", "_")] = converter.model_to_py(var.value, raw=True)
-                    except Exception as e:
-                        self.logger.error(f"Error converting variable {name}: {e}")
-                self.logger.debug(f"Available variables: {variables}")
-
-            context = LoaderContext(config_dir=self._config_dir, variables=variables)
-
-            all_items = {}
-
-            anchor_files = [f for f in os.listdir(self._anchors_dir) if f.endswith(".hy")]
-
-            if not anchor_files:
-                self._loaded = True
+            
+        def _process_dir(path, context):
+            if not (path and os.path.isdir(path)):
                 return
-
-            for filename in anchor_files:
-                file_path = os.path.join(self._anchors_dir, filename)
-                self.logger.debug(f"Loading anchors from {file_path}")
-
+            os.makedirs(path, exist_ok=True) 
+            for filename in os.listdir(path):
+                if not filename.endswith(".hy"): continue
+                file_path = os.path.join(path, filename)
                 try:
                     nodes = self._ast_manager.parse_file(file_path)
-                    items = self._loader.process(nodes, context)
-                    all_items.update(items)
+                    
+                    self._loader.process(nodes, context)
                 except Exception as e:
                     self.logger.error(f"Error loading anchors from {file_path}: {e}")
+        
+        self._anchor_manager.clear()
+        self._items = self._anchor_manager.get_all()
+        
 
-            self._items = all_items
-            self._loaded = True
+        variables_component = self.get_component("variables")
+        variables = {}
+        if variables_component:
+            for name, var_model in variables_component.items():
+                if hasattr(var_model, 'value') and isinstance(var_model.value, TypedValue):
+                    py_value = var_model.value.value
+                    variables[name] = py_value
+                    if '-' in name:
+                        variables[name.replace('-', '_')] = py_value
+        context = LoaderContext(config_dir=self._config_dir, variables=variables)
 
-        except Exception as e:
-            self.logger.error(f"Error loading anchors: {e}")
-            raise
+        _process_dir(self._global_anchors_dir, context)
+        _process_dir(self._user_anchors_dir, context)
+
+        self._loaded = True
 
     def save(self) -> None:
         """Save anchors to appropriate files in the anchors directory"""
-        if not os.path.exists(self._anchors_dir):
-            os.makedirs(self._anchors_dir)
+        if not self._user_anchors_dir:
+            self.logger.error("Cannot save anchors: No active user directory is configured.")
+            return
+
+        os.makedirs(self._user_anchors_dir, exist_ok=True)
 
         plugin = plugin_registry.get_node_plugin("def-anchor")
         if not plugin:
@@ -90,7 +97,7 @@ class AnchorComponent(SystemComponent):
             anchors_by_category[category].append(anchor)
 
         for category, anchors in anchors_by_category.items():
-            file_path = os.path.join(self._anchors_dir, f"{category}.hy")
+            file_path = os.path.join(self._user_anchors_dir, f"{category}.hy")
 
             lines = []
             for anchor in sorted(anchors, key=lambda a: a.name):

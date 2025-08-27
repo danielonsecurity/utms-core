@@ -65,7 +65,6 @@ class DynamicEntityPlugin(NodePlugin, LoggerMixin):
             return None
 
         entity_instance_name = str(expr[1])
-
         self.logger.debug(
             f"Parsing {self.node_type} instance: '{entity_instance_name}' "
             f"using schema for '{self._entity_type_str}'"

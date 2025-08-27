@@ -124,7 +124,7 @@ class DynamicResolutionService(ServiceMixin):
             expr_str = hy.repr(expression)
         except Exception:
             expr_str = str(expression)
-        self.logger.critical(
+        self.logger.info(
             f"\n"
             f"--- [AUDIT] DYNAMIC EVALUATION TRIGGERED ---\n"
             f"    WHAT: {expr_str}\n"

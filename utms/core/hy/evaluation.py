@@ -25,7 +25,7 @@ def evaluate_hy_file(hy_file_path: str) -> ExpressionList:
     logger.debug("Reading Hy file: %s", hy_file_path)
     expressions: HyLazy = hy.read_many(hy_code)
 
-    # Collect all expressions into a list
+    
     expressions_list: ExpressionList = []
     for expr in expressions:
         expressions_list.append(expr)
@@ -39,14 +39,14 @@ def evaluate_hy_expression(expr: HyExpression, locals_dict: LocalsDict = None) -
     if locals_dict is None:
         locals_dict = {}
 
-    # Add Python builtins
+    
     locals_dict["__builtins__"] = globals()["__builtins__"]
     logger.debug("Expression to evaluate: %s", expr)
     logger.debug("Expression type: %s", type(expr))
 
     if isinstance(expr, HyExpression) and len(expr) > 0 and isinstance(expr[0], HySymbol):
         if str(expr[0]) == ".":
-            # Direct dot operator expression
+            
             return handle_dot_operator(expr, locals_dict)
 
     try:
@@ -65,7 +65,7 @@ def handle_dot_operator(expr, locals_dict):
     if len(expr) < 3:
         raise ValueError("Invalid dot operator expression")
 
-    # Get the object
+    
     obj_name = str(expr[1])
     obj = locals_dict.get(obj_name)
     if obj is None:
@@ -74,11 +74,11 @@ def handle_dot_operator(expr, locals_dict):
     if obj is None:
         raise NameError(f"name '{obj_name}' is not defined")
 
-    # Get the method/attribute
+    
     method_name = str(expr[2])
     method = getattr(obj, method_name)
 
-    # If it's a method and there are arguments, call it
+    
     if callable(method) and len(expr) > 3:
         args = []
         for arg in expr[3:]:
@@ -97,13 +97,13 @@ def handle_dot_operator(expr, locals_dict):
 
 def handle_expression_with_dot(expr, locals_dict):
     """Handle expressions that contain dot operator subexpressions."""
-    # This is a recursive function to find and handle dot operators within an expression
+    
     if isinstance(expr, hy.models.Expression):
-        # If this is a dot operator, handle it directly
+        
         if len(expr) > 0 and isinstance(expr[0], hy.models.Symbol) and str(expr[0]) == ".":
             return handle_dot_operator(expr, locals_dict)
 
-        # Otherwise, process each element and rebuild the expression
+        
         processed_elements = []
         for element in expr:
             if isinstance(element, hy.models.Expression):
@@ -111,12 +111,12 @@ def handle_expression_with_dot(expr, locals_dict):
             else:
                 processed_elements.append(element)
 
-        # Try to evaluate the processed expression
+        
         try:
             return hy_eval(hy.models.Expression(processed_elements), locals_dict)
         except Exception as e:
             logger.error(f"Error evaluating processed expression: {e}")
-            # If we still can't evaluate it, return the processed elements
+            
             return processed_elements
 
     return expr

@@ -79,7 +79,7 @@ class TypedValue:
         self.referenced_entity_type = referenced_entity_type
         self.referenced_entity_category = referenced_entity_category
 
-        if self.field_type in (FieldType.CODE, FieldType.ACTION):
+        if self.is_dynamic or self.field_type in (FieldType.CODE, FieldType.ACTION):
             self._value = value
         else:
             py_value = converter.model_to_py(value)
@@ -103,7 +103,7 @@ class TypedValue:
         This method is the dedicated "Type Enforcer".
         """
         if self.is_dynamic:
-            return py_value # Dynamic values are not coerced until evaluation.
+            return py_value
 
         if py_value is None:
             return None

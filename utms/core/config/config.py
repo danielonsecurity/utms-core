@@ -55,7 +55,7 @@ class UTMSConfig(ConfigProtocol, LoggerMixin):
             self.config.load()
             self.variables.load()            
 
-            self._resource_manager = ResourceService(self._utms_dir)
+            self._resource_manager = ResourceService(self._utms_dir, self._component_manager)
             self._resource_manager.init_resources()
 
             if "loglevel" in self.config:

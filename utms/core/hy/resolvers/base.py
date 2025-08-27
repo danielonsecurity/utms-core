@@ -107,17 +107,26 @@ class HyResolver(ResolverMixin):
     def _resolve_value(
         self, expr: "HyValue", context: "Context" = None, local_names: "LocalsDict" = None
     ) -> "ResolvedValue":
-        """
-        Recursively resolves a HyValue to a Python native value or callable.
-        """
         from utms.utms_types import HySymbol, HyExpression, HyList, HyDict, HyKeyword
-        self.logger.debug(
-            f"HyResolver._resolve_value: expr='{expr}' (type: {type(expr)}), local_names_keys: {list(local_names.keys()) if local_names else 'None'}"
-        )
+        self.logger.debug(f"HyResolver._resolve_value: expr='{expr}' (type: {type(expr)})")
 
-        if isinstance(expr, HySymbol):
+        if isinstance(expr, hy.models.String):
+            return str(expr)
+        elif isinstance(expr, hy.models.Integer):
+            return int(expr)
+        elif isinstance(expr, hy.models.Float):
+            return float(expr)
+        elif isinstance(expr, hy.models.Bytes):
+            return bytes(expr)
+        elif isinstance(expr, hy.models.Keyword):
+            return str(expr)[1:] if str(expr).startswith(':') else str(expr)
+        elif isinstance(expr, hy.models.Symbol):
             return self._resolve_symbol(expr, context, local_names)
-        elif isinstance(expr, HyExpression):
+
+        if isinstance(expr, (str, int, float, bool, type(None), datetime, bytes, bytearray)):
+            return expr
+
+        if isinstance(expr, HyExpression):
             return self._resolve_expression(expr, context, local_names)
         elif isinstance(expr, HyList):
             return [self._resolve_value(item, context, local_names) for item in expr]
@@ -134,14 +143,9 @@ class HyResolver(ResolverMixin):
             except StopIteration:
                 pass
             return py_dict
-        elif isinstance(expr, (str, int, float, bool, type(None), datetime, bytes, bytearray)):
-            return expr
-        elif isinstance(
-            expr, (hy.models.String, hy.models.Integer, hy.models.Float, hy.models.Bytes)
-        ):
-            return expr
         elif isinstance(expr, HyKeyword):
-            return expr
+            return str(expr)[1:]
+
         self.logger.debug(
             f"HyResolver._resolve_value: Unhandled type {type(expr)}, returning as is: {expr}"
         )
@@ -265,7 +269,6 @@ class HyResolver(ResolverMixin):
                 "HyResolver._resolve_expression: Empty expression, returning empty list."
             )
             return []
-
         current_scope_locals = self.get_locals_dict(context, local_names)
 
         first_element_expr = expr[0]

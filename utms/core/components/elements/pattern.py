@@ -7,6 +7,7 @@ from utms.core.loaders.elements.pattern import PatternLoader
 from utms.core.managers.elements.pattern import PatternManager
 from utms.utms_types.recurrence.pattern import RecurrencePattern
 from utms.core.loaders.base import LoaderContext
+from utms.utms_types.field.types import TypedValue
 
 class PatternComponent(SystemComponent):
     """
@@ -16,67 +17,77 @@ class PatternComponent(SystemComponent):
 
     def __init__(self, config_dir: str, component_manager=None):
         super().__init__(config_dir, component_manager)
-        self._patterns_dir = os.path.join(self._config_dir, "patterns")
-        
         self._ast_manager = HyAST()
         self._pattern_manager = PatternManager()
         self._loader = PatternLoader(self._pattern_manager)
 
+        self._global_patterns_dir = os.path.join(self._config_dir, "global", "patterns")
+        
+        config_component = self.get_component("config")
+        if not config_component.is_loaded(): config_component.load()
+        active_user_config = config_component.get_config("active-user")
+
+        self._user_patterns_dir = None
+        if active_user_config and (active_user := active_user_config.get_value()):
+            user_root = os.path.join(self._config_dir, "users", active_user)
+            self._user_patterns_dir = os.path.join(user_root, "patterns")
+        else:
+            self.logger.warning("No active user; only global patterns will be loaded.")
+
     def load(self) -> None:
-        """
-        Load patterns by scanning all .hy files in the 'patterns' directory.
-        """
+        """Load patterns from global and user directories."""
         if self._loaded:
             return
-        self._items = {}
-        self._loaded = True
-        self.logger.debug(f"Component '{type(self).__name__}' is now live for loading.")
-
-        os.makedirs(self._patterns_dir, exist_ok=True)
         
-        all_loaded_patterns: Dict[str, RecurrencePattern] = {}
+        def _process_dir(path, context):
+            if not (path and os.path.isdir(path)):
+                return
+            os.makedirs(path, exist_ok=True)
+            for filename in os.listdir(path):
+                if not filename.endswith(".hy"): continue
+                filepath = os.path.join(path, filename)
+                try:
+                    nodes = self._ast_manager.parse_file(filepath)
+                    self._items.update(self._loader.process(nodes, context))
+                except Exception as e_file:
+                    self.logger.error(f"Error processing pattern file '{filepath}': {e_file}")
 
-        try:
-            # Get variables from variables component, same as EntityComponent.
-            units_component = self.get_component("units")
-            variables_component = self.get_component("variables")
-            variables = (
-                {name: var.value for name, var in variables_component.items()}
-                if variables_component
-                else {}
-            )
-            context = LoaderContext(config_dir=self._config_dir, variables=variables, dependencies={"units_provider": units_component})
+        self._pattern_manager.clear()
+        self._items = self._pattern_manager.get_all()
 
-            # Loop through all files in the patterns directory.
-            for filename in os.listdir(self._patterns_dir):
-                if filename.endswith(".hy"):
-                    filepath = os.path.join(self._patterns_dir, filename)
-                    self.logger.debug(f"Loading patterns from file: {filepath}")
-                    try:
-                        nodes = self._ast_manager.parse_file(filepath)
-                        patterns_from_file = self._loader.process(nodes, context)
-                        self._items.update(patterns_from_file)
-                        all_loaded_patterns.update(patterns_from_file)
-                        self.logger.info(f"Loaded {len(patterns_from_file)} patterns from {filename}.")
-                    except Exception as e_file:
-                        self.logger.error(f"Error processing pattern file '{filepath}': {e_file}", exc_info=True)
+        variables_component = self.get_component("variables")
+        variables = {}
+        if variables_component:
+            for name, var_model in variables_component.items():
+                if hasattr(var_model, 'value') and isinstance(var_model.value, TypedValue):
+                    py_value = var_model.value.value
+                    variables[name] = py_value
+                    if '-' in name:
+                        variables[name.replace('-', '_')] = py_value
+        units_component = self.get_component("units")
+        context = LoaderContext(
+            config_dir=self._config_dir, 
+            variables=variables, 
+            dependencies={"units_provider": units_component}
+        )
 
-            self.logger.info(f"PatternComponent loading complete. Total patterns loaded: {len(self._items)}")
+        _process_dir(self._global_patterns_dir, context) 
+        _process_dir(self._user_patterns_dir, context)   
 
-        except Exception as e:
-            self.logger.error(f"Fatal error during PatternComponent load: {e}", exc_info=True)
-            self._loaded = False
-            raise
+        self._loaded = True
 
     def save(self) -> None:
         """
         Save all in-memory patterns to a canonical 'default.hy' file
         inside the 'patterns' directory.
         """
-        # For simplicity and robustness, we save all patterns to a single file.
-        # This prevents issues with deleting patterns from files they weren't originally in.
-        os.makedirs(self._patterns_dir, exist_ok=True)
-        output_file = os.path.join(self._patterns_dir, "default.hy")
+        if not self._user_patterns_dir:
+            self.logger.error("Cannot save anchors: No active user directory is configured.")
+            return
+
+        os.makedirs(self._user_patterns_dir, exist_ok=True)
+
+        output_file = os.path.join(self._user_patterns_dir, "default.hy")
         
         nodes = [pattern.to_hy() for pattern in self._items.values()]
         
@@ -87,8 +98,6 @@ class PatternComponent(SystemComponent):
         except Exception as e:
             self.logger.error(f"Failed to save patterns to '{output_file}': {e}", exc_info=True)
 
-
-    # --- The rest of the public interface remains the same ---
 
     def get_pattern(self, name: str) -> Optional[RecurrencePattern]:
         """Get a pattern by name"""

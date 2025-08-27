@@ -22,41 +22,62 @@ class ConfigComponent(SystemComponent):
         self._config_manager = ConfigManager()
         self._loader = ConfigLoader(self._config_manager)
 
+    def _load_and_process_file(self, config_file_path: str) -> None:
+        """
+        Parses a single config file and loads its contents into the manager.
+        """
+        if os.path.exists(config_file_path):
+            self.logger.debug(f"Loading configuration from: {config_file_path}")
+            try:
+                nodes = self._ast_manager.parse_file(config_file_path)
+                context = LoaderContext(config_dir=self._config_dir)
+                self._loader.process(nodes, context)
+            except Exception as e:
+                self.logger.error(f"Error loading config file {config_file_path}: {e}")
+        else:
+            self.logger.debug(f"Configuration file not found, skipping: {config_file_path}")
+
     def load(self) -> None:
         """Load configuration from config.hy"""
         if self._loaded:
             return
 
-        config_file = os.path.join(self._config_dir, "config.hy")
-        if os.path.exists(config_file):
-            try:
-                nodes = self._ast_manager.parse_file(config_file)
+        global_config_file = os.path.join(self._config_dir, "global", "config.hy")
+        self._load_and_process_file(global_config_file)
 
-                # Create context with variables
-                context = LoaderContext(config_dir=self._config_dir)
+        active_user_config = self.get_config("active-user")
 
-                # Process nodes using loader
-                self._items = self._loader.process(nodes, context)
+        user_config_file = None
+        if active_user_config:
+            active_user = active_user_config.get_value()
+            if active_user:
+                self.logger.info(f"Found active user '{active_user}', loading their config.")
+                user_config_file = os.path.join(self._config_dir, "users", active_user, "config.hy")
+        
+        self._load_and_process_file(user_config_file)
+        self._loaded = True
 
-                self._loaded = True
-
-            except Exception as e:
-                self.logger.error(f"Error loading config: {e}")
-                raise
 
     def save(self) -> None:
-        """Save configuration to config.hy"""
-        config_file = os.path.join(self._config_dir, "config.hy")
+        active_user_config = self.get_config("active-user")
+        
+        if not active_user_config:
+            self.logger.error("Cannot save config: `active-user` is not defined. Aborting save.")
+            return
 
-        # Get the config plugin
+        active_user = active_user_config.get_value()
+        user_config_dir = os.path.join(self._config_dir, "users", active_user)
+        
+        os.makedirs(user_config_dir, exist_ok=True)
+        
+        config_file = os.path.join(user_config_dir, "config.hy")
+        self.logger.info(f"Saving configuration to user file: {config_file}")
         plugin = plugin_registry.get_node_plugin("custom-set-config")
         if not plugin:
             raise ValueError("Config plugin not found")
 
-        # Create a node representing the entire config
         config_node = self._create_config_node()
 
-        # Convert to Hy code and save
         content = "\n".join(plugin.format(config_node))
         with open(config_file, "w") as f:
             f.write(content + "\n")
@@ -66,19 +87,14 @@ class ConfigComponent(SystemComponent):
         Create a HyNode representing the entire configuration
         using the registered config plugin
         """
-        # Get the config plugin
         plugin = plugin_registry.get_node_plugin("custom-set-config")
         config_entries = []
         for key, config in self._config_manager.get_all().items():
-            # Check if the value is dynamic
             if config.value.is_dynamic and config.value.original:
-                # For dynamic configs, use the original expression
                 value = hy.read(config.value.original)
             else:
-                # For static configs, use the value
                 value = config.value.value
 
-            # Add type information as third element if it's not the default type
             if config.value.field_type != infer_type(config.value.value):
                 config_entries.append([key, value, config.value.field_type.value])
             else:
@@ -89,10 +105,8 @@ class ConfigComponent(SystemComponent):
 
     def create_config(self, key: str, value: Any) -> Config:
         """Create a new config entry."""
-        # Let the manager handle TypedValue conversion
         config = self._config_manager.create(key=key, value=value)
 
-        # Save immediately to persist the change
         self.save()
 
         return config
@@ -108,7 +122,6 @@ class ConfigComponent(SystemComponent):
     def remove_config(self, key: str) -> None:
         """Remove a config by key."""
         self._config_manager.remove(key)
-        # Save immediately to persist the change
         self.save()
 
     def update_config(self, key: str, value: Any):
@@ -117,7 +130,6 @@ class ConfigComponent(SystemComponent):
         if not config:
             raise ValueError(f"Config key {key} not found")
 
-        # Create a new TypedValue if needed, preserving type
         if not isinstance(value, TypedValue):
             field_type = config.value.field_type
             is_dynamic = config.value.is_dynamic
@@ -129,10 +141,8 @@ class ConfigComponent(SystemComponent):
         else:
             typed_value = value
 
-        # Create a new config with the updated value
         self._config_manager.create(key=key, value=typed_value)
 
-        # Save the updated configuration
         self.save()
 
     def set_dynamic_field(self, key: str, field_name: str, value: Any, original: str):
@@ -144,18 +154,14 @@ class ConfigComponent(SystemComponent):
         if not config:
             raise ValueError(f"Config key {key} not found")
 
-        # Determine field type from existing config
         field_type = config.value.field_type
 
-        # Create a TypedValue with dynamic properties
         typed_value = TypedValue(
             value=value, field_type=field_type, is_dynamic=True, original=original
         )
 
-        # Create a new config with the dynamic value
         self._config_manager.create(key=key, value=typed_value)
 
-        # Save the updated configuration
         self.save()
 
     def rename_config_key(self, old_key: str, new_key: str):
@@ -164,13 +170,10 @@ class ConfigComponent(SystemComponent):
         if not config:
             raise ValueError(f"Config key {old_key} not found")
 
-        # Create new config with same properties
         self._config_manager.create(
             key=new_key, value=config.value, dynamic_fields=config.dynamic_fields
         )
 
-        # Remove old config
         self._config_manager.remove(old_key)
 
-        # Save the updated configuration
         self.save()

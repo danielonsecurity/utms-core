@@ -69,13 +69,7 @@ class VariableLoader(ComponentLoader[Variable, VariableManager]):
         )
 
         evaluation_context_for_resolver = properties["evaluation_context_for_resolver"]
-
-        expression_to_evaluate = None
-        if initial_typed_value_from_plugin.is_dynamic and initial_typed_value_from_plugin.original:
-            expression_to_evaluate = converter.string_to_model(initial_typed_value_from_plugin.original)
-        else:
-            expression_to_evaluate = initial_typed_value_from_plugin.value
-
+        expression_to_evaluate = initial_typed_value_from_plugin.value
         resolved_val_raw, dynamic_info_from_eval = self._dynamic_service.evaluate(
             component_type="variable_load",
             component_label=key,

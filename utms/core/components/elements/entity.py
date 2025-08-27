@@ -22,8 +22,9 @@ from utms.core.hy.converter import converter
 from utms.utils import list_to_dict, sanitize_filename
 from utms.utms_types import HyNode
 from utms.utms_types.field.types import FieldType, TypedValue, infer_type
-
+from utms.utils import get_ntp_date
 from dataclasses import dataclass
+from utms.core.hy.converter import py_list_to_hy_expression
 
 @dataclass
 class CachedEntityData:
@@ -43,10 +44,18 @@ class EntityComponent(SystemComponent):
         self._entity_manager = EntityManager()
         self._loader = EntityLoader(self._entity_manager, component=self)
 
-        self._entity_schema_def_dir = os.path.join(self._config_dir, "entities")
-        self._complex_type_def_dir = os.path.join(self._config_dir, "types")
+        config_component = self.get_component("config")
+        if not config_component.is_loaded():
+            config_component.load()
 
-        self._entity_type_instances_base_dir = self._config_dir
+        active_user = config_component.get_config("active-user")
+        user_specific_dir = os.path.join(self._config_dir, "users", active_user.get_value())
+        self.logger.info(f"EntityComponent is now operating in user-specific directory: {user_specific_dir}")
+
+        self._entity_schema_def_dir = os.path.join(user_specific_dir, "entities")
+        self._complex_type_def_dir = os.path.join(user_specific_dir, "types")
+
+        self._entity_type_instances_base_dir = user_specific_dir
 
         self.entity_types: Dict[str, Dict[str, Any]] = {}
         self.complex_types: Dict[str, Dict[str, Any]] = {}
@@ -266,30 +275,24 @@ class EntityComponent(SystemComponent):
             for attr_name_from_file, attr_schema_hy_obj in raw_hy_attr_schemas.items():
                 canonical_name = str(attr_name_from_file).replace('_', '-')
                 if canonical_name in canonical_hy_attr_schemas:
-                    self.logger.warning(
-                        f"Duplicate attribute definition after normalization for '{attr_name_from_file}' "
-                        f"(becomes '{canonical_name}') in entity '{entity_type_key}'. Overwriting."
-                    )
+                    self.logger.warning(f"Duplicate attribute definition after normalization for '{attr_name_from_file}' ...")
                 canonical_hy_attr_schemas[canonical_name] = attr_schema_hy_obj
 
             processed_py_attr_schemas: Dict[str, Dict[str, Any]] = {}
             for attr_name_str, attr_schema_hy_dict in canonical_hy_attr_schemas.items():
                 if not isinstance(attr_schema_hy_dict, hy.models.Dict):
-                    self.logger.warning(f"Schema for attribute '{attr_name_str}' of entity type '{entity_type_key}' is not a valid HyDict. Skipping.")
+                    self.logger.warning(f"Schema for attribute '{attr_name_str}' ... is not a valid HyDict. Skipping.")
                     continue
                 try:
                     py_list = converter.model_to_py(attr_schema_hy_dict, raw=True)
                     py_dict = list_to_dict(py_list)
                     processed_py_attr_schemas[attr_name_str] = py_dict
                 except Exception as e_conv:
-                    self.logger.error(
-                        f"Error converting schema for attribute '{attr_name_str}' of entity type '{entity_type_key}' from '{source_file}': {e_conv}",
-                        exc_info=True,
-                    )
+                    self.logger.error(f"Error converting schema for attribute '{attr_name_str}' ...: {e_conv}", exc_info=True)
 
             self.entity_types[entity_type_key] = {
                 "name": display_name,
-                "attributes_schema": canonical_hy_attr_schemas,
+                "attributes_schema": processed_py_attr_schemas,
                 "source_file": source_file,
             }
             self.logger.info(
@@ -743,25 +746,28 @@ class EntityComponent(SystemComponent):
         if not entity_type_key:
             raise ValueError("Entity type cannot be empty.")
 
-        sanitized_attributes_raw = {}
-        if attributes_raw:
-            for k, v in attributes_raw.items():
-                sanitized_attributes_raw[str(k).lstrip(':')] = v 
-
         schema = self.get_sanitized_entity_schema(entity_type_key) or {}
-        final_typed_attributes: Dict[str, TypedValue] = {}
         raw_attributes_to_process = attributes_raw or {}
-        variables_for_eval_context = {}
-        variables_component = self.get_component("variables")
-        if variables_component:
-            for var_name_ctx, var_model_ctx in variables_component.items():
-                val_to_add = getattr(
-                    var_model_ctx.value, "value", getattr(var_model_ctx, "value", None)
-                )
-                if val_to_add is not None:
-                    variables_for_eval_context[var_name_ctx] = val_to_add
-                    variables_for_eval_context[var_name_ctx.replace("-", "_")] = val_to_add
 
+        for attr_name, attr_schema in schema.items():
+            if attr_name not in raw_attributes_to_process:
+                if "default_value" in attr_schema:
+                    default_value = attr_schema.get("default_value")
+                    if isinstance(default_value, hy.models.Symbol) and str(default_value) == "None":
+                        raw_attributes_to_process[attr_name] = None
+                        self.logger.info(
+                            f"Enforcing schema for '{name}': Attribute '{attr_name}' was missing, applying default value: None (Python object)"
+                        )
+                    else:
+                        raw_attributes_to_process[attr_name] = default_value
+                        self.logger.info(
+                            f"Enforcing schema for '{name}': Attribute '{attr_name}' was missing, applying default value: {default_value}"
+                        )
+                    self.logger.info(
+                        f"Schema applied for '{name}': Attribute '{attr_name}' was missing, applying default value: {default_value}"
+                    )
+
+        final_typed_attributes: Dict[str, TypedValue] = {}
         for attr_name, raw_value_from_api in raw_attributes_to_process.items():
             attr_schema_details = schema.get(attr_name, {})
             declared_type_str = attr_schema_details.get("type")
@@ -773,7 +779,6 @@ class EntityComponent(SystemComponent):
             item_type_str = attr_schema_details.get("item_type")
             item_type_enum = FieldType.from_string(item_type_str) if item_type_str else None
             enum_choices = attr_schema_details.get("enum_choices", [])
-
             item_schema_type_from_schema = attr_schema_details.get("item_schema_type")
             ref_entity_type_from_schema = attr_schema_details.get("referenced_entity_type")
             ref_entity_cat_from_schema = attr_schema_details.get("referenced_entity_category")
@@ -781,8 +786,6 @@ class EntityComponent(SystemComponent):
             is_dynamic_attr_flag = False
             original_expr_str = None
             value_for_tv_constructor = raw_value_from_api
-            is_dynamic_attr_flag = False
-            original_expr_str = None
 
             if isinstance(raw_value_from_api, str) and raw_value_from_api.strip().startswith("("):
                 is_dynamic_attr_flag = True
@@ -802,22 +805,15 @@ class EntityComponent(SystemComponent):
                 referenced_entity_category=ref_entity_cat_from_schema,
             )
 
-            for attr_name_check, tv_check in final_typed_attributes.items():
-                attr_schema_detail = schema.get(attr_name_check, {})
-                if attr_schema_detail.get("required"):  
-                    val_to_check = tv_check.value
-                    is_empty = False
-                    if val_to_check is None:
-                        is_empty = True
-                    elif isinstance(val_to_check, str) and not val_to_check.strip():
-                        is_empty = True
-                    elif isinstance(val_to_check, list) and not val_to_check:  
-                        is_empty = True
 
-                    if is_empty:
-                        error_msg = f"Attribute '{attr_name_check}' is required for entity type '{entity_type_key}' but was empty or not provided."
-                        self.logger.warning(error_msg)
-                        raise ValueError(error_msg)
+        for attr_name_check, attr_schema_detail in schema.items():
+            is_required = attr_schema_detail.get("required") == True or str(attr_schema_detail.get("required")).lower() == "true"
+            has_default = "default_value" in attr_schema_detail
+
+            if is_required and not has_default and attr_name_check not in final_typed_attributes:
+                error_msg = f"Attribute '{attr_name_check}' is required for entity type '{entity_type_key}' but was not provided and has no default."
+                self.logger.warning(error_msg)
+                raise ValueError(error_msg)
 
         entity_instance = self._entity_manager.create(
             name=name,
@@ -852,14 +848,14 @@ class EntityComponent(SystemComponent):
         elif declared_type_str:
             field_type_for_new_tv = FieldType.from_string(declared_type_str)
         else:
-            field_type_for_new_tv = infer_type(new_raw_value)
+            field_type_for_new_tv = infer_type(new_raw_value_from_api)
 
         item_type_str = attr_schema_details.get("item_type")
         item_type_enum = FieldType.from_string(item_type_str) if item_type_str else None
         item_schema_type_from_schema = attr_schema_details.get("item_schema_type")
         enum_choices = attr_schema_details.get("enum_choices", [])
         
-        value_to_store = new_raw_value
+        value_to_store = new_raw_value_from_api
         final_original_expr = new_original_expression if is_new_value_dynamic else None
         
         updated_typed_value = TypedValue(
@@ -1123,7 +1119,7 @@ class EntityComponent(SystemComponent):
             
             if checklist_tv and isinstance(checklist_tv.value, list):
                 updated_checklist_items = []
-                for item in checklist_tv.value:
+                for i, item in enumerate(checklist_tv.value):
                     py_dict = {}
                     if isinstance(item, list):
                         py_dict = list_to_dict(item)
@@ -1133,7 +1129,7 @@ class EntityComponent(SystemComponent):
                     else:
                         continue 
                     py_dict['completed'] = False
-                    
+                    rebuilt_model = converter.py_to_model(py_dict)
                     updated_checklist_items.append(converter.py_to_model(py_dict))
 
                 checklist_tv.value = updated_checklist_items
@@ -1308,62 +1304,51 @@ class EntityComponent(SystemComponent):
         entity = self.get_entity(entity_type, category, name)
         if not entity: raise ValueError(f"Entity '{entity_type}:{category}:{name}' not found.")
         if not entity.get_attribute_value("active_occurrence_start_time"): raise ValueError(f"Entity '{name}' does not have an active occurrence.")
-        
+
         checklist_tv = entity.get_attribute_typed("checklist")
         if not checklist_tv or not isinstance(checklist_tv.value, list): raise TypeError(f"Entity '{name}' does not have a valid 'checklist' attribute.")
 
         mutable_checklist = checklist_tv.value
-        updated_checklist_items = []
         item_found = False
         action_to_run = None
-        
-        for item in mutable_checklist:
-            py_dict = {}
-            if isinstance(item, list):
-                py_dict = list_to_dict(item)
-            elif isinstance(item, (hy.models.Dict, hy.models.Expression)):
-                item_as_plist = converter.model_to_py(item, raw=True)
-                py_dict = list_to_dict(item_as_plist)
-            else:
-                updated_checklist_items.append(item)
-                continue
 
-            if py_dict.get("name") == step_name:
-                py_dict['completed'] = new_status
+        for item_dict in mutable_checklist:
+            if isinstance(item_dict, dict) and item_dict.get("name") == step_name:
+                item_dict['completed'] = new_status
                 item_found = True
                 self.logger.info(f"Updated step '{step_name}' in memory for '{entity.get_identifier()}' to completed={new_status}.")
-                
-                if new_status:
-                    action_as_list = py_dict.get("default_action")
-                    if isinstance(action_as_list, list) and len(action_as_list) > 0:
-                        action_to_run = converter.py_to_model(action_as_list)
 
-            updated_checklist_items.append(converter.py_to_model(py_dict))
+                if new_status and "default_action" in item_dict:
+                    action_as_list = item_dict.get("default_action")
+
+                    if isinstance(action_as_list, list):
+                        try:
+                            action_to_run = py_list_to_hy_expression(action_as_list)
+                        except Exception as e:
+                            self.logger.error(f"Could not convert default_action list to expression: {e}")
+                break
 
         if not item_found:
             raise ValueError(f"Step '{step_name}' not found in the checklist for entity '{name}'.")
 
-        checklist_tv.value = updated_checklist_items
         self._save_entities_in_category(entity.entity_type, entity.category)
 
         if action_to_run:
             self.logger.info(f"Executing action for completing step '{step_name}': {hy.repr(action_to_run)}")
             try:
                 self._loader._dynamic_service.evaluate(
-                    expression=action_to_run, context={"self": entity},
+                    expression=action_to_run, 
+                    context={"self": entity},
                     component_type="checklist_action",
                     component_label=f"{entity.get_identifier()}:{step_name}",
                     attribute="default_action"
                 )
             except Exception as e:
                 self.logger.error(f"Action for step '{step_name}' failed: {e}. Reverting completed status.")
-                reverted_items = []
-                for item_hy_dict in updated_checklist_items:
-                    item_py_dict = list_to_dict(converter.model_to_py(item_hy_dict), raw=True)
-                    if item_py_dict.get("name") == step_name:
-                        item_py_dict['completed'] = False
-                    reverted_items.append(converter.py_to_model(item_py_dict))
-                checklist_tv.value = reverted_items
+                for item_dict in mutable_checklist:
+                    if item_dict.get("name") == step_name:
+                        item_dict['completed'] = not new_status
+                        break
                 self._save_entities_in_category(entity.entity_type, entity.category)
                 raise e
 
@@ -1465,17 +1450,26 @@ class EntityComponent(SystemComponent):
             )
              metric_entity.set_attribute_typed("entries", entries_tv)
 
-        current_list = entries_tv.value if isinstance(entries_tv.value, list) else []
-        new_list = current_list + [new_entry]
-        
+        raw_current_list = entries_tv.value if isinstance(entries_tv.value, list) else []
+        sanitized_current_list = []
+        for item in raw_current_list:
+            if isinstance(item, dict):
+                pure_py_dict = { str(k).lstrip(':'): v for k, v in item.items() }
+                sanitized_current_list.append(pure_py_dict)
+        entry_timestamp = timestamp if timestamp else get_ntp_date()
+
+        new_entry = {
+            "timestamp": entry_timestamp,
+            "value": value,
+            "notes": notes or "",
+        }
+
+        new_list = sanitized_current_list + [new_entry]
         entries_tv.value = new_list
         entries_tv.original = converter.py_to_string(new_list)
-
         self.logger.info(f"Logged new entry for metric '{name}': {new_entry}")
-
         self._save_entities_in_category(metric_entity.entity_type, metric_entity.category)
-
-        return metric_entity            
+        return metric_entity
 
     def remove_metric_entry(self, category: str, name: str, timestamp_iso: str) -> Entity:
         """

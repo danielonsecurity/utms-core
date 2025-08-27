@@ -25,7 +25,16 @@ class DailyLogComponent(SystemComponent):
     def __init__(self, config_dir: str, component_manager=None):
         super().__init__(config_dir, component_manager)
         self._ast_manager = HyAST()
-        self._log_dir = os.path.join(self._config_dir, "daily_logs")
+        config_component = self.get_component("config")
+        if not config_component.is_loaded(): config_component.load()
+        active_user_config = config_component.get_config("active-user")
+
+        self._log_dir = None
+        if active_user_config and (active_user := active_user_config.get_value()):
+            user_root = os.path.join(self._config_dir, "users", active_user)
+            self._log_dir = os.path.join(user_root, "daily_logs")
+        else:
+            self.logger.error("DailyLogComponent cannot operate without an active user.")
         self._loader = LogEntryLoader(LogEntryManager())
         self._resolver = VariableResolver()
         self._dynamic_service = DynamicResolutionService(resolver=self._resolver)

@@ -91,6 +91,7 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
             parsed_entity_definitions[definition_processing_key] = entity_props
         return parsed_entity_definitions
 
+
     def create_object(self, definition_processing_key: str, properties: Dict[str, Any]) -> Entity:
         entity_instance_name = properties["name"]
         entity_type_name_str = properties["entity_type_str"]
@@ -173,17 +174,32 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
 
             elif initial_typed_value.is_dynamic:
                 self.logger.debug(f"  Evaluating dynamic attribute '{attr_name}': {original_str}")
-                resolved_python_value, _ = self._dynamic_service.evaluate(
-                    expression=initial_typed_value.value,
-                    context={"self": self_object_for_eval, **global_variables_for_evaluation},
-                    component_type="entity_attribute",
-                    component_label=definition_processing_key,
-                    attribute=attr_name
-                )
-                final_tv_props = initial_typed_value.serialize()
-                final_tv_props['value'] = resolved_python_value
-                final_attributes_for_model[attr_name] = TypedValue.deserialize(final_tv_props)
-
+                try:
+                    resolved_hybrid_value, _ = self._dynamic_service.evaluate(
+                        expression=initial_typed_value.value,
+                        context={"self": self_object_for_eval, **global_variables_for_evaluation},
+                        component_type="entity_attribute",
+                        component_label=definition_processing_key,
+                        attribute=attr_name
+                    )
+                    if attr_name == 'checklist':
+                        resolved_python_value = converter.model_to_py_preserving_quoted_expressions(resolved_hybrid_value)
+                    else:
+                        resolved_python_value = converter.model_to_py(resolved_hybrid_value)
+                    final_tv_props = initial_typed_value.serialize()
+                    final_tv_props['value'] = resolved_python_value
+                    final_attributes_for_model[attr_name] = TypedValue.deserialize(final_tv_props)
+                except Exception as e:
+                    self.logger.error(
+                        f"Failed to dynamically evaluate attribute '{attr_name}' for entity '{definition_processing_key}'. "
+                        f"Original expression: '{initial_typed_value.original}'. Error: {e}"
+                    )
+                    final_attributes_for_model[attr_name] = TypedValue(
+                        value=None,
+                        field_type=initial_typed_value.field_type,
+                        is_dynamic=False,
+                        original=f"EVALUATION_ERROR: {initial_typed_value.original}"
+                    )
             else:
                 final_attributes_for_model[attr_name] = initial_typed_value
 
@@ -284,14 +300,12 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
         )
 
         if existing_entity:
-            # If it exists, update its attributes instead of crashing.
             self.logger.debug(f"Entity '{definition_processing_key}' exists, updating attributes.")
             for attr_name, typed_value in final_attributes_for_model.items():
                 existing_entity.set_attribute_typed(attr_name, typed_value)
             existing_entity.source_file = source_filepath
             return existing_entity
         else:
-            # If it does not exist, create it as before.
             self.logger.debug(f"Entity '{definition_processing_key}' not found, creating new.")
             return self._manager.create(
                 name=entity_instance_name,

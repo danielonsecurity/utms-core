@@ -284,18 +284,14 @@ class EntityResolver(HyResolver):
                 self.logger.error(f"Stderr: {e.stderr.strip()}")
                 raise e
 
-    def _hy_execute_on(self, target_executor_id: str, command_string: str):
-        """
-        Implementation for (execute-on "executor-id" "command-string")
-        This is called AFTER both arguments have been resolved to Python strings.
-        """
-        self.logger.info(f"Executing remote command on '{target_executor_id}': {command_string}")
-
+    def _hy_execute_on(self, target_executor_id: str, command_string: str, blocking: bool = True):
+        self.logger.info(f"Executing remote command on '{target_executor_id}': {command_string} (Blocking: {blocking})")
         if not isinstance(target_executor_id, str) or not isinstance(command_string, str):
             raise TypeError("(execute-on) requires two string arguments.")
             
         command_payload = {
-            "command": command_string
+            "command": command_string,
+            "blocking": blocking
         }
         topic = f"utms/command/{target_executor_id}/shell"
         try:

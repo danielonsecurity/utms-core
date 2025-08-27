@@ -86,23 +86,17 @@ async def get_pattern_occurrences(
     Calculates all occurrences of all patterns within a given time window.
     This endpoint is timezone-aware, using the 'default-timezone' from config.hy.
     """
-    # --- TIMEZONE LOGIC ---
     try:
         config_component = utms_config.config
         tz_str = config_component.get_config("default-timezone").value.value
         local_tz = pytz.timezone(tz_str)
     except (AttributeError, pytz.UnknownTimeZoneError):
-        # Fallback to UTC if config is missing or invalid to prevent crashes
         local_tz = pytz.utc
-    
-    # The incoming start/end times from FullCalendar already have timezone info.
-    # We convert them to UTC to establish a consistent baseline for calculations.
     start_utc = start.astimezone(pytz.utc)
     end_utc = end.astimezone(pytz.utc)
     
     start_ts = DecimalTimeStamp(start_utc)
     end_ts = DecimalTimeStamp(end_utc)
-    # --- END TIMEZONE LOGIC ---
 
     pattern_component = utms_config.patterns
     all_patterns = pattern_component.get_all_patterns().values()
@@ -111,8 +105,6 @@ async def get_pattern_occurrences(
     for pattern in all_patterns:
         try:
             current_ts = pattern.next_occurrence(from_time=start_ts - 86400, local_tz=local_tz)
-            
-            # Safety loop to prevent infinite recursion on malformed patterns
             for _ in range(1000): 
                 start_datetime = current_ts.to_gregorian()
 
@@ -123,7 +115,6 @@ async def get_pattern_occurrences(
                         extendedProps={"patternLabel": pattern.label}
                     ))
                 
-                # Find the next occurrence
                 current_ts = pattern.next_occurrence(from_time=current_ts, local_tz=local_tz)
         except Exception as e:
             print(f"DEBUG: Caught exception for pattern '{pattern.label}'")

@@ -23,40 +23,57 @@ class VariableComponent(SystemComponent):
         self._variable_manager = VariableManager()
         self._loader = VariableLoader(self._variable_manager)
 
+    def _load_and_process_file(self, variables_file_path: str):
+        """Parses a single variables.hy file and loads its contents."""
+        if os.path.exists(variables_file_path):
+            self.logger.debug(f"Loading variables from: {variables_file_path}")
+            try:
+                nodes = self._ast_manager.parse_file(variables_file_path)
+                context = LoaderContext(config_dir=self._config_dir)
+                self._items.update(self._loader.process(nodes, context))
+            except Exception as e:
+                self.logger.error(f"Error loading variables file {variables_file_path}: {e}")
+
+
     def load(self) -> None:
         """Load variables from variables.hy"""
         if self._loaded:
             return
 
-        variables_file = os.path.join(self._config_dir, "variables.hy")
-        if os.path.exists(variables_file):
-            try:
-                nodes = self._ast_manager.parse_file(variables_file)
+        global_variables_file = os.path.join(self._config_dir, "global", "variables.hy")
+        self._load_and_process_file(global_variables_file)
 
-                # Create context with variables
-                context = LoaderContext(config_dir=self._config_dir)
+        config_component = self.get_component("config")
+        if not config_component.is_loaded(): config_component.load()
+        active_user_config = config_component.get_config("active-user")
 
-                # Process nodes using loader
-                self._items = self._loader.process(nodes, context)
+        if active_user_config and (active_user := active_user_config.get_value()):
+            user_variables_file = os.path.join(self._config_dir, "users", active_user, "variables.hy")
+            self._load_and_process_file(user_variables_file)
 
-                self._loaded = True
-
-            except Exception as e:
-                self.logger.error(f"Error loading variables: {e}")
-                raise
+        self._loaded = True
 
     def save(self) -> None:
         """Save variables to variables.hy"""
-        variables_file = os.path.join(self._config_dir, "variables.hy")
+        config_component = self.get_component("config")
+        if not config_component.is_loaded(): config_component.load()
+        active_user_config = config_component.get_config("active-user")
 
-        # Get the variable plugin
+        if not (active_user_config and (active_user := active_user_config.get_value())):
+            self.logger.error("Cannot save variables: `active-user` is not defined.")
+            return
+
+        user_specific_dir = os.path.join(self._config_dir, "users", active_user)
+        os.makedirs(user_specific_dir, exist_ok=True)
+        
+        variables_file = os.path.join(user_specific_dir, "variables.hy")
+
         plugin = plugin_registry.get_node_plugin("def-var")
         if not plugin:
             raise ValueError("Variable plugin not found")
 
-        # Create nodes for each variable
         lines = []
-        for key, variable_model in self._items.items():  # variable_model is now Variable object
+        for key, variable_model in self._items.items():
             typed_value_instance: TypedValue = variable_model.value
             dummy_node_for_format = HyNode(
                 type="def-var",
@@ -72,10 +89,10 @@ class VariableComponent(SystemComponent):
     def create_variable(
         self,
         key: str,
-        value: Any,  # This `value` can be raw Python or a Hy Expression (if from API)
-        is_dynamic: bool = False,  # New parameter for dynamic status
-        original_expression: Optional[str] = None,  # New parameter for original expression string
-        field_type: Optional[Union[FieldType, str]] = None,  # New parameter for declared field type
+        value: Any,
+        is_dynamic: bool = False,
+        original_expression: Optional[str] = None,
+        field_type: Optional[Union[FieldType, str]] = None,
     ) -> Variable:
         """Create a new variable, now supporting TypedValue directly."""
 
@@ -166,9 +183,9 @@ class VariableComponent(SystemComponent):
                     attribute="value",
                 )
                 raw_value_for_typed_value = (
-                    resolved_val  # Already converted by evaluate for non-hy return
+                    resolved_val  
                 )
-                field_type = infer_type(raw_value_for_typed_value)  # Re-infer type after resolution
+                field_type = infer_type(raw_value_for_typed_value)  
 
             updated_typed_value = TypedValue(
                 value=raw_value_for_typed_value,
@@ -188,13 +205,11 @@ class VariableComponent(SystemComponent):
         if not variable:
             raise ValueError(f"Variable key {old_key} not found")
 
-        # Create new variable with same TypedValue
         self._variable_manager.create(
             key=new_key,
-            value=variable.value,  # Pass the existing TypedValue
+            value=variable.value,  
         )
 
-        # Remove old variable
         self._variable_manager.remove(old_key)
 
         self.save()
@@ -208,15 +223,13 @@ class VariableComponent(SystemComponent):
             self.load()
 
         context_dict = {}
-        for key, var_model in self.items():  # self.items() gives the dict of Variable models
+        for key, var_model in self.items():  
             if (
                 var_model
                 and hasattr(var_model, "value")
                 and isinstance(var_model.value, TypedValue)
             ):
-                # We need the raw Python value for the context
                 context_dict[key] = var_model.value.value
-                # Also add the pythonic version for convenience
                 if "-" in key:
                     context_dict[key.replace("-", "_")] = var_model.value.value
             else:

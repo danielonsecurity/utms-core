@@ -93,6 +93,8 @@ class HyConverter:
 
     def model_to_py(self, model: Any, *, raw: bool = False) -> Any:
         if raw:
+            if isinstance(model, dict):
+                return { self.model_to_py(k, raw=True): self.model_to_py(v, raw=True) for k, v in model.items() }
             if isinstance(model, (hy.models.String, hy.models.Symbol)):
                 return str(model)
             if isinstance(model, hy.models.Integer):
@@ -106,6 +108,11 @@ class HyConverter:
             if isinstance(model, hy.models.Dict):
                 return [self.model_to_py(item, raw=True) for item in model]
             return model
+        if isinstance(model, dict):
+            return {
+                self.model_to_py(k): self.model_to_py(v) 
+                for k, v in model.items()
+            }
         if isinstance(model, hy.models.Expression):
             if len(model) > 0:
                 first_el_str = str(model[0])
@@ -152,6 +159,24 @@ class HyConverter:
         elif isinstance(model, hy.models.Keyword):
             return str(model)[1:]
         return model
+
+    def model_to_py_preserving_quoted_expressions(self, model: Any) -> Any:
+        """
+        Recursively converts a Hy model or hybrid object to a pure Python object,
+        WITH ONE EXCEPTION: if it encounters a `(quote ...)` expression, it
+        returns the inner expression object (`(start-occurrence...)`), preserving it as an AST node.
+        """
+        if isinstance(model, hy.models.Expression) and model and str(model[0]) == 'quote':
+            return model[1]
+        if isinstance(model, dict):
+            return {
+                self.model_to_py(k): self.model_to_py_preserving_quoted_expressions(v)
+                for k, v in model.items()
+            }
+        
+        if isinstance(model, (list, tuple, hy.models.List)):
+            return [self.model_to_py_preserving_quoted_expressions(item) for item in model]
+        return self.model_to_py(model)
 
     def model_to_string(self, model: hy.models.Object) -> str:
         """Renders a Hy AST model back into a clean Hy source string."""
