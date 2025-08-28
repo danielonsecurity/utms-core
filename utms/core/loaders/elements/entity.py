@@ -201,7 +201,24 @@ class EntityLoader(ComponentLoader[Entity, EntityManager]):
                         original=f"EVALUATION_ERROR: {initial_typed_value.original}"
                     )
             else:
-                final_attributes_for_model[attr_name] = initial_typed_value
+                attr_schema_details = entity_schema.get(raw_attr_name, {})
+                
+                declared_type_str = attr_schema_details.get("type")
+                field_type = FieldType.from_string(declared_type_str) if declared_type_str else initial_typed_value.field_type
+                
+                ref_entity_type = attr_schema_details.get("referenced_entity_type")
+                item_schema_type = attr_schema_details.get("item_schema_type")
+
+                self.logger.debug(f"  Correcting type for '{attr_name}' based on schema. Final type: {field_type}")
+
+                final_attributes_for_model[attr_name] = TypedValue(
+                    value=initial_typed_value.value,
+                    field_type=field_type,
+                    is_dynamic=initial_typed_value.is_dynamic,
+                    original=initial_typed_value.original,
+                    referenced_entity_type=ref_entity_type,
+                    item_schema_type=item_schema_type
+                )
 
             attributes_processed_from_instance.add(attr_name)
 

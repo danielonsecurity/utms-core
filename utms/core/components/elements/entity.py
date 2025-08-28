@@ -38,19 +38,25 @@ class CachedEntityData:
 class EntityComponent(SystemComponent):
     """Component managing UTMS entities with TypedValue attributes and categories."""
 
-    def __init__(self, config_dir: str, component_manager=None):
+    def __init__(self, config_dir: str, component_manager=None, username: Optional[str] = None):
         super().__init__(config_dir, component_manager)
         self._ast_manager = HyAST()
         self._entity_manager = EntityManager()
         self._loader = EntityLoader(self._entity_manager, component=self)
 
-        config_component = self.get_component("config")
-        if not config_component.is_loaded():
-            config_component.load()
-
-        active_user = config_component.get_config("active-user")
-        user_specific_dir = os.path.join(self._config_dir, "users", active_user.get_value())
-        self.logger.info(f"EntityComponent is now operating in user-specific directory: {user_specific_dir}")
+        if username:
+            self.username = username
+            user_specific_dir = os.path.join(self._config_dir, "users", self.username)
+            self.logger.info(f"EntityComponent is now operating for user '{self.username}' in directory: {user_specific_dir}")
+        else:
+            self.logger.warning("EntityComponent initialized without a username; falling back to 'active-user' from global config.")
+            config_component = self.get_component("config")
+            if not config_component.is_loaded():
+                config_component.load()
+            active_user_from_config = config_component.get_config("active-user").get_value()
+            self.username = active_user_from_config
+            user_specific_dir = os.path.join(self._config_dir, "users", self.username)
+            self.logger.info(f"EntityComponent is now operating in user-specific directory (from global config): {user_specific_dir}")
 
         self._entity_schema_def_dir = os.path.join(user_specific_dir, "entities")
         self._complex_type_def_dir = os.path.join(user_specific_dir, "types")

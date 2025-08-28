@@ -12,27 +12,31 @@ from utms.utms_types.field.types import TypedValue
 class PatternComponent(SystemComponent):
     """
     Component managing recurrence patterns.
-    It now scans a dedicated 'patterns/' directory for all .hy definition files.
+    It scans a global 'patterns/' directory and a user-specific 'patterns/' directory.
     """
 
-    def __init__(self, config_dir: str, component_manager=None):
+    def __init__(self, config_dir: str, component_manager=None, username: Optional[str] = None):
         super().__init__(config_dir, component_manager)
         self._ast_manager = HyAST()
         self._pattern_manager = PatternManager()
         self._loader = PatternLoader(self._pattern_manager)
 
         self._global_patterns_dir = os.path.join(self._config_dir, "global", "patterns")
-        
-        config_component = self.get_component("config")
-        if not config_component.is_loaded(): config_component.load()
-        active_user_config = config_component.get_config("active-user")
-
         self._user_patterns_dir = None
-        if active_user_config and (active_user := active_user_config.get_value()):
-            user_root = os.path.join(self._config_dir, "users", active_user)
+        effective_user = username
+        if not effective_user:
+            self.logger.warning("PatternComponent initialized without a username; falling back to 'active-user' from global config.")
+            config_component = self.get_component("config")
+            if not config_component.is_loaded(): config_component.load()
+            active_user_config = config_component.get_config("active-user")
+            effective_user = active_user_config.get_value() if active_user_config else None
+
+        if effective_user:
+            self.logger.info(f"PatternComponent is operating for user: '{effective_user}'")
+            user_root = os.path.join(self._config_dir, "users", effective_user)
             self._user_patterns_dir = os.path.join(user_root, "patterns")
         else:
-            self.logger.warning("No active user; only global patterns will be loaded.")
+            self.logger.warning("No active or specified user; only global patterns will be loaded.")
 
     def load(self) -> None:
         """Load patterns from global and user directories."""
@@ -82,13 +86,11 @@ class PatternComponent(SystemComponent):
         inside the 'patterns' directory.
         """
         if not self._user_patterns_dir:
-            self.logger.error("Cannot save anchors: No active user directory is configured.")
+            self.logger.error("Cannot save patterns: No active/specified user directory is configured.")
             return
 
         os.makedirs(self._user_patterns_dir, exist_ok=True)
-
         output_file = os.path.join(self._user_patterns_dir, "default.hy")
-        
         nodes = [pattern.to_hy() for pattern in self._items.values()]
         
         try:

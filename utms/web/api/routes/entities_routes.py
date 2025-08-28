@@ -18,38 +18,49 @@ from utms.web.api.models.entities import (
     LogMetricPayload,
     SetStepStatusPayload,
 )
-from utms.web.dependencies import get_config
+from utms.web.api.models.user import CurrentUser
+
+from utms.web.dependencies import get_config, get_current_user
 from utms.core.hy.converter import converter
 
 router = APIRouter()
 logger = get_logger()
 
 
-def get_entities_component(main_config: UTMSConfig = Depends(get_config)) -> EntityComponent:
-    entities_component = main_config.get_component("entities")
-    if not isinstance(entities_component, EntityComponent):
-        logger.error("Entities component not found or is not of type EntityComponent.")
-        raise HTTPException(status_code=500, detail="Entities component not available.")
-    if not entities_component._loaded:
-        logger.info("Entities component not loaded, attempting to load now for API request.")
-        try:
-            entities_component.load()
-        except Exception as e:
-            logger.error(
-                f"Failed to load entities component during API request: {e}", exc_info=True
-            )
-            raise HTTPException(status_code=500, detail="Failed to load entities data.")
-    return entities_component
+def get_user_entity_component(
+    main_config: UTMSConfig = Depends(get_config),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> EntityComponent:
+    """
+    A FastAPI dependency that creates and loads an EntityComponent
+    scoped to the currently authenticated user for a single request.
+    """
+    username = current_user.username 
+    if not username:
+        raise HTTPException(status_code=500, detail="Username claim not found in token.")
+        
+    logger.debug(f"Creating request-scoped EntityComponent for user: {username}")
 
+    user_entity_component = EntityComponent(
+        config_dir=main_config.utms_dir,
+        component_manager=main_config._component_manager, 
+        username=username
+    )
+    try:
+        user_entity_component.load()
+    except Exception as e:
+        logger.error(f"Failed to load entities component for user '{username}': {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to load user-specific entities data.")
+    
+    return user_entity_component
 
-# --- Entity Type Schema Routes ---
 @router.get(
     "/api/entities/types",
     response_model=List[EntityTypeDetailSchema],
     summary="Get all defined entity types with their schemas",
 )
 async def get_entity_types_with_details_api(
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     try:
         details = entities_component.get_all_entity_type_details()
@@ -59,18 +70,17 @@ async def get_entity_types_with_details_api(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-# --- Entity Instance Routes ---
 @router.get(
     "/api/entities",
     response_class=JSONResponse,
     summary="Get entities, optionally filtered by type and category",
 )
-async def get_entities_api(  # Renamed for clarity
+async def get_entities_api(
     entity_type: Optional[str] = Query(None, description="e.g., 'task', 'event' (lowercase)"),
     category: Optional[str] = Query(
         None, description="e.g., 'work', 'personal', 'default' (lowercase)"
     ),
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     logger.info(f"API: get_entities called with entity_type='{entity_type}', category='{category}'")
     try:
@@ -126,7 +136,7 @@ async def get_entities_api(  # Renamed for clarity
 )
 async def list_entity_categories_api(
     entity_type_key: str,
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     try:
         if not entities_component.entity_types.get(
@@ -156,7 +166,7 @@ async def get_single_entity_api(
     entity_type: str,
     category: str,
     name: str,
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     try:
         entity_model_instance = entities_component.get_entity(
@@ -193,7 +203,7 @@ async def create_new_entity_api(
         "default", embed=True, description="Category for the new entity (lowercase)"
     ),
     attributes_raw: Dict[str, Any] = Body(default_factory=dict, embed=True),
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     logger.debug(
         f"API create_new_entity: name='{name}', type='{entity_type}', category='{category}', attrs='{attributes_raw}'"
@@ -261,7 +271,7 @@ async def update_entity_attribute_api(
     name: str,
     attr_name: str,
     payload: AttributeUpdatePayload,
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     logger.debug(
         f"API update_entity_attribute: {entity_type}:{category}:{name}.{attr_name} with payload: {payload.model_dump(mode='json')}"
@@ -343,7 +353,7 @@ async def move_entity_category_api(
     entity_type: str,
     name: str,
     new_category: str = Body(..., embed=True, description="The new category name (lowercase)"),
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     logger.debug(
         f"API move_entity_category: Moving '{entity_type}:{name}' to category '{new_category}'"
@@ -387,7 +397,7 @@ async def delete_entity_api(
     entity_type: str,
     category: str,
     name: str,
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     try:
         if not entities_component.get_entity(entity_type.lower(), category.lower(), name):
@@ -416,7 +426,7 @@ async def rename_entity_api(
     new_category: Optional[str] = Body(
         None, embed=True, description="Optional new category (lowercase)"
     ),
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     logger.debug(
         f"API rename_entity: type='{entity_type}', old_cat='{old_category}', old_name='{old_name}', "
@@ -473,7 +483,7 @@ async def rename_entity_api(
 async def create_entity_category_api(
     entity_type_key: str,  # lowercase
     category_name: str = Body(..., embed=True, description="Name for the new category"),
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     logger.debug(
         f"API create_entity_category: type='{entity_type_key}', new_category='{category_name}'"
@@ -518,7 +528,7 @@ async def rename_entity_category_api(
     entity_type_key: str, 
     category_name: str, 
     new_category_name: str = Body(..., embed=True, description="New name for the category"),
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     logger.debug(
         f"API rename_entity_category: type='{entity_type_key}', old='{category_name}', new='{new_category_name}'"
@@ -563,7 +573,7 @@ async def delete_entity_category_api(
     move_entities_to_default: bool = Query(
         True, description="Move entities to 'default' category instead of deleting them."
     ),
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     logger.debug(
         f"API delete_entity_category: type='{entity_type_key}', category='{category_name}', move_to_default={move_entities_to_default}"
@@ -608,7 +618,7 @@ async def start_entity_occurrence_api(
     entity_type: str,
     category: str,
     name: str,
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     """
     Starts a new timed occurrence for a given entity.
@@ -646,7 +656,7 @@ async def end_entity_occurrence_api(
     category: str,
     name: str,
     payload: EndOccurrencePayload,
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     """
     Ends an in-progress timed occurrence. This creates a new entry in the
@@ -681,7 +691,7 @@ async def end_entity_occurrence_api(
     summary="Get all entities with a currently running timer (active occurrence)",
 )
 async def get_active_entities_api(
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     """
     Retrieves a list of all entities that have an 'active-occurrence-start-time'
@@ -719,7 +729,7 @@ async def log_metric_entry_api(
     category: str,
     name: str,
     payload: LogMetricPayload,
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     """
     Logs a new data entry for a given METRIC entity.
@@ -765,7 +775,7 @@ async def remove_metric_entry_api(
     category: str,
     name: str,
     timestamp: str = Query(..., description="The ISO 8601 timestamp of the entry to delete."),
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     """
     Deletes a single entry from a metric's log, identified by its exact timestamp.
@@ -803,7 +813,7 @@ async def remove_metric_entry_api(
 async def start_timer_api(
     category: str,
     name: str,
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     try:
         updated_entity = entities_component.start_timer(category=category, name=name)
@@ -825,7 +835,7 @@ async def start_timer_api(
 async def pause_timer_api(
     category: str,
     name: str,
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     try:
         updated_entity = entities_component.pause_timer(category=category, name=name)
@@ -847,7 +857,7 @@ async def pause_timer_api(
 async def reset_timer_api(
     category: str,
     name: str,
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     try:
         updated_entity = entities_component.reset_timer(category=category, name=name)
@@ -866,7 +876,7 @@ async def reset_timer_api(
 async def execute_action_api(
     action_code: str = Body(..., embed=True, description="The Hy code s-expression for the action"),
     entity_identifier: str = Body(None, embed=True, description="Optional 'type:category:name' of the parent entity"),
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     """
     Evaluates a Hy s-expression, typically from a routine's checklist item.
@@ -923,7 +933,7 @@ async def set_entity_step_status_api(
     name: str,
     step_name: str,
     payload: SetStepStatusPayload,
-    entities_component: EntityComponent = Depends(get_entities_component),
+    entities_component: EntityComponent = Depends(get_user_entity_component),
 ):
     """
     Sets the completion state of a specific checklist item for an active entity.

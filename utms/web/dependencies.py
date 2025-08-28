@@ -2,7 +2,7 @@ import requests
 from functools import lru_cache
 from typing import Dict, Optional
 
-from fastapi import Depends, Request, HTTPException
+from fastapi import Depends, Request, HTTPException, status
 from jose import jwt, JWTError
 
 
@@ -60,13 +60,30 @@ async def get_optional_current_user(
         )
 
         user_id = payload.get("sub")
-        if not user_id:
+        username = payload.get("preferred_username")
+        if not user_id or not username:
             return None
 
-        client_access = payload.get("resource_access", {}).get(audience, {})
+        resource_access = payload.get("resource_access", {})
+        client_access = resource_access.get(audience, {})
         roles = client_access.get("roles", [])
 
-        return CurrentUser(id=user_id, roles=roles)
+        return CurrentUser(id=user_id, username=username, roles=roles)
 
     except JWTError:
         return None
+
+async def get_current_user(
+    user: Optional[CurrentUser] = Depends(get_optional_current_user)
+) -> CurrentUser:
+    """
+    Depends on get_optional_current_user and raises an HTTPException
+    if the user is not authenticated. This is used to protect routes.
+    """
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    return user
